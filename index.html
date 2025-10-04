@@ -1,0 +1,1357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Legend of the Red Dragon – Town Square</title>
+  <style>
+    :root{
+      --bg: #050705;
+      --bg-2: #0a0f0a;
+      --phosphor: #6cff76;       /* main green */
+      --phosphor-dim: #3fd04d;   /* dim green */
+      --white-dim: #b7fbbf;
+      --cyan: #59fce4;
+      --yellow: #e6ff6e;
+      --magenta: #ff62cc;
+      --red: #ff6e6e;
+      --link: #86ffd0;
+      --purple: #c002ff;
+      --shadow: 0 0 .6rem rgba(108,255,118,.35), 0 0 1.2rem rgba(108,255,118,.25);
+    }
+
+    /* Page frame */
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      background: radial-gradient(160vmax 100vmax at 50% 30%, #0b120c 0%, var(--bg) 60%, #000 100%);
+      color: var(--phosphor);
+      font: 16px/1.35 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      display:grid;
+      place-items:stretch;
+    }
+
+    /* Full-viewport terminal container */
+    .crt{
+      position:relative;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      min-height:100vh;
+      padding:24px;
+      box-sizing:border-box;
+    }
+
+    /* Terminal bezel */
+    .screen{
+      position:relative;
+      flex:1;
+      max-width:1100px;
+      border-radius:14px;
+      padding:26px 28px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15)) ,
+        radial-gradient(120% 140% at 50% 10%, rgba(255,255,255,.03) 0 35%, rgba(0,0,0,.25) 80%),
+        var(--bg-2);
+      box-shadow:
+        inset 0 0 0 1px rgba(108,255,118,.15),
+        inset 0 0 40px rgba(0,0,0,.65),
+        0 20px 60px rgba(0,0,0,.6);
+      overflow:hidden;
+    }
+
+    /* Subtle curvature vignette */
+    .screen:before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(130% 90% at 50% -10%, rgba(255,255,255,.06), transparent 55%),
+        radial-gradient(140% 110% at 50% 120%, rgba(0,0,0,.55), transparent 60%);
+      mix-blend-mode:overlay;
+      pointer-events:none;
+    }
+    /* Scanlines + flicker */
+    .screen:after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 2px, rgba(0,0,0,0) 3px 4px);
+      opacity:.35;
+      animation: flicker 2.8s infinite steps(60);
+      pointer-events:none;
+    }
+    @keyframes flicker{
+      0%, 19%, 21%, 23%, 80%, 100% { opacity:.35; }
+      20%, 22%, 24% { opacity:.28; }
+    }
+
+    /* Terminal text defaults */
+    .term{
+      position:relative;
+      z-index:1;
+      width:100%;
+      height:100%;
+      color: var(--phosphor);
+      text-shadow: var(--shadow);
+    }
+    .term a{ color:var(--link); text-decoration:none; }
+    .dim{ color: var(--phosphor-dim); }
+    .cyan{ color: var(--cyan); }
+    .yellow{ color: var(--yellow); }
+    .magenta{ color: var(--magenta); }
+    .red{ color: var(--red); }
+    .white-dim{ color: var(--white-dim); }
+
+    .bar{
+      color: var(--phosphor);
+      letter-spacing:.5px;
+    }
+
+    .title-line{
+      display:flex;
+      gap:.6ch;
+      align-items:baseline;
+      margin-bottom:4px;
+    }
+    .title{
+      font-weight:700;
+      letter-spacing:.6px;
+    }
+    .subtitle{ color: var(--cyan); }
+
+    .rule{
+      margin:.2rem 0 .2rem;
+      color: var(--phosphor);
+    }
+
+    .lead{
+      margin-bottom:.75rem;
+      color: var(--white-dim);
+    }
+
+    /* Two-column command list */
+    .columns{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:28px 60px;
+      max-width: 980px;
+    }
+    .columns p{
+      margin:.2rem 0;
+    }
+
+    /* Footer/help */
+    .help{
+      margin-top: 1rem;
+      color: var(--magenta);
+    }
+    .help .keys{ color: var(--white-dim); }
+
+    .prompt{
+      margin-top: 1.2rem;
+    }
+    .prompt .name{ color: var(--cyan); }
+    .prompt .time{ color: var(--yellow); }
+
+    /* Visual helpers for letter options e.g. (F)orest */
+    .opt { color: var(--phosphor); }
+    .opt b{
+      color: var(--purple);
+      font-weight:700;
+      text-shadow: var(--shadow);
+    }
+
+    .view{ display:none; }
+.view.active{ display:block; }
+
+
+    /* Make sure long lines wrap like a terminal would */
+
+
+    /* Small screens */
+    @media (max-width: 760px){
+      .columns{ grid-template-columns: 1fr; gap:18px; }
+      .screen{ padding:18px; }
+    }
+  
+    /* ===== Terminal-style modal ===== */
+    .modal{
+      position:absolute; inset:0;
+      display:none; align-items:center; justify-content:center;
+      z-index:10;
+    }
+    .modal.show{ display:flex; }
+    .modal__backdrop{
+      position:absolute; inset:0;
+      background: rgba(5,7,5,.78);
+      backdrop-filter: blur(1px);
+    }
+    .modal__panel{
+      position:relative;
+      width:min(760px, calc(100% - 40px));
+      border-radius:12px;
+      padding:16px 18px;
+      background: var(--bg-2);
+      color: var(--phosphor);
+      text-shadow: var(--shadow);
+      box-shadow:
+        inset 0 0 0 1px rgba(125,255,138,.22),
+        inset 0 0 36px rgba(0,0,0,.6),
+        0 24px 60px rgba(0,0,0,.75);
+      display:none;
+    }
+    .modal__panel.active{ display:block; }
+    .modal__panel:after{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 2px, rgba(0,0,0,0) 3px 4px);
+      opacity:.25;
+    }
+    .modal__title{ color: var(--cyan); font-weight:700; margin-bottom:.35rem; }
+    .modal__rule{ color: var(--phosphor); margin:.1rem 0 .6rem; }
+    .modal__body{ white-space:pre-wrap; }
+    .modal__footer{ margin-top:.6rem; color: var(--white-dim); }
+    .modal__hint{ color: var(--magenta); }
+
+    .box{ padding:.4rem .6rem; border:1px solid rgba(125,255,138,.25); background: rgba(10,17,12,.35); }
+    .mono{ font-family:inherit; white-space:pre; }
+
+  </style>
+</head>
+<body>
+  <main class="crt">
+    <section class="screen" role="region" aria-label="Terminal">
+     <div class="term" role="document" aria-label="BBS Screen">
+
+  <!-- TOWN SQUARE (now contains its content and options) -->
+  <section id="view-town" class="view active" aria-hidden="false">
+    <div class="title-line">
+      <span class="title">Legend Of The Redux Dragon</span>
+      <span class="bar">–</span>
+      <span class="subtitle">Town Square</span>
+    </div>
+
+    <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+    <div class="lead">
+The streets are crowded, it is difficult to
+push your way through the mob....
+    </div>
+
+    <div class="columns" aria-label="Options">
+      <div>
+        <p class="opt">(<b>F</b>)orest</p>
+        <p class="opt">(<b>K</b>)ing Arthurs Weapons</p>
+        <p class="opt">(<b>H</b>)ealers Hut</p>
+
+        <!-- make this navigable to the Inn -->
+        <p class="opt option" data-key="I" data-target="inn">(<b>I</b>)nn</p>
+
+        <p class="opt">(<b>Y</b>)e Old Bank</p>
+        <p class="opt">(<b>W</b>)rite Mail</p>
+        <p class="opt">(<b>C</b>)onjugality List</p>
+        <p class="opt">(<b>X</b>)pert Mode</p>
+        <p class="opt">(<b>P</b>)eople Online</p>
+      </div>
+
+      <div>
+        <p class="opt">(<b>S</b>)laughter other players</p>
+        <p class="opt">(<b>A</b>)bduls Armour</p>
+        <p class="opt">(<b>V</b>)iew your stats</p>
+        <p class="opt">(<b>T</b>)urgons Warrior Training</p>
+        <p class="opt">(<b>L</b>)ist Warriors</p>
+        <p class="opt">(<b>D</b>)aily News</p>
+        <p class="opt">(<b>O</b>)ther Places</p>
+        <p class="opt">(<b>M</b>)ake Announcement</p>
+        <p class="opt">(<b>Q</b>)uit to Fields</p>
+      </div>
+    </div>
+
+    <div class="help">
+      <span class="cyan">The Town Square</span> <span class="white-dim">(? for menu)</span>
+      <span class="keys">(F,S,K,A,H,V,I,T,Y,L,W,D,C,O,X,M,P,Q)</span>
+    </div>
+
+    <div class="prompt">
+      Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+    </div>
+  </section>
+
+  <!-- INN (matches Town Square structure) -->
+<section id="view-inn" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">The Inn</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+You step into the warm glow of the Inn. Tankards clink and
+a bard quietly tunes a battered lute.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>C</b>)onverse with the patrons</p>
+      <p class="opt">(<b>F</b>)lirt with Violet</p>
+      <p class="opt">(<b>G</b>)et a Room</p>
+      <p class="opt">(<b>H</b>)ear Seth Able the Bard</p>
+      <p class="opt">(<b>R</b>)eturn to Town</p>
+    </div>
+
+    <div>
+      <p class="opt">(<b>D</b>)aily News</p>
+      <p class="opt">(<b>T</b>)alk to the Bartender</p>
+      <p class="opt">(<b>V</b>)iew Your Stats</p>
+      <p class="opt">(<b>M</b>)ake Announcement</p>
+      <!-- navigate back to Town Square -->
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">The Inn</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(C,F,G,H,R,D,T,V,M)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- FOREST -->
+<section id="view-forest" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">The Forest</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+The woods close in around you. Monsters lurk, strange events unfold,
+and rumors tell of gamblers and gnomes with rigged games of chance....
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>F</b>)ight monsters</p>
+      <p class="opt">(<b>E</b>)xplore the deeper woods</p>
+      <p class="opt">(<b>C</b>)limb a tree and scout</p>
+      <p class="opt">(<b>H</b>)eal up and catch your breath</p>
+    </div>
+    <div>
+      <p class="opt">(<b>G</b>)amble if you meet that pesky gnome</p>
+      <p class="opt">(<b>V</b>)iew your stats</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">The Forest</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(F,E,C,H,G,V,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- KING ARTHUR'S WEAPONS -->
+<section id="view-weapons" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">King Arthur's Weapons</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Racks of blades glint under torchlight. The proprietor eyes your purse
+and promises that the right edge will turn the tide against the dragon.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>B</b>)uy a weapon</p>
+      <p class="opt">(<b>S</b>)ell a weapon</p>
+      <p class="opt">(<b>V</b>)iew available stock</p>
+    </div>
+    <div>
+      <p class="opt">(<b>H</b>)aggle shamelessly</p>
+      <p class="opt">(<b>W</b>)eapon tips and lore</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">King Arthur's Weapons</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(B,S,V,H,W,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- ABDUL'S ARMOUR -->
+<section id="view-armour" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Abdul's Armour</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Greaves, cuirasses, and exotic plate line the walls. Abdul insists that
+defense wins duels — and lives to boast about it.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>B</b>)uy armour</p>
+      <p class="opt">(<b>S</b>)ell armour</p>
+      <p class="opt">(<b>V</b>)iew catalogue</p>
+    </div>
+    <div>
+      <p class="opt">(<b>F</b>)it &amp; sizing advice</p>
+      <p class="opt">(<b>H</b>)ow armour affects combat</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Abdul's Armour</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(B,S,V,F,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- HEALER'S HUT -->
+<section id="view-healer" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Healer's Hut</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Herbs simmer in a clay pot. The healer offers salves, stitches, and
+stern advice about picking fewer fights than you can finish.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>H</b>)eal to full</p>
+      <p class="opt">(<b>P</b>)artial treatment</p>
+      <p class="opt">(<b>T</b>)ips for staying alive</p>
+    </div>
+    <div>
+      <p class="opt">(<b>V</b>)iew your current wounds</p>
+      <p class="opt">(<b>D</b>)onate to the healer</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Healer's Hut</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(H,P,T,V,D,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- YE OLDE BANK -->
+<section id="view-bank" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Ye Olde Bank</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+The teller counts coins with mechanical precision. A safe place to stash
+gold — unless you prefer to tempt fate in the fields.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>D</b>)eposit gold</p>
+      <p class="opt">(<b>W</b>)ithdraw gold</p>
+      <p class="opt">(<b>B</b>)alance inquiry</p>
+    </div>
+    <div>
+      <p class="opt">(<b>T</b>)ransfer funds</p>
+      <p class="opt">(<b>R</b>)ead bank rules</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Ye Olde Bank</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(D,W,B,T,R,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- WRITE MAIL -->
+<section id="view-mail" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Write Mail</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+A scribe hands you a quill and a blotter. Messages here are swift,
+sharp, and sometimes regrettable by sunrise.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>W</b>)rite a new message</p>
+      <p class="opt">(<b>R</b>)ead your mail</p>
+      <p class="opt">(<b>D</b>)elete a message</p>
+    </div>
+    <div>
+      <p class="opt">(<b>L</b>)ist recent correspondence</p>
+      <p class="opt">(<b>S</b>)end to player by name</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Write Mail</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(W,R,D,L,S,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- CONJUGALITY LIST -->
+<section id="view-conjugal" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Conjugality List</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+A scandalous ledger of vows and visits. Here the realm keeps track of
+who wooed whom — and who snuck in for a midnight tryst.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>L</b>)ist married couples</p>
+      <p class="opt">(<b>V</b>)iew visit history</p>
+      <p class="opt">(<b>S</b>)earch by name</p>
+    </div>
+    <div>
+      <p class="opt">(<b>G</b>)ossip &amp; rumors</p>
+      <p class="opt">(<b>H</b>)ow marriage works</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Conjugality List</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(L,V,S,G,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- PEOPLE ONLINE -->
+<section id="view-people" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">People Online</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+A quick roll call of adventurers currently in the realm — and how long
+they’ve been lurking.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>L</b>)ist players online</p>
+      <p class="opt">(<b>W</b>)hisper to someone</p>
+      <p class="opt">(<b>C</b>)hat request</p>
+    </div>
+    <div>
+      <p class="opt">(<b>S</b>)py (if permitted)</p>
+      <p class="opt">(<b>H</b>)elp on chat commands</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">People Online</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(L,W,C,S,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- SLAUGHTER OTHER PLAYERS -->
+<section id="view-slaughter" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">The Fields (PvP)</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Out beyond the town walls, rivals nap or prowl. Choose your target
+wisely — or wake up dead tomorrow.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>L</b>)ist eligible targets</p>
+      <p class="opt">(<b>A</b>)ttack sleeping rivals</p>
+      <p class="opt">(<b>V</b>)iew last night’s battles</p>
+    </div>
+    <div>
+      <p class="opt">(<b>S</b>)py on a target</p>
+      <p class="opt">(<b>H</b>)ow PvP works</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">The Fields</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(L,A,V,S,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- TURGON'S WARRIOR TRAINING -->
+<section id="view-training" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Turgon's Warrior Training</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Turgon sneers at sloppy stance and soft bellies. Prove your worth —
+or pay in bruises.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>C</b>)hallenge your master</p>
+      <p class="opt">(<b>L</b>)earn a technique</p>
+      <p class="opt">(<b>V</b>)iew rank &amp; progress</p>
+    </div>
+    <div>
+      <p class="opt">(<b>H</b>)elp on training rules</p>
+      <p class="opt">(<b>S</b>)par with a pupil</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Turgon's Warrior Training</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(C,L,V,H,S,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- VIEW YOUR STATS -->
+<section id="view-stats" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Your Stats</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+A tidy ledger of your prowess, purse, and peril.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>V</b>)iew attributes</p>
+      <p class="opt">(<b>E</b>)quipment &amp; effects</p>
+      <p class="opt">(<b>H</b>)istory &amp; achievements</p>
+    </div>
+    <div>
+      <p class="opt">(<b>T</b>)itles &amp; standings</p>
+      <p class="opt">(<b>P</b>)rogression tips</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Your Stats</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(V,E,H,T,P,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- DAILY NEWS -->
+<section id="view-news" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Daily News</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Scrawled notes from across the realm — victories, defeats, scandals,
+and sysop scribbles.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>R</b>)ead today’s happenings</p>
+      <p class="opt">(<b>A</b>)rchive: earlier days</p>
+      <p class="opt">(<b>S</b>)earch by player</p>
+    </div>
+    <div>
+      <p class="opt">(<b>M</b>)ake an announcement</p>
+      <p class="opt">(<b>H</b>)elp on news codes</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Daily News</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(R,A,S,M,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- LIST WARRIORS -->
+<section id="view-warriors" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">List Warriors</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+The full roll of heroes and fools — living, dead, online, and off.
+Sort carefully; rivals take notes.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>L</b>)ist all warriors</p>
+      <p class="opt">(<b>O</b>)nline only</p>
+      <p class="opt">(<b>D</b>)ead or alive filters</p>
+    </div>
+    <div>
+      <p class="opt">(<b>S</b>)earch by name</p>
+      <p class="opt">(<b>R</b>)ankings &amp; titles</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">List Warriors</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(L,O,D,S,R,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- OTHER PLACES (IGMs) -->
+<section id="view-other" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Other Places</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Doors to extensions and add-ons the sysop has installed. Enter if you
+like surprises.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>L</b>)ist installed modules</p>
+      <p class="opt">(<b>V</b>)iew descriptions</p>
+      <p class="opt">(<b>R</b>)eturn after visiting</p>
+    </div>
+    <div>
+      <p class="opt">(<b>H</b>)elp on IGMs</p>
+      <p class="opt">(<b>S</b>)uggest an add-on</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Other Places</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(L,V,R,H,S,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- EXPERT MODE (toggle) -->
+<section id="view-expert" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Xpert Mode</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Experienced players skip verbose descriptions and just take the prompts.
+Toggle here if you like it fast and terse.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>X</b>) Toggle expert mode</p>
+      <p class="opt">(<b>H</b>)ow expert mode works</p>
+    </div>
+    <div>
+      <p class="opt">(<b>V</b>)iew current setting</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Xpert Mode</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(X,H,V,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- MAKE ANNOUNCEMENT -->
+<section id="view-announce" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Make Announcement</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+For a modest fee, the scribe will etch your words into the Daily News
+for all to see — and judge.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>W</b>)rite announcement</p>
+      <p class="opt">(<b>P</b>)review text</p>
+      <p class="opt">(<b>S</b>)ubmit to scribe</p>
+    </div>
+    <div>
+      <p class="opt">(<b>F</b>)ee details</p>
+      <p class="opt">(<b>H</b>)elp &amp; etiquette</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Make Announcement</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(W,P,S,F,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- QUIT TO FIELDS -->
+<section id="view-fields" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Quit to Fields</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+You step out into the fields to rest. Beware: others may come hunting.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt">(<b>R</b>)ent a room at the Inn instead</p>
+      <p class="opt">(<b>S</b>)ee what could happen overnight</p>
+    </div>
+    <div>
+      <p class="opt">(<b>H</b>)elp on sleeping rules</p>
+      <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)Back to Town Square</p>
+    </div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Quit to Fields</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(R,S,H,Q)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+
+
+
+
+
+      <!-- ===== Modal overlay (terminal-styled) ===== -->
+      <div class="modal" id="modal" aria-hidden="true">
+        <div class="modal__backdrop" aria-hidden="true"></div>
+
+        <!-- INN modals -->
+        <div class="modal__panel" data-view="inn" data-modal="rest" role="dialog" aria-label="Rest at the Inn">
+          <div class="modal__title">Rest at the Inn</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body box mono">
+A small room is available for  15 gold.
+Resting restores your health to full.
+
+Options: (Y)es rest   (N)o
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="inn" data-modal="barkeep" role="dialog" aria-label="Talk with the Barkeep">
+          <div class="modal__title">Talk with the Barkeep</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+“Evening, <span class="name">PunkyRoo</span>. Word is goblins skulk near the mill. Bring a sharper blade.”
+Options: (R)umors  (J)obs  (P)rices
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="inn" data-modal="gossip" role="dialog" aria-label="Gossip &amp; Rumors">
+          <div class="modal__title">Gossip &amp; Rumors</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+• Gnome seen running a crooked game in the woods
+• Abdul got a shipment of lacquered brigandine
+• Check Daily News for dawn duels
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <!-- WEAPONS modals -->
+        <div class="modal__panel" data-view="weapons" data-modal="buy" role="dialog" aria-label="Buy a Weapon">
+          <div class="modal__title">Buy a Weapon</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body mono">
+ID  Weapon             Dmg  Cost
+──  ─────────────────  ───  ─────
+1   Dagger              2    15
+2   Shortsword          4    60
+3   Longsword           6   180
+4   Battle Axe          8   350
+5   Dragon Spear       12   900
+
+Enter (1-5) to purchase, or (Q) to cancel.
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="weapons" data-modal="sell" role="dialog" aria-label="Sell a Weapon">
+          <div class="modal__title">Sell a Weapon</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+You carry:
+• Longsword  (6 dmg) — offer: 120 gold
+• Old Dagger (2 dmg) — offer: 8 gold
+
+Select: (1) Longsword  (2) Dagger   (Q) Cancel
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="weapons" data-modal="view" role="dialog" aria-label="Available Stock">
+          <div class="modal__title">Available Stock</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+Longsword — reliable edge against forest beasts.
+Battle Axe — slower, heavy blows that crack armor.
+Dragon Spear — fabled reach; prized by slayers.
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <!-- BANK modals -->
+        <div class="modal__panel" data-view="bank" data-modal="deposit" role="dialog" aria-label="Deposit Gold">
+          <div class="modal__title">Deposit Gold</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body mono">
+On hand:  312 gold
+In bank:  1,425 gold
+
+Amount to deposit: [____]   (Enter to confirm, Q to cancel)
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="bank" data-modal="withdraw" role="dialog" aria-label="Withdraw Gold">
+          <div class="modal__title">Withdraw Gold</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body mono">
+On hand:   312 gold
+In bank:  1,425 gold
+
+Amount to withdraw: [____]   (Enter to confirm, Q to cancel)
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="bank" data-modal="balance" role="dialog" aria-label="Balance">
+          <div class="modal__title">Balance</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body mono box">
+┌─────────────────────────┐
+│ On hand:      312 gold │
+│ In bank:     1425 gold │
+│ Total:       1737 gold │
+└─────────────────────────┘
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <!-- FOREST modals -->
+        <div class="modal__panel" data-view="forest" data-modal="fight" role="dialog" aria-label="Forest Fight">
+          <div class="modal__title">A Wild Boar Appears!</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+HP: 18  ATK: 4  DEF: 1
+Your HP: 21  Weapon: Longsword (6)
+
+(A)ttack  (S)pecial  (R)un
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="forest" data-modal="explore" role="dialog" aria-label="Deep Woods">
+          <div class="modal__title">Deep Woods</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+You find trampled brush and a torn scrap of cloth — something
+strong passed this way recently. The air smells of smoke.
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="forest" data-modal="gamble" role="dialog" aria-label="Gnome's Game">
+          <div class="modal__title">The Gnome’s Game</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+“Blackjack, friend? Double or nothing!”
+
+Purse: 312 gold    Bet: [___]
+(D)eal  (Q)uit table
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <!-- MAIL modals -->
+        <div class="modal__panel" data-view="mail" data-modal="inbox" role="dialog" aria-label="Inbox">
+          <div class="modal__title">Inbox</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+1  [Nyx]  “Meet at the Inn?”           (unread)
+2  [Turgon] Training notes             (read)
+3  [Sysop]  Welcome to the realm       (read)
+
+Open (1-3), (D)elete, or (Q) back.
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="mail" data-modal="compose" role="dialog" aria-label="Write Mail">
+          <div class="modal__title">Write Message</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+To: [__________]
+───────────────────────────────────────────
+
+(Body...)
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <!-- STATS modals -->
+        <div class="modal__panel" data-view="stats" data-modal="attrs" role="dialog" aria-label="Attributes">
+          <div class="modal__title">Attributes</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+Level: 3   HP: 21/24   Gold: 312   Bank: 1425
+STR: 7  AGI: 6  STA: 5  CHR: 4
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="stats" data-modal="equip" role="dialog" aria-label="Equipment">
+          <div class="modal__title">Equipment</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+Weapon: Longsword (6)
+Armour: Leather Jerkin (+1)
+Charm:  Rabbit’s Foot (+1 luck)
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+
+
+  
+<script>
+(() => {
+  const SCREEN = document.querySelector('.screen');
+  const VROOT  = document.querySelector('.term');
+  const MODAL  = document.getElementById('modal');
+  const PANELS = MODAL ? MODAL.querySelectorAll('.modal__panel') : [];
+
+  let current = 'town';
+  const currentSub = {};
+
+  const ROUTES = {
+    town: {
+      F:'forest',  S:'slaughter', K:'weapons', A:'armour', H:'healer',
+      V:'stats',   I:'inn',       T:'training', Y:'bank',   L:'warriors',
+      W:'mail',    D:'news',      C:'conjugal', O:'other',  X:'expert',
+      M:'announce',P:'people',    Q:'fields'
+    },
+    inn: { Q:'town' }
+  };
+
+  const MODALS = {
+    inn:     { R:'rest', T:'barkeep', G:'gossip' },
+    weapons: { B:'buy',  S:'sell',    V:'view' },
+    bank:    { D:'deposit', W:'withdraw', B:'balance' },
+    forest:  { F:'fight', E:'explore', G:'gamble' },
+    mail:    { W:'compose', R:'inbox' },
+    stats:   { V:'attrs', E:'equip' }
+  };
+
+  function selectView(id){
+    const nextEl = document.getElementById(`view-${id}`);
+    if (!nextEl) return;
+
+    closeModal();
+
+    VROOT.querySelectorAll('.view').forEach(el => {
+      const isActive = el === nextEl;
+      el.classList.toggle('active', isActive);
+      el.setAttribute('aria-hidden', String(!isActive));
+    });
+
+    current = id;
+  }
+
+  function openModal(panelId){
+    if (!MODAL) return;
+    let target = null;
+    PANELS.forEach(p => {
+      const match = p.getAttribute('data-modal') === panelId && p.dataset.view === current;
+      p.classList.toggle('active', match);
+      if (match) target = p;
+    });
+    if (!target) return;
+    MODAL.classList.add('show');
+    currentSub[current] = panelId;
+    target.setAttribute('tabindex','-1');
+    target.focus({ preventScroll: true });
+  }
+
+  function closeModal(){
+    if (!MODAL) return;
+    MODAL.classList.remove('show');
+    PANELS.forEach(p => p.classList.remove('active'));
+    delete currentSub[current];
+  }
+
+  function getOptions(){
+    // If modal open, read keys from the active modal
+    if (MODAL && MODAL.classList.contains('show')){
+      const map = {};
+      const activePanel = MODAL.querySelector('.modal__panel.active');
+      if (activePanel){
+        activePanel.querySelectorAll('.option[data-key]').forEach(el => {
+          const key = (el.getAttribute('data-key')||'').trim().toUpperCase();
+          const tView  = (el.getAttribute('data-target')||'').trim();
+          const tModal = (el.getAttribute('data-modal')||'').trim();
+          if (!key) return;
+          if (tModal) map[key] = { kind:'open-modal', target:tModal };
+          else if (tView) map[key] = { kind:'goto-view', target:tView };
+          else map[key] = { kind:'modal-action', target: el.dataset.action || '' };
+        });
+        map['Q'] = map['Q'] || { kind:'close-modal', target:'' };
+      }
+      return map;
+    }
+
+    // Else, read from active view and merge fallbacks
+    const map = {};
+    const active = VROOT.querySelector('.view.active');
+    if (active){
+      active.querySelectorAll('.option[data-key]').forEach(el => {
+        const key = (el.getAttribute('data-key')||'').trim().toUpperCase();
+        const tView  = (el.getAttribute('data-target')||'').trim();
+        const tModal = (el.getAttribute('data-modal')||'').trim();
+        if (!key) return;
+        if (tModal) map[key] = { kind:'open-modal', target:tModal };
+        else if (tView) map[key] = { kind:'goto-view', target:tView };
+        else map[key] = { kind:'view-action', target: el.dataset.action || '' };
+      });
+    }
+    const r = ROUTES[current] || {};
+    Object.keys(r).forEach(k => {
+      const K = k.toUpperCase();
+      if (!map[K]) map[K] = { kind:'goto-view', target:r[K] };
+    });
+    const m = MODALS[current] || {};
+    Object.keys(m).forEach(k => {
+      const K = k.toUpperCase();
+      if (!map[K]) map[K] = { kind:'open-modal', target:m[K] };
+    });
+    return map;
+  }
+
+  let helpTimer = null;
+  function showHelp(){
+    const opts = Object.keys(getOptions()).join(', ');
+    const toast = document.createElement('div');
+    toast.textContent = opts ? `Available: ${opts}` : 'No options here';
+    Object.assign(toast.style, {
+      position:'absolute', bottom:'16px', right:'22px',
+      padding:'6px 10px', borderRadius:'6px',
+      background:'rgba(10,17,12,.75)', color:'var(--phosphor)',
+      border:'1px solid rgba(125,255,138,.25)',
+      textShadow:'0 0 .35rem rgba(125,255,138,.35)', fontFamily:'inherit', zIndex:20
+    });
+    SCREEN.appendChild(toast);
+    clearTimeout(helpTimer);
+    helpTimer = setTimeout(()=>toast.remove(), 1800);
+  }
+
+  window.addEventListener('keydown', (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    const k = ev.key.length === 1 ? ev.key.toUpperCase() : ev.key;
+
+    if (k === 'Escape'){ closeModal(); return; }
+    if (k === '?'){ showHelp(); return; }
+
+    const options = getOptions();
+    const hit = options[k];
+    if (!hit) return;
+
+    ev.preventDefault();
+
+    if (hit.kind === 'goto-view' && document.getElementById(`view-${hit.target}`)){
+      closeModal();
+      selectView(hit.target);
+      return;
+    }
+    if (hit.kind === 'open-modal'){
+      openModal(hit.target);
+      return;
+    }
+    if (hit.kind === 'close-modal'){
+      closeModal();
+      return;
+    }
+    // placeholder: handle actions if desired
+  });
+
+  VROOT.addEventListener('click', (e) => {
+    const el = e.target.closest('.option[data-key]');
+    if (!el) return;
+    const tView  = el.getAttribute('data-target');
+    const tModal = el.getAttribute('data-modal');
+    if (tModal){ openModal(tModal); return; }
+    if (tView && document.getElementById(`view-${tView}`)){ closeModal(); selectView(tView); }
+  });
+
+  if (MODAL){
+    MODAL.addEventListener('click', (e)=>{
+      if (e.target.classList.contains('modal__backdrop')) closeModal();
+    });
+  }
+
+  selectView(current);
+  window.BBS = { selectView, openModal, closeModal, getOptions, ROUTES, MODALS, get current(){ return current; } };
+})();
+</script>
+
+</body>
+</html>
