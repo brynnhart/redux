@@ -1,17 +1,12 @@
 module.exports = {
-  async get(ctx) {
-    const character = ctx.getCurrentCharacter();
-
+  async get() {
     return {
-      id: 'armour',
-      title: "Rhea's Armory",
-      character,
-      description: 'Layer yourself in protection with shields and armor built to weather any storm.',
-      inventory: [
-        { name: 'Chainmail Hauberk', cost: 180, defense: 14 },
-        { name: 'Runed Shield', cost: 200, defense: 16 },
-        { name: 'Leather Brigandine', cost: 110, defense: 9 },
+      items: [
+        { id: 'armour-wooden-shield', name: 'Wooden Shield', stat: 3, price: 40 },
+        { id: 'armour-chainmail', name: 'Chainmail', stat: 8, price: 135 },
+        { id: 'armour-plate', name: 'Steel Plate', stat: 14, price: 280 },
       ],
+      resaleHint: '~½ price; charm may improve offer',
     };
   },
 };

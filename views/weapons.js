@@ -1,17 +1,12 @@
 module.exports = {
-  async get(ctx) {
-    const character = ctx.getCurrentCharacter();
-
+  async get() {
     return {
-      id: 'weapons',
-      title: "Derrin's Arsenal",
-      character,
-      description: 'Blades, bows, and implements of war forged by the finest smiths in the land.',
-      inventory: [
-        { name: 'Steel Longsword', cost: 150, attack: 12 },
-        { name: 'Oak Longbow', cost: 120, attack: 10 },
-        { name: 'Enchanted Dagger', cost: 220, attack: 15 },
+      items: [
+        { id: 'weapon-dagger', name: 'Dagger', stat: 3, price: 35 },
+        { id: 'weapon-sword', name: 'Longsword', stat: 9, price: 150 },
+        { id: 'weapon-axe', name: 'Battle Axe', stat: 13, price: 245 },
       ],
+      resaleHint: '~½ price; charm may improve offer',
     };
   },
 };

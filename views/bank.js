@@ -3,17 +3,11 @@ module.exports = {
     const character = ctx.getCurrentCharacter();
 
     return {
-      id: 'bank',
-      title: 'Bank of the Realm',
-      character,
-      balances: character
-        ? {
-            purse: character.gold,
-            vault: character.bank_gold,
-            gems: character.gems,
-          }
-        : null,
-      description: 'Secure your fortune and plan your investments with the royal bankers.',
+      onHand: character?.gold ?? 0,
+      inBank: character?.bank_gold ?? 0,
+      canTransfer: Boolean(character),
+      transferLimitPerDay: 2,
+      transferMax: 500,
     };
   },
 };

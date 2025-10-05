@@ -1,21 +1,32 @@
 module.exports = {
   async get(ctx) {
     const character = ctx.getCurrentCharacter();
-    const charId = character?.id;
-    const inbox = charId
-      ? ctx.db
-          .prepare(
-            'SELECT id, to_char, from_char, body, created_at, read_at FROM mail WHERE to_char = ? ORDER BY datetime(created_at) DESC'
-          )
-          .all(charId)
-      : [];
+    if (!character) {
+      return { inbox: [], unread: 0 };
+    }
+
+    const inbox = ctx.db
+      .prepare(
+        `SELECT m.id, sender.name AS sender_name, m.body, m.created_at, m.read_at
+         FROM mail m
+         LEFT JOIN characters sender ON sender.id = m.from_char
+         WHERE m.to_char = ?
+         ORDER BY datetime(m.created_at) DESC`
+      )
+      .all(character.id)
+      .map((row) => ({
+        id: row.id,
+        from: row.sender_name,
+        body: row.body,
+        created_at: row.created_at,
+        read_at: row.read_at,
+      }));
+
+    const unread = inbox.filter((message) => !message.read_at).length;
 
     return {
-      id: 'mail',
-      title: 'Postmaster General',
-      character,
       inbox,
-      description: 'Messages dispatched across the realm arrive sealed with wax and wonder.',
+      unread,
     };
   },
 };
