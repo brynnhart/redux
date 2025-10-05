@@ -802,6 +802,25 @@ Options: (Y)es rest   (N)o
   const MODAL  = document.getElementById('modal');
   const PANELS = MODAL ? MODAL.querySelectorAll('.modal__panel') : [];
 
+  const binderReady = window.BINDER_READY || new Promise((resolve) => {
+    if (window.BINDER) {
+      resolve(window.BINDER);
+      return;
+    }
+    const handler = (event) => {
+      resolve((event && event.detail) || window.BINDER);
+    };
+    window.addEventListener('binder:ready', handler, { once: true });
+  });
+
+  function withBinder(fn) {
+    binderReady
+      .then((binder) => fn(binder))
+      .catch((err) => {
+        console.error('Binder integration error', err);
+      });
+  }
+
   let current = 'town';
   const currentSub = {};
 
@@ -837,6 +856,17 @@ Options: (Y)es rest   (N)o
     });
 
     current = id;
+
+    const viewId = id;
+    const viewElement = nextEl;
+    withBinder(async (binder) => {
+      const data = await binder.fetchView(viewId);
+      if (!data) return;
+      if (current !== viewId) return;
+      if (!document.body.contains(viewElement)) return;
+      if (!viewElement.classList.contains('active')) return;
+      binder.bindInto(viewElement, data, { view: viewId });
+    });
   }
 
   function openModal(panelId){
@@ -852,6 +882,18 @@ Options: (Y)es rest   (N)o
     currentSub[current] = panelId;
     target.setAttribute('tabindex','-1');
     target.focus({ preventScroll: true });
+
+    const viewId = current;
+    const modalId = panelId;
+    const panelEl = target;
+    withBinder(async (binder) => {
+      const data = await binder.fetchModal(viewId, modalId);
+      if (!data) return;
+      if (current !== viewId) return;
+      if (!MODAL.classList.contains('show')) return;
+      if (!panelEl.classList.contains('active')) return;
+      binder.bindInto(panelEl, data, { view: viewId, modal: modalId });
+    });
   }
 
   function closeModal(){

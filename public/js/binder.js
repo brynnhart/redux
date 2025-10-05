@@ -264,6 +264,48 @@ async function fetchModalData(viewId, modalId) {
   return MODAL_CACHE.get(key);
 }
 
+function resolveElement(target) {
+  if (!target) return null;
+  if (target instanceof Element) return target;
+  if (typeof target === 'string') {
+    return document.querySelector(target);
+  }
+  return null;
+}
+
+function inferScope(el, options = {}) {
+  let viewId = options.view || null;
+  let modalId = options.modal || null;
+
+  if (!viewId) {
+    const attr = typeof el.getAttribute === 'function' ? el.getAttribute('data-view') : null;
+    if (attr) {
+      viewId = attr;
+    } else if (el.id && el.id.startsWith('view-')) {
+      viewId = el.id.replace(/^view-/, '');
+    }
+  }
+
+  if (!modalId && typeof el.getAttribute === 'function') {
+    const attr = el.getAttribute('data-modal');
+    if (attr) {
+      modalId = attr;
+    }
+  }
+
+  const scopeKey = options.scope || (viewId ? getScopeKey(viewId, modalId) : null);
+  return { viewId, modalId, scopeKey };
+}
+
+function bindInto(target, data, options = {}) {
+  if (!data) return;
+  const el = resolveElement(target);
+  if (!el) return;
+  const { scopeKey } = inferScope(el, options);
+  const scope = scopeKey || '__shared';
+  applyBinding(el, data, scope);
+}
+
 function applyBinding(root, data, scopeKey) {
   if (!data) return;
   replaceTextPlaceholders(root, data, scopeKey);
@@ -287,7 +329,7 @@ async function bindViewElement(el) {
   if (!id) return;
   const data = await fetchViewData(id);
   if (!data) return;
-  applyBinding(el, data, getScopeKey(id));
+  bindInto(el, data, { view: id });
 }
 
 async function bindModalElement(el) {
@@ -296,7 +338,7 @@ async function bindModalElement(el) {
   if (!viewId || !modalId) return;
   const data = await fetchModalData(viewId, modalId);
   if (!data) return;
-  applyBinding(el, data, getScopeKey(viewId, modalId));
+  bindInto(el, data, { view: viewId, modal: modalId });
 }
 
 function observeActivations() {
@@ -330,10 +372,21 @@ if (document.readyState === 'loading') {
   observeActivations();
 }
 
-window.BINDER = {
-  refreshView(id) {
-    if (id) VIEW_CACHE.delete(id);
+const binderApi = {
+  bindInto,
+  fetchView: fetchViewData,
+  fetchModal: fetchModalData,
+  async refreshView(id) {
+    if (!id) return;
+    VIEW_CACHE.delete(id);
     const el = document.getElementById(`view-${id}`);
-    if (el) bindViewElement(el);
+    if (!el) return;
+    const data = await fetchViewData(id);
+    if (!data) return;
+    bindInto(el, data, { view: id });
   },
 };
+
+window.BINDER = binderApi;
+window.BINDER_READY = Promise.resolve(binderApi);
+window.dispatchEvent(new CustomEvent('binder:ready', { detail: binderApi }));
