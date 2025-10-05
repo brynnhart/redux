@@ -20,4 +20,10 @@ export const PLACEHOLDERS = {
   training: {
     "master name for current player level": "training.masterName",
   },
+  bank: {
+    "gold on hand": "onHand",
+    "gold in bank": "inBank",
+    "transfer limit per day": "transferLimitPerDay",
+    "transfer max": "transferMax",
+  },
 };
