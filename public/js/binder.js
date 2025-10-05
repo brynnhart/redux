@@ -11,10 +11,83 @@ const DEFAULT_LIST_TEMPLATES = new Map([
 ]);
 const VIEW_CACHE = new Map();
 const MODAL_CACHE = new Map();
+const VIEW_PARAMS = new Map();
 const HEARTBEAT_INTERVAL_MS = 30000;
 
 let heartbeatTimer = null;
 let binderReady = null;
+
+function normalizeParams(params) {
+  if (!params || typeof params !== 'object') return {};
+  const normalized = {};
+  Object.entries(params).forEach(([key, value]) => {
+    const trimmedKey = typeof key === 'string' ? key.trim() : String(key || '').trim();
+    if (!trimmedKey) return;
+    if (value == null) return;
+    let strValue;
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) return;
+      strValue = String(value);
+    } else {
+      strValue = String(value).trim();
+      if (!strValue) return;
+    }
+    normalized[trimmedKey] = strValue;
+  });
+  return normalized;
+}
+
+function paramsToKey(params) {
+  const keys = Object.keys(params || {});
+  if (!keys.length) return '';
+  keys.sort();
+  return keys.map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
+}
+
+function getRawViewParams(viewId) {
+  return VIEW_PARAMS.get(viewId) || {};
+}
+
+function getClonedViewParams(viewId) {
+  const raw = getRawViewParams(viewId);
+  return { ...raw };
+}
+
+function clearViewCache(viewId) {
+  if (!viewId) return;
+  const prefix = `${viewId}|`;
+  for (const key of Array.from(VIEW_CACHE.keys())) {
+    if (key.startsWith(prefix)) {
+      VIEW_CACHE.delete(key);
+    }
+  }
+}
+
+function setViewParamsInternal(viewId, params) {
+  if (!viewId) return {};
+  const normalized = normalizeParams(params);
+  const prevKey = paramsToKey(getRawViewParams(viewId));
+  const nextKey = paramsToKey(normalized);
+  VIEW_PARAMS.set(viewId, normalized);
+  if (prevKey !== nextKey) {
+    clearViewCache(viewId);
+  }
+  return normalized;
+}
+
+function buildCacheKey(viewId, params) {
+  const suffix = paramsToKey(params);
+  return `${viewId}|${suffix}`;
+}
+
+function emitViewData(viewId, data) {
+  if (typeof window === 'undefined' || !viewId) return;
+  try {
+    window.dispatchEvent(new CustomEvent('binder:view-data', { detail: { viewId, data } }));
+  } catch (err) {
+    // ignore notification errors
+  }
+}
 
 const PLACEHOLDER_MAPS = new Map();
 for (const [scope, mapping] of Object.entries(PLACEHOLDERS || {})) {
@@ -302,17 +375,21 @@ function renderList(el, data) {
   el.appendChild(fragment);
 }
 
-async function fetchViewData(viewId) {
-  if (!VIEW_CACHE.has(viewId)) {
-    const promise = fetch(`/api/view/${viewId}`)
+async function fetchViewData(viewId, overrideParams) {
+  const params = overrideParams ? setViewParamsInternal(viewId, overrideParams) : getRawViewParams(viewId);
+  const cacheKey = buildCacheKey(viewId, params);
+  if (!VIEW_CACHE.has(cacheKey)) {
+    const query = paramsToKey(params);
+    const url = query ? `/api/view/${viewId}?${query}` : `/api/view/${viewId}`;
+    const promise = fetch(url)
       .then((resp) => (resp.ok ? resp.json() : null))
       .catch((err) => {
         console.error('Failed to load view data', viewId, err);
         return null;
       });
-    VIEW_CACHE.set(viewId, promise);
+    VIEW_CACHE.set(cacheKey, promise);
   }
-  return VIEW_CACHE.get(viewId);
+  return VIEW_CACHE.get(cacheKey);
 }
 
 async function fetchModalData(viewId, modalId) {
@@ -395,6 +472,7 @@ async function bindViewElement(el) {
   const data = await fetchViewData(id);
   if (!data) return;
   bindInto(el, data, { view: id });
+  emitViewData(id, data);
 }
 
 async function bindModalElement(el) {
@@ -464,12 +542,21 @@ const binderApi = {
   fetchModal: fetchModalData,
   async refreshView(id) {
     if (!id) return;
-    VIEW_CACHE.delete(id);
+    clearViewCache(id);
     const el = document.getElementById(`view-${id}`);
     if (!el) return;
     const data = await fetchViewData(id);
     if (!data) return;
     bindInto(el, data, { view: id });
+    emitViewData(id, data);
+  },
+  setViewParams(viewId, params) {
+    if (!viewId) return;
+    setViewParamsInternal(viewId, params);
+  },
+  getViewParams(viewId) {
+    if (!viewId) return {};
+    return getClonedViewParams(viewId);
   },
 };
 

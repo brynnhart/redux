@@ -144,6 +144,26 @@
       margin:.2rem 0;
     }
 
+    .pager{
+      display:flex;
+      align-items:center;
+      gap:1.5ch;
+      margin-top:.75rem;
+      flex-wrap:wrap;
+    }
+    .pager__spacer{ flex:1 1 auto; }
+    .pager__link{
+      color: var(--link);
+    }
+    .pager__link--disabled{
+      color: var(--phosphor-dim);
+      pointer-events:none;
+      text-decoration:none;
+    }
+    .pager__status{
+      color: var(--white-dim);
+    }
+
     /* Footer/help */
     .help{
       margin-top: 1rem;
@@ -800,12 +820,23 @@ Scrawled notes from across the realm — victories, defeats, scandals,
 and sysop scribbles.
   </div>
 
-<div class="columns" aria-label="Options">
+  <div class="columns" aria-label="Options">
     <div
       class="list"
       data-list="news.items"
       data-empty="No news to report."
     ></div>
+  </div>
+
+  <div
+    class="pager"
+    data-pagination="news"
+    data-default-limit="10"
+    aria-live="polite"
+  >
+    <a href="#" class="pager__link pager__link--disabled" data-dir="prev" role="button" aria-disabled="true" tabindex="-1">« Prev</a>
+    <span class="pager__status" data-role="status">Page 1</span>
+    <a href="#" class="pager__link pager__link--disabled" data-dir="next" role="button" aria-disabled="true" tabindex="-1">Next »</a>
   </div>
 
 
@@ -832,6 +863,17 @@ Sort carefully; rivals take notes.
       data-list="warriors.list"
       data-empty="No warriors ranked yet."
     ></div>
+  </div>
+
+  <div
+    class="pager"
+    data-pagination="warriors"
+    data-default-limit="25"
+    aria-live="polite"
+  >
+    <a href="#" class="pager__link pager__link--disabled" data-dir="prev" role="button" aria-disabled="true" tabindex="-1">« Prev</a>
+    <span class="pager__status" data-role="status">Page 1</span>
+    <a href="#" class="pager__link pager__link--disabled" data-dir="next" role="button" aria-disabled="true" tabindex="-1">Next »</a>
   </div>
 </section>
 
@@ -1045,6 +1087,189 @@ Options: (Y)es rest   (N)o
   let current = 'town';
   const currentSub = {};
 
+  const PAGINATION_CONFIG = new Map();
+  const PAGINATION_STATE = new Map();
+  const PAGINATION_PENDING = new Set();
+
+  function getPositiveInt(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return null;
+    return Math.floor(num);
+  }
+
+  function getPaginationConfig(viewId) {
+    return PAGINATION_CONFIG.get(viewId) || null;
+  }
+
+  function updatePagerLinkState(link, enabled) {
+    if (!link) return;
+    link.classList.toggle('pager__link--disabled', !enabled);
+    link.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    if (enabled) {
+      link.removeAttribute('tabindex');
+    } else {
+      link.setAttribute('tabindex', '-1');
+    }
+  }
+
+  function applyPaginationUI(element, state) {
+    if (!element || !state) return;
+    const prevLink = element.querySelector('[data-dir="prev"]');
+    const nextLink = element.querySelector('[data-dir="next"]');
+    const statusEl = element.querySelector('[data-role="status"]');
+    updatePagerLinkState(prevLink, Boolean(state.hasPrev));
+    updatePagerLinkState(nextLink, Boolean(state.hasNext));
+    if (statusEl) {
+      if (state.totalPages && state.totalPages > 0) {
+        statusEl.textContent = `Page ${state.page} / ${state.totalPages}`;
+      } else {
+        statusEl.textContent = `Page ${state.page}`;
+      }
+    }
+    element.dataset.page = String(state.page);
+    if (state.limit != null) {
+      element.dataset.limit = String(state.limit);
+    }
+    element.setAttribute('data-has-prev', state.hasPrev ? '1' : '0');
+    element.setAttribute('data-has-next', state.hasNext ? '1' : '0');
+  }
+
+  function buildPaginationState(viewId, info) {
+    const config = getPaginationConfig(viewId);
+    const defaultLimit = config?.defaultLimit ?? null;
+    const source = info && typeof info === 'object' ? info : {};
+    const page = getPositiveInt(source.page) || 1;
+    const limit = getPositiveInt(source.limit ?? defaultLimit);
+    let totalPages = getPositiveInt(source.totalPages) || null;
+    let total = Number(source.total);
+    if (!Number.isFinite(total) || total < 0) {
+      total = null;
+    }
+    if (!totalPages && total != null && limit) {
+      totalPages = Math.max(1, Math.ceil(total / limit));
+    }
+    const hasPrev = Boolean(source.hasPrev) && page > 1;
+    let hasNext = Boolean(source.hasNext);
+    if (totalPages != null) {
+      hasNext = hasNext && page < totalPages;
+    }
+    return {
+      page,
+      limit: limit ?? null,
+      totalPages,
+      total,
+      hasPrev,
+      hasNext,
+    };
+  }
+
+  function updatePaginationState(viewId, info) {
+    const state = buildPaginationState(viewId, info);
+    PAGINATION_STATE.set(viewId, state);
+    const config = getPaginationConfig(viewId);
+    if (config?.element) {
+      applyPaginationUI(config.element, state);
+    }
+  }
+
+  function getPaginationState(viewId) {
+    return PAGINATION_STATE.get(viewId) || null;
+  }
+
+  function requestPage(viewId, targetPage, limitOverride) {
+    if (!viewId) return;
+    if (PAGINATION_PENDING.has(viewId)) return;
+    const page = getPositiveInt(targetPage);
+    if (!page) return;
+    const currentState = getPaginationState(viewId);
+    if (currentState && currentState.page === page) return;
+    const config = getPaginationConfig(viewId);
+    const limitCandidate = getPositiveInt(limitOverride ?? currentState?.limit ?? config?.defaultLimit);
+    const params = { page };
+    if (limitCandidate) {
+      params.limit = limitCandidate;
+    }
+    PAGINATION_PENDING.add(viewId);
+    if (config?.element) {
+      config.element.setAttribute('aria-busy', 'true');
+    }
+    binderReady
+      .then(async (binder) => {
+        binder.setViewParams(viewId, params);
+        if (current === viewId) {
+          await binder.refreshView(viewId);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load page', viewId, err);
+      })
+      .finally(() => {
+        PAGINATION_PENDING.delete(viewId);
+        if (config?.element) {
+          config.element.removeAttribute('aria-busy');
+        }
+      });
+  }
+
+  function changePage(viewId, direction) {
+    if (!viewId) return;
+    if (direction !== 'prev' && direction !== 'next') return;
+    if (current !== viewId) return;
+    if (PAGINATION_PENDING.has(viewId)) return;
+    const state = getPaginationState(viewId);
+    if (!state) return;
+    if (direction === 'prev') {
+      if (!state.hasPrev) return;
+      requestPage(viewId, Math.max(1, state.page - 1), state.limit);
+      return;
+    }
+    if (!state.hasNext) return;
+    requestPage(viewId, state.page + 1, state.limit);
+  }
+
+  document.querySelectorAll('[data-pagination]').forEach((el) => {
+    const viewId = (el.getAttribute('data-pagination') || '').trim();
+    if (!viewId) return;
+    const defaultLimitAttr = getPositiveInt(el.getAttribute('data-default-limit'));
+    const defaultLimit = defaultLimitAttr || null;
+    PAGINATION_CONFIG.set(viewId, { element: el, defaultLimit });
+  });
+
+  PAGINATION_CONFIG.forEach((config, viewId) => {
+    updatePaginationState(viewId, { page: 1, limit: config.defaultLimit, hasPrev: false, hasNext: false });
+    if (config.element) {
+      config.element.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-dir]');
+        if (!link) return;
+        event.preventDefault();
+        const dir = link.getAttribute('data-dir');
+        if (dir === 'prev' || dir === 'next') {
+          changePage(viewId, dir);
+        }
+      });
+    }
+  });
+
+  binderReady.then((binder) => {
+    PAGINATION_CONFIG.forEach((config, viewId) => {
+      const params = { page: 1 };
+      if (config.defaultLimit) {
+        params.limit = config.defaultLimit;
+      }
+      binder.setViewParams(viewId, params);
+    });
+  });
+
+  window.addEventListener('binder:view-data', (event) => {
+    const detail = event?.detail;
+    const viewId = detail?.viewId;
+    if (!viewId || !PAGINATION_CONFIG.has(viewId)) return;
+    const data = detail?.data;
+    if (data && typeof data === 'object' && data.pagination) {
+      updatePaginationState(viewId, data.pagination);
+    }
+  });
+
   const ROUTES = {
     town: {
       F:'forest',  S:'slaughter', K:'weapons', A:'armour', H:'healer',
@@ -1183,6 +1408,15 @@ Options: (Y)es rest   (N)o
       const K = k.toUpperCase();
       if (!map[K]) map[K] = { kind:'open-modal', target:m[K] };
     });
+    const pagination = getPaginationState(current);
+    if (pagination) {
+      if (pagination.hasPrev && !map[',']) {
+        map[','] = { kind:'view-pagination', dir:'prev' };
+      }
+      if (pagination.hasNext && !map['.']) {
+        map['.'] = { kind:'view-pagination', dir:'next' };
+      }
+    }
     return map;
   }
 
@@ -1231,6 +1465,10 @@ Options: (Y)es rest   (N)o
     }
     if (hit.kind === 'view-action'){
       performViewAction(hit.target);
+      return;
+    }
+    if (hit.kind === 'view-pagination'){
+      changePage(current, hit.dir === 'prev' ? 'prev' : 'next');
       return;
     }
     // placeholder: handle actions if desired
