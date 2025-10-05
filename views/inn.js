@@ -10,10 +10,17 @@ module.exports = {
       )
       .all();
 
+    const hasCharacter = Boolean(character);
+
     return {
       patrons,
-      bardAvailable: true,
-      canFlirt: Boolean(character),
+      bardAvailable: hasCharacter,
+      canFlirt: hasCharacter,
+      barkeep: {
+        elixirs: ['Strength', 'Hit Points', 'Vitality'],
+        renameCostPerLevel: 500,
+        keysCostPerLevel: 1600,
+      },
     };
   },
 };

@@ -26,4 +26,10 @@ export const PLACEHOLDERS = {
     "transfer limit per day": "transferLimitPerDay",
     "transfer max": "transferMax",
   },
+  inn: {
+    "bard available today": "bardAvailable",
+    "can flirt with violet": "canFlirt",
+    "rename cost per level": "barkeep.renameCostPerLevel",
+    "keys cost per level": "barkeep.keysCostPerLevel",
+  },
 };
