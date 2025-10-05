@@ -212,6 +212,72 @@
     .modal__footer{ margin-top:.6rem; color: var(--white-dim); }
     .modal__hint{ color: var(--magenta); }
 
+    .modal__form{
+      display:grid;
+      gap:.75rem;
+    }
+
+    .modal__label{
+      display:grid;
+      gap:.35rem;
+      color: var(--white-dim);
+    }
+
+    .modal__input,
+    .modal__textarea{
+      width:100%;
+      padding:.45rem .55rem;
+      border:1px solid rgba(125,255,138,.35);
+      border-radius:6px;
+      background:rgba(5,7,5,.35);
+      color:var(--phosphor);
+      font:inherit;
+      resize:vertical;
+      min-height:2.4rem;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+    }
+
+    .modal__textarea{
+      min-height:6rem;
+    }
+
+    .modal__actions{
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    }
+
+    .modal__button{
+      appearance:none;
+      border:1px solid rgba(125,255,138,.35);
+      background:rgba(10,17,12,.4);
+      color:var(--phosphor);
+      padding:.35rem .8rem;
+      font:inherit;
+      cursor:pointer;
+      border-radius:6px;
+      text-shadow:var(--shadow);
+    }
+
+    .modal__button:focus-visible{
+      outline:2px solid var(--cyan);
+      outline-offset:2px;
+    }
+
+    .modal__button[disabled]{
+      opacity:.65;
+      cursor:wait;
+    }
+
+    .modal__status{
+      color:var(--yellow);
+      min-height:1.2rem;
+    }
+
+    .modal__status.error{
+      color:var(--red);
+    }
+
     .box{ padding:.4rem .6rem; border:1px solid rgba(125,255,138,.25); background: rgba(10,17,12,.35); }
     .mono{ font-family:inherit; white-space:pre; }
 
@@ -260,7 +326,7 @@ The streets are crowded, it is difficult to push your way through the mob....
         <p class="opt">(<b>L</b>)ist Warriors</p>
         <p class="opt">(<b>D</b>)aily News</p>
         <p class="opt">(<b>O</b>)ther Places</p>
-        <p class="opt">(<b>M</b>)ake Announcement</p>
+        <p class="opt option" data-key="M" data-modal="announce">(<b>M</b>)ake Announcement</p>
         <p class="opt">(<b>Q</b>)uit to Fields</p>
       </div>
     </div>
@@ -292,7 +358,7 @@ a bard quietly tunes a battered lute.
 
   <div class="columns" aria-label="Options">
     <div>
-      <p class="opt">(<b>C</b>)onverse with the patrons</p>
+      <p class="opt option" data-key="C" data-modal="converse">(<b>C</b>)onverse with the patrons</p>
       <p class="opt">(<b>F</b>)lirt with Violet</p>
       <p class="opt">(<b>G</b>)et a Room</p>
       <p class="opt">(<b>H</b>)ear Seth Able the Bard</p>
@@ -303,7 +369,7 @@ a bard quietly tunes a battered lute.
       <p class="opt">(<b>D</b>)aily News</p>
       <p class="opt">(<b>T</b>)alk to the Bartender</p>
       <p class="opt">(<b>V</b>)iew Your Stats</p>
-      <p class="opt">(<b>M</b>)ake Announcement</p>
+      <p class="opt option" data-key="M" data-modal="announce">(<b>M</b>)ake Announcement</p>
       <!-- navigate back to Town Square -->
       <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
     </div>
@@ -504,13 +570,13 @@ sharp, and sometimes regrettable by sunrise.
 
   <div class="columns" aria-label="Options">
     <div>
-      <p class="opt">(<b>W</b>)rite a new message</p>
+      <p class="opt option" data-key="W" data-modal="compose">(<b>W</b>)rite a new message</p>
       <p class="opt">(<b>R</b>)ead your mail</p>
       <p class="opt">(<b>D</b>)elete a message</p>
     </div>
     <div>
       <p class="opt">(<b>L</b>)ist recent correspondence</p>
-      <p class="opt">(<b>S</b>)end to player by name</p>
+      <p class="opt option" data-key="S" data-modal="compose">(<b>S</b>)end to player by name</p>
       <p class="opt option" data-key="Q" data-target="town">(<b>Q</b>)uit to Town Square</p>
     </div>
   </div>
@@ -788,6 +854,82 @@ Options: (Y)es rest   (N)o
           <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
         </div>
 
+        <div class="modal__panel" data-view="inn" data-modal="converse" role="dialog" aria-label="Converse with the Patrons">
+          <div class="modal__title">Share a Word with the Patrons</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+            <form class="modal__form" data-action="inn-converse">
+              <label class="modal__label">
+                Your words
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="What do you say to the room?"></textarea>
+              </label>
+              <div class="modal__actions">
+                <button type="submit" class="modal__button">[Submit]</button>
+                <div class="modal__status" aria-live="polite"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="inn" data-modal="announce" role="dialog" aria-label="Make an Announcement">
+          <div class="modal__title">Make an Announcement</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+            <form class="modal__form" data-action="announce">
+              <label class="modal__label">
+                Message to the realm
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all."></textarea>
+              </label>
+              <div class="modal__actions">
+                <button type="submit" class="modal__button">[Submit]</button>
+                <div class="modal__status" aria-live="polite"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="town" data-modal="announce" role="dialog" aria-label="Make an Announcement">
+          <div class="modal__title">Make an Announcement</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+            <form class="modal__form" data-action="announce">
+              <label class="modal__label">
+                Message to the realm
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all."></textarea>
+              </label>
+              <div class="modal__actions">
+                <button type="submit" class="modal__button">[Submit]</button>
+                <div class="modal__status" aria-live="polite"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
+        <div class="modal__panel" data-view="mail" data-modal="compose" role="dialog" aria-label="Compose Mail">
+          <div class="modal__title">Compose a Message</div>
+          <div class="modal__rule">==============================================================</div>
+          <div class="modal__body">
+            <form class="modal__form" data-action="mail-compose">
+              <label class="modal__label">
+                Recipient
+                <input type="text" name="toName" class="modal__input" maxlength="60" required placeholder="Player name" />
+              </label>
+              <label class="modal__label">
+                Message
+                <textarea name="body" class="modal__textarea" maxlength="1000" required placeholder="What would you like to say?"></textarea>
+              </label>
+              <div class="modal__actions">
+                <button type="submit" class="modal__button">[Submit]</button>
+                <div class="modal__status" aria-live="polite"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal__footer"><span class="modal__hint">(Q or Esc to close)</span></div>
+        </div>
+
     </section>
   </main>
 
@@ -821,6 +963,20 @@ Options: (Y)es rest   (N)o
       });
   }
 
+  const BBSDataApi = window.BBSData || {
+    async loadView(viewId) {
+      if (!viewId) return;
+      try {
+        const binder = await binderReady;
+        await binder.refreshView(viewId);
+      } catch (err) {
+        console.error('Failed to refresh view', viewId, err);
+      }
+    },
+  };
+
+  window.BBSData = BBSDataApi;
+
   let current = 'town';
   const currentSub = {};
 
@@ -829,17 +985,18 @@ Options: (Y)es rest   (N)o
       F:'forest',  S:'slaughter', K:'weapons', A:'armour', H:'healer',
       V:'stats',   I:'inn',       T:'training', Y:'bank',   L:'warriors',
       W:'mail',    D:'news',      C:'conjugal', O:'other',  X:'expert',
-      M:'announce',P:'people',    Q:'fields'
+      P:'people',  Q:'fields'
     },
     inn: { Q:'town' }
   };
 
   const MODALS = {
-    inn:     { R:'rest', T:'barkeep', G:'gossip' },
+    town:   { M:'announce' },
+    inn:    { R:'rest', T:'barkeep', G:'gossip', C:'converse', M:'announce' },
     weapons: { B:'buy',  S:'sell',    V:'view' },
     bank:    { D:'deposit', W:'withdraw', B:'balance' },
     forest:  { F:'fight', E:'explore', G:'gamble' },
-    mail:    { W:'compose', R:'inbox' },
+    mail:    { W:'compose', S:'compose', R:'inbox' },
     stats:   { V:'attrs', E:'equip' }
   };
 
@@ -1008,6 +1165,94 @@ Options: (Y)es rest   (N)o
   if (MODAL){
     MODAL.addEventListener('click', (e)=>{
       if (e.target.classList.contains('modal__backdrop')) closeModal();
+    });
+
+    const FORM_HANDLERS = {
+      async announce(form) {
+        const text = (form.elements.text?.value || '').trim();
+        if (!text) {
+          throw new Error('Enter a message to announce.');
+        }
+        await postJSON('/api/announce', { text });
+      },
+      async 'mail-compose'(form) {
+        const toName = (form.elements.toName?.value || '').trim();
+        const body = (form.elements.body?.value || '').trim();
+        if (!toName || !body) {
+          throw new Error('Recipient and message are required.');
+        }
+        await postJSON('/api/mail/send', { toName, body });
+      },
+      async 'inn-converse'(form) {
+        const text = (form.elements.text?.value || '').trim();
+        if (!text) {
+          throw new Error('Say something to the patrons first.');
+        }
+        await postJSON('/api/inn/converse', { text });
+      },
+    };
+
+    async function postJSON(url, payload) {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        let message = 'Something went wrong.';
+        try {
+          const data = await resp.json();
+          if (data?.error) {
+            message = data.error;
+          }
+        } catch (err) {
+          // ignore json parse errors
+        }
+        const error = new Error(message);
+        error.status = resp.status;
+        throw error;
+      }
+      return resp.json().catch(() => null);
+    }
+
+    function updateStatus(form, message, isError = false) {
+      const status = form.querySelector('.modal__status');
+      if (!status) return;
+      status.textContent = message || '';
+      status.classList.toggle('error', Boolean(isError && message));
+    }
+
+    function setSubmitting(form, submitting) {
+      const button = form.querySelector('button[type="submit"]');
+      if (button) {
+        button.disabled = submitting;
+      }
+    }
+
+    MODAL.addEventListener('submit', async (event) => {
+      const form = event.target.closest('form.modal__form');
+      if (!form) return;
+      event.preventDefault();
+      const action = form.dataset.action;
+      const handler = FORM_HANDLERS[action];
+      if (!handler) return;
+
+      updateStatus(form, 'Sending...');
+      setSubmitting(form, true);
+
+      try {
+        await handler(form);
+        updateStatus(form, 'Sent!');
+        form.reset();
+        closeModal();
+        await window.BBSData.loadView(current);
+      } catch (err) {
+        console.error('Form submission failed', action, err);
+        updateStatus(form, err?.message || 'Unable to complete that action.', true);
+      } finally {
+        setSubmitting(form, false);
+      }
     });
   }
 
