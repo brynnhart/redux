@@ -129,6 +129,10 @@
       color: var(--white-dim);
     }
 
+    .xpert-mode .lead{
+      display:none !important;
+    }
+
     /* Two-column command list */
     .columns{
       display:grid;
@@ -314,7 +318,7 @@ The streets are crowded, it is difficult to push your way through the mob....
         <p class="opt">(<b>Y</b>)e Old Bank</p>
         <p class="opt">(<b>W</b>)rite Mail</p>
         <p class="opt">(<b>C</b>)onjugality List</p>
-        <p class="opt">(<b>X</b>)pert Mode</p>
+        <p class="opt option" data-key="X" data-action="toggle-xpert">(<b>X</b>)pert Mode</p>
         <p class="opt">(<b>P</b>)eople Online</p>
       </div>
 
@@ -944,6 +948,42 @@ Options: (Y)es rest   (N)o
   const MODAL  = document.getElementById('modal');
   const PANELS = MODAL ? MODAL.querySelectorAll('.modal__panel') : [];
 
+  const XPERT_STORAGE_KEY = 'settings.xpert';
+  let xpertMode = false;
+
+  function readStoredXpertMode() {
+    try {
+      return window.localStorage.getItem(XPERT_STORAGE_KEY) === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function persistXpertMode(enabled) {
+    try {
+      window.localStorage.setItem(XPERT_STORAGE_KEY, enabled ? '1' : '0');
+    } catch (err) {
+      // ignore storage errors
+    }
+  }
+
+  function applyXpertMode(enabled) {
+    document.documentElement.classList.toggle('xpert-mode', enabled);
+  }
+
+  function setXpertMode(enabled) {
+    xpertMode = Boolean(enabled);
+    applyXpertMode(xpertMode);
+    persistXpertMode(xpertMode);
+  }
+
+  function toggleXpertMode() {
+    setXpertMode(!xpertMode);
+  }
+
+  xpertMode = readStoredXpertMode();
+  applyXpertMode(xpertMode);
+
   const binderReady = window.BINDER_READY || new Promise((resolve) => {
     if (window.BINDER) {
       resolve(window.BINDER);
@@ -984,7 +1024,7 @@ Options: (Y)es rest   (N)o
     town: {
       F:'forest',  S:'slaughter', K:'weapons', A:'armour', H:'healer',
       V:'stats',   I:'inn',       T:'training', Y:'bank',   L:'warriors',
-      W:'mail',    D:'news',      C:'conjugal', O:'other',  X:'expert',
+      W:'mail',    D:'news',      C:'conjugal', O:'other',
       P:'people',  Q:'fields'
     },
     inn: { Q:'town' }
@@ -999,6 +1039,20 @@ Options: (Y)es rest   (N)o
     mail:    { W:'compose', S:'compose', R:'inbox' },
     stats:   { V:'attrs', E:'equip' }
   };
+
+  const VIEW_ACTION_HANDLERS = {
+    'toggle-xpert': () => {
+      toggleXpertMode();
+    },
+  };
+
+  function performViewAction(action) {
+    if (!action) return;
+    const handler = VIEW_ACTION_HANDLERS[action];
+    if (typeof handler === 'function') {
+      handler();
+    }
+  }
 
   function selectView(id){
     const nextEl = document.getElementById(`view-${id}`);
@@ -1150,6 +1204,10 @@ Options: (Y)es rest   (N)o
       closeModal();
       return;
     }
+    if (hit.kind === 'view-action'){
+      performViewAction(hit.target);
+      return;
+    }
     // placeholder: handle actions if desired
   });
 
@@ -1158,7 +1216,9 @@ Options: (Y)es rest   (N)o
     if (!el) return;
     const tView  = el.getAttribute('data-target');
     const tModal = el.getAttribute('data-modal');
+    const action = el.dataset.action;
     if (tModal){ openModal(tModal); return; }
+    if (action){ performViewAction(action); return; }
     if (tView && document.getElementById(`view-${tView}`)){ closeModal(); selectView(tView); }
   });
 
