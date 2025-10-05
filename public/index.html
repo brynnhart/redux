@@ -640,8 +640,7 @@ who wooed whom — and who snuck in for a midnight tryst.
   <div class="columns" aria-label="Options">
     <div
       class="list"
-      data-list="marriages"
-      data-template="<p class='opt'><span class='cyan'>{partner_one}</span> &#10084; <span class='cyan'>{partner_two}</span> – since {since}</p>"
+      data-list="conjugal.marriages"
       data-empty="No marriages recorded."
     ></div>
   </div>
@@ -666,8 +665,7 @@ they’ve been lurking.
   <div class="columns" aria-label="Options">
     <div
       class="list"
-      data-list="citizens"
-      data-template="<p class='opt'><span class='cyan'>{name}</span> – level {level}</p>"
+      data-list="people.citizens"
       data-empty="No adventurers are online."
     ></div>
   </div>
@@ -805,8 +803,7 @@ and sysop scribbles.
 <div class="columns" aria-label="Options">
     <div
       class="list"
-      data-list="stories"
-      data-template="<p class='opt'><span class='yellow'>[{kind}]</span> {text}</p>"
+      data-list="news.items"
       data-empty="No news to report."
     ></div>
   </div>
@@ -832,8 +829,7 @@ Sort carefully; rivals take notes.
   <div class="columns" aria-label="Options">
     <div
       class="list"
-      data-list="leaderboard"
-      data-template="<p class='opt'><span class='yellow'>#{number}</span> {name} – Lv {level} ({xp} XP)</p>"
+      data-list="warriors.list"
       data-empty="No warriors ranked yet."
     ></div>
   </div>
@@ -855,10 +851,12 @@ like surprises.
   </div>
 
   <div class="columns" aria-label="Options">
-    <div>
-      <p class="opt">[a pagenated list of all installed extensions]</p>
-     
-    </div>
+    <div
+      class="list"
+      data-list="other.igms"
+      data-template="<p class='opt'><span class='cyan'>{name}</span> — {desc}</p>"
+      data-empty="No extensions installed."
+    ></div>
   </div>
 </section>
 

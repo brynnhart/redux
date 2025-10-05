@@ -3,6 +3,12 @@ import { PLACEHOLDERS } from './placeholders.js';
 const DEFAULT_FALLBACK = '—';
 const TEXT_TEMPLATES = new WeakMap();
 const LIST_INFO = new WeakMap();
+const DEFAULT_LIST_TEMPLATES = new Map([
+  ['warriors.list', "<p class=\"opt\">• {name} — L{level}</p>"],
+  ['people.citizens', "<p class=\"opt\">• {name} — {last_heartbeat_at}</p>"],
+  ['conjugal.marriages', "<p class=\"opt\">• {p1} ❤ {p2} — {since}</p>"],
+  ['news.items', "<p class=\"opt\">• [{created_at}] {text}</p>"],
+]);
 const VIEW_CACHE = new Map();
 const MODAL_CACHE = new Map();
 const HEARTBEAT_INTERVAL_MS = 30000;
@@ -127,10 +133,61 @@ function getListInfo(el) {
       key: (el.getAttribute('data-list') || '').trim() || null,
       template: el.getAttribute('data-template') || null,
       empty: el.getAttribute('data-empty') || null,
+      defaultTemplate: undefined,
     };
     LIST_INFO.set(el, info);
   }
   return info;
+}
+
+function findViewContext(el) {
+  if (!el) return null;
+  if (typeof el.getAttribute === 'function') {
+    const direct = el.getAttribute('data-view');
+    if (direct) return direct.trim().toLowerCase();
+  }
+  if (typeof el.closest === 'function') {
+    const viewEl = el.closest('[data-view], .view');
+    if (viewEl) {
+      const attr = typeof viewEl.getAttribute === 'function' ? viewEl.getAttribute('data-view') : null;
+      if (attr) return attr.trim().toLowerCase();
+      if (viewEl.id && viewEl.id.startsWith('view-')) {
+        return viewEl.id.replace(/^view-/, '').toLowerCase();
+      }
+    }
+  }
+  return null;
+}
+
+function getDefaultListTemplate(el, info) {
+  const key = info?.key ? info.key.toLowerCase() : '';
+  const view = findViewContext(el);
+  const candidates = [];
+
+  if (key) {
+    candidates.push(key);
+    const parts = key.split('.');
+    if (view) {
+      candidates.push(`${view}.${key}`);
+    }
+    if (parts.length > 1) {
+      const last = parts[parts.length - 1];
+      if (view) {
+        candidates.push(`${view}.${last}`);
+      }
+    }
+  } else if (view) {
+    candidates.push(view);
+  }
+
+  for (const candidate of candidates) {
+    const template = DEFAULT_LIST_TEMPLATES.get(candidate);
+    if (template) {
+      return template;
+    }
+  }
+
+  return null;
 }
 
 function findFirstArrayCandidate(data) {
@@ -218,7 +275,11 @@ function renderList(el, data) {
     return;
   }
 
-  const template = info.template || null;
+  if (!info.template && info.defaultTemplate === undefined) {
+    info.defaultTemplate = getDefaultListTemplate(el, info);
+  }
+
+  const template = info.template || info.defaultTemplate || null;
   items.forEach((item, index) => {
     let html;
     if (template) {
