@@ -5,6 +5,10 @@ const TEXT_TEMPLATES = new WeakMap();
 const LIST_INFO = new WeakMap();
 const VIEW_CACHE = new Map();
 const MODAL_CACHE = new Map();
+const HEARTBEAT_INTERVAL_MS = 30000;
+
+let heartbeatTimer = null;
+let binderReady = null;
 
 const PLACEHOLDER_MAPS = new Map();
 for (const [scope, mapping] of Object.entries(PLACEHOLDERS || {})) {
@@ -366,10 +370,31 @@ function observeActivations() {
   });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', observeActivations);
-} else {
+async function sendHeartbeat() {
+  try {
+    const response = await fetch('/api/presence/heartbeat', { method: 'POST' });
+    if (!response.ok) {
+      throw new Error(`Unexpected status: ${response.status}`);
+    }
+    if (binderReady) {
+      binderReady.then((api) => {
+        api?.refreshView?.('people');
+      });
+    }
+  } catch (error) {
+    console.error('Failed to send presence heartbeat', error);
+  }
+}
+
+function startHeartbeatScheduler() {
+  if (heartbeatTimer != null) return;
+  sendHeartbeat();
+  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+}
+
+function initializeBinder() {
   observeActivations();
+  startHeartbeatScheduler();
 }
 
 const binderApi = {
@@ -388,5 +413,12 @@ const binderApi = {
 };
 
 window.BINDER = binderApi;
-window.BINDER_READY = Promise.resolve(binderApi);
+binderReady = Promise.resolve(binderApi);
+window.BINDER_READY = binderReady;
 window.dispatchEvent(new CustomEvent('binder:ready', { detail: binderApi }));
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeBinder);
+} else {
+  initializeBinder();
+}

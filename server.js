@@ -247,8 +247,8 @@ app.post('/api/presence/heartbeat', async (req, res, next) => {
     ctx.db
       .prepare(`
         INSERT INTO presence (char_id, last_heartbeat_at)
-        VALUES (?, datetime('now'))
-        ON CONFLICT(char_id) DO UPDATE SET last_heartbeat_at = excluded.last_heartbeat_at
+        VALUES (?, CURRENT_TIMESTAMP)
+        ON CONFLICT(char_id) DO UPDATE SET last_heartbeat_at = CURRENT_TIMESTAMP
       `)
       .run(character.id);
 
