@@ -379,6 +379,26 @@ a bard quietly tunes a battered lute.
     </div>
   </div>
 
+  <div class="box inn__status" aria-label="Inn availability">
+    <p class="opt"><span class="white-dim">Bard available today:</span> {bard available today}</p>
+    <p class="opt"><span class="white-dim">Can you flirt with Violet?:</span> {can flirt with violet}</p>
+  </div>
+
+  <div class="columns inn__barkeep" aria-label="Bartender offerings">
+    <div>
+      <p class="opt"><span class="white-dim">Elixirs in stock</span></p>
+      <div
+        class="list"
+        data-list="barkeep.elixirs"
+        data-empty="The bartender shrugs — no elixirs today."
+      ></div>
+    </div>
+    <div>
+      <p class="opt"><span class="white-dim">Rename cost per level:</span> {rename cost per level}</p>
+      <p class="opt"><span class="white-dim">Stable key cost per level:</span> {keys cost per level}</p>
+    </div>
+  </div>
+
   <div class="help">
     <span class="cyan">The Inn</span> <span class="white-dim">(? for menu)</span>
     <span class="keys">(C,F,G,H,R,D,T,V,M)</span>
