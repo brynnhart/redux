@@ -3,16 +3,17 @@ module.exports = {
     const character = ctx.getCurrentCharacter();
     const patrons = ctx.db
       .prepare(
-        'SELECT id, text, color, created_at FROM patrons ORDER BY datetime(created_at) DESC'
+        `SELECT p.id, c.name AS author, p.text, COALESCE(p.color, 'white') AS color, p.created_at
+         FROM patrons p
+         JOIN characters c ON c.id = p.char_id
+         ORDER BY datetime(p.created_at) DESC`
       )
       .all();
 
     return {
-      id: 'inn',
-      title: 'The Gilded Griffin Inn',
-      character,
       patrons,
-      description: 'Warm hearths, tall tales, and fresh rumors await the weary traveler.',
+      bardAvailable: true,
+      canFlirt: Boolean(character),
     };
   },
 };

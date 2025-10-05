@@ -1,17 +1,10 @@
 module.exports = {
-  async get(ctx) {
-    const character = ctx.getCurrentCharacter();
-
+  async get() {
     return {
-      id: 'other',
-      title: 'Curiosities & Oddities',
-      character,
-      description:
-        'Miscellaneous services, seasonal festivities, and mysterious merchants rotate through this corner of town.',
-      offerings: [
-        { name: 'Traveling Scribe', detail: 'Records your exploits for posterity.' },
-        { name: 'Fortune Teller', detail: 'Peeks into possible futures.' },
-        { name: 'Festival Organizer', detail: 'Plans grand events celebrating local heroes.' },
+      igms: [
+        { id: 'forest', name: 'Forest', desc: 'Venture forth to battle creatures of the wild.' },
+        { id: 'fields', name: 'Fields', desc: 'Seek foes in the fields for PvP glory.' },
+        { id: 'clan', name: 'Clan Halls', desc: 'Meet and manage your clan.' },
       ],
     };
   },

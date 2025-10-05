@@ -1,18 +1,30 @@
 module.exports = {
   async get(ctx) {
-    const character = ctx.getCurrentCharacter();
+    const current = ctx.getCurrentCharacter();
+    const targetsStmt = current
+      ? ctx.db.prepare(
+          `SELECT c.name, c.level, c.xp, CASE WHEN p.last_heartbeat_at IS NULL THEN 0 ELSE 1 END AS online
+           FROM characters c
+           LEFT JOIN presence p ON p.char_id = c.id
+           WHERE c.id != ?
+           ORDER BY c.level DESC, c.xp DESC`
+        )
+      : ctx.db.prepare(
+          `SELECT c.name, c.level, c.xp, CASE WHEN p.last_heartbeat_at IS NULL THEN 0 ELSE 1 END AS online
+           FROM characters c
+           LEFT JOIN presence p ON p.char_id = c.id
+           ORDER BY c.level DESC, c.xp DESC`
+        );
 
-    return {
-      id: 'slaughter',
-      title: 'The Arena of Slaughter',
-      character,
-      description:
-        'Only the bravest (or most reckless) step into the arena to test their might against brutal foes.',
-      challenges: [
-        { name: 'Gladiator Melee', recommendedLevel: 5 },
-        { name: 'Beastmaster Trials', recommendedLevel: 8 },
-        { name: 'Endless Horde', recommendedLevel: 12 },
-      ],
-    };
+    const rows = current ? targetsStmt.all(current.id) : targetsStmt.all();
+
+    const targets = rows.map((row) => ({
+      name: row.name,
+      level: row.level,
+      exp: row.xp,
+      online: Boolean(row.online),
+    }));
+
+    return { targets };
   },
 };
