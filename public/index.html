@@ -541,10 +541,12 @@ who wooed whom — and who snuck in for a midnight tryst.
   </div>
 
   <div class="columns" aria-label="Options">
-    <div>
-      <p class="opt">[a pagenated list of married players here]</p>
-     
-    </div>
+    <div
+      class="list"
+      data-list="marriages"
+      data-template="<p class='opt'><span class='cyan'>{partner_one}</span> &#10084; <span class='cyan'>{partner_two}</span> – since {since}</p>"
+      data-empty="No marriages recorded."
+    ></div>
   </div>
 
 </section>
@@ -564,11 +566,13 @@ A quick roll call of adventurers currently in the realm — and how long
 they’ve been lurking.
   </div>
 
-   <div class="columns" aria-label="Options">
-    <div>
-      <p class="opt">[a pagenated list of all players online]</p>
-     
-    </div>
+  <div class="columns" aria-label="Options">
+    <div
+      class="list"
+      data-list="citizens"
+      data-template="<p class='opt'><span class='cyan'>{name}</span> – level {level}</p>"
+      data-empty="No adventurers are online."
+    ></div>
   </div>
 
 </section>
@@ -702,10 +706,12 @@ and sysop scribbles.
   </div>
 
 <div class="columns" aria-label="Options">
-    <div>
-      <p class="opt">[a pagenated list daily news and announcements here]</p>
-     
-    </div>
+    <div
+      class="list"
+      data-list="stories"
+      data-template="<p class='opt'><span class='yellow'>[{kind}]</span> {text}</p>"
+      data-empty="No news to report."
+    ></div>
   </div>
 
 
@@ -727,10 +733,12 @@ Sort carefully; rivals take notes.
   </div>
 
   <div class="columns" aria-label="Options">
-    <div>
-      <p class="opt">[a pagenated list of all players here]</p>
-     
-    </div>
+    <div
+      class="list"
+      data-list="leaderboard"
+      data-template="<p class='opt'><span class='yellow'>#{number}</span> {name} – Lv {level} ({xp} XP)</p>"
+      data-empty="No warriors ranked yet."
+    ></div>
   </div>
 </section>
 
@@ -786,6 +794,7 @@ Options: (Y)es rest   (N)o
 
 
   
+<script type="module" src="/js/binder.js"></script>
 <script>
 (() => {
   const SCREEN = document.querySelector('.screen');
