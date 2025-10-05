@@ -1,0 +1,23 @@
+export const PLACEHOLDERS = {
+  stats: {
+    "player name": "character.name",
+    "player xp": "character.xp",
+    "player level": "character.level",
+    "player current hp": "character.hp",
+    "player total hp": "character.hp_max",
+    "player gold in hand": "stats.goldInHand",
+    "player's gems": "character.gems",
+    "player number of pvp fights left": "stats.pvpFightsLeft",
+    "player numever of forest fights left": "stats.forestFightsLeft",
+    "player's weapon": "stats.weapon",
+    "player's armor": "stats.armor",
+    "player's charm": "stats.charm",
+    "player class": "stats.className",
+    "number of total skills per day": "stats.totalSkillsPerDay",
+    "number of skill uses left today": "stats.skillUsesLeft",
+    "player's strength": "stats.strength",
+  },
+  training: {
+    "master name for current player level": "training.masterName",
+  },
+};
