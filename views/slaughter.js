@@ -21,10 +21,12 @@ module.exports = {
     const targets = rows.map((row) => ({
       name: row.name,
       level: row.level,
-      exp: row.xp,
       online: Boolean(row.online),
     }));
 
-    return { targets };
+    return {
+      targets,
+      slaughter: { targets },
+    };
   },
 };

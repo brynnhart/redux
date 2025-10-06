@@ -28,7 +28,7 @@ module.exports = {
         online: Boolean(row.online),
       }));
 
-    return {
+    const payload = {
       list,
       pagination: {
         page: currentPage,
@@ -38,6 +38,11 @@ module.exports = {
         hasPrev: currentPage > 1,
         hasNext: currentPage < totalPages,
       },
+    };
+
+    return {
+      ...payload,
+      warriors: payload,
     };
   },
 };
