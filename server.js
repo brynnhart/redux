@@ -80,7 +80,7 @@ app.post('/api/mail/send', async (req, res, next) => {
     }
 
     const toChar = ctx.db
-      .prepare('SELECT id FROM characters WHERE name = ?')
+      .prepare('SELECT id FROM characters WHERE name = ? COLLATE NOCASE')
       .get(toName);
 
     if (!toChar) {
@@ -89,7 +89,7 @@ app.post('/api/mail/send', async (req, res, next) => {
 
     const fromChar = ctx.getCurrentCharacter();
     const insert = ctx.db.prepare(
-      'INSERT INTO mail (to_char, from_char, body) VALUES (?, ?, ?)' 
+      'INSERT INTO mail (to_char, from_char, body) VALUES (?, ?, ?)'
     );
     const info = insert.run(toChar.id, fromChar?.id ?? null, body);
     const item = ctx.db
@@ -101,10 +101,10 @@ app.post('/api/mail/send', async (req, res, next) => {
       )
       .get(info.lastInsertRowid);
 
-    res.status(201).json({
+    res.json({
       message: {
         id: item.id,
-        from: item.sender_name,
+        from: item.sender_name || 'Courier',
         body: item.body,
         created_at: item.created_at,
         read_at: item.read_at,
