@@ -1437,6 +1437,10 @@ Options: (Y)es rest   (N)o
         map['.'] = { kind:'view-pagination', dir:'next' };
       }
     }
+
+    if (current !== 'town' && !map['R'] && !map['Q']) {
+      map['R'] = { kind:'goto-view', target:'town' };
+    }
     return map;
   }
 
