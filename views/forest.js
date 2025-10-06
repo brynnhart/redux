@@ -21,6 +21,8 @@ module.exports = {
       encounters: [
         'Scouting parties report strange tracks near the old druid circle.',
         'A faint glow has been seen between the ancient oaks at twilight.',
+        'Something enormous was heard wading through the river under the cover of night.',
+        'Travelers whisper of antlered silhouettes watching from the brambles.',
       ],
     };
 
