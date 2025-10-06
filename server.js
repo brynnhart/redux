@@ -42,9 +42,86 @@ const BARD_SONGS = [
   'A rousing chorus erupts: "Raise your mugs, for heroes never fall!"',
 ];
 const SELL_RATE = 0.5;
+const DEFAULT_DAILY_INTEREST_RATE = 0.02;
 
 app.use(express.json());
 app.use(express.static(publicDir));
+
+app.post('/internal/reset-day', async (req, res, next) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Endpoint disabled in production' });
+    }
+
+    const ctx = createContext(req, res);
+
+    let interestRate = Number(req.body?.interestRate);
+    if (!Number.isFinite(interestRate) || interestRate < 0) {
+      interestRate = DEFAULT_DAILY_INTEREST_RATE;
+    }
+    if (interestRate > 1) {
+      interestRate = 1;
+    }
+
+    const result = ctx.db.transaction((rate) => {
+      ctx.db.prepare('DELETE FROM forest_fights').run();
+      ctx.db.prepare('DELETE FROM daily_flags WHERE flag = ?').run(INN_BARD_FLAG);
+
+      let totalInterest = 0;
+      let accountsAccrued = 0;
+
+      if (rate > 0) {
+        const balances = ctx.db
+          .prepare('SELECT id, bank_gold FROM characters WHERE bank_gold > 0')
+          .all();
+        const credit = ctx.db.prepare('UPDATE characters SET bank_gold = bank_gold + ? WHERE id = ?');
+
+        for (const balance of balances) {
+          const interest = Math.floor(balance.bank_gold * rate);
+          if (interest > 0) {
+            credit.run(interest, balance.id);
+            totalInterest += interest;
+            accountsAccrued += 1;
+          }
+        }
+      }
+
+      const fragments = ['A new day dawns in the realm.'];
+      if (totalInterest > 0) {
+        fragments.push(`The bank rewards savers with ${totalInterest} gold in interest.`);
+      }
+
+      const info = ctx.db
+        .prepare('INSERT INTO news (kind, text) VALUES (?, ?)')
+        .run('system', fragments.join(' '));
+
+      const newsItem = ctx.db
+        .prepare('SELECT id, kind, text, created_at FROM news WHERE id = ?')
+        .get(info.lastInsertRowid);
+
+      return {
+        newsItem,
+        interest: {
+          rate,
+          total: totalInterest,
+          accounts: accountsAccrued,
+        },
+      };
+    })(interestRate);
+
+    ctx.reloadCharacter();
+
+    res.json({
+      ok: true,
+      bardAvailable: true,
+      fightsLeft: MAX_FOREST_FIGHTS_PER_DAY,
+      interest: result.interest,
+      news: result.newsItem,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get('/api/view/:id', async (req, res, next) => {
   const viewModule = views[req.params.id];
