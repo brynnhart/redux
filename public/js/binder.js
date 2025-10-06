@@ -3,12 +3,6 @@ import { PLACEHOLDERS } from './placeholders.js';
 const DEFAULT_FALLBACK = '—';
 const TEXT_TEMPLATES = new WeakMap();
 const LIST_INFO = new WeakMap();
-const DEFAULT_LIST_TEMPLATES = new Map([
-  ['warriors.list', "<p class=\"opt\">• {name} — L{level}</p>"],
-  ['people.citizens', "<p class=\"opt\">• {name} — {last_heartbeat_at}</p>"],
-  ['conjugal.marriages', "<p class=\"opt\">• {p1} ❤ {p2} — {since}</p>"],
-  ['news.items', "<p class=\"opt\">• [{created_at}] {text}</p>"],
-]);
 const VIEW_CACHE = new Map();
 const MODAL_CACHE = new Map();
 const VIEW_PARAMS = new Map();
@@ -206,84 +200,11 @@ function getListInfo(el) {
       key: (el.getAttribute('data-list') || '').trim() || null,
       template: el.getAttribute('data-template') || null,
       empty: el.getAttribute('data-empty') || null,
-      defaultTemplate: undefined,
+      warned: false,
     };
     LIST_INFO.set(el, info);
   }
   return info;
-}
-
-function findViewContext(el) {
-  if (!el) return null;
-  if (typeof el.getAttribute === 'function') {
-    const direct = el.getAttribute('data-view');
-    if (direct) return direct.trim().toLowerCase();
-  }
-  if (typeof el.closest === 'function') {
-    const viewEl = el.closest('[data-view], .view');
-    if (viewEl) {
-      const attr = typeof viewEl.getAttribute === 'function' ? viewEl.getAttribute('data-view') : null;
-      if (attr) return attr.trim().toLowerCase();
-      if (viewEl.id && viewEl.id.startsWith('view-')) {
-        return viewEl.id.replace(/^view-/, '').toLowerCase();
-      }
-    }
-  }
-  return null;
-}
-
-function getDefaultListTemplate(el, info) {
-  const key = info?.key ? info.key.toLowerCase() : '';
-  const view = findViewContext(el);
-  const candidates = [];
-
-  if (key) {
-    candidates.push(key);
-    const parts = key.split('.');
-    if (view) {
-      candidates.push(`${view}.${key}`);
-    }
-    if (parts.length > 1) {
-      const last = parts[parts.length - 1];
-      if (view) {
-        candidates.push(`${view}.${last}`);
-      }
-    }
-  } else if (view) {
-    candidates.push(view);
-  }
-
-  for (const candidate of candidates) {
-    const template = DEFAULT_LIST_TEMPLATES.get(candidate);
-    if (template) {
-      return template;
-    }
-  }
-
-  return null;
-}
-
-function findFirstArrayCandidate(data) {
-  const seen = new Set();
-  const queue = [{ value: data, path: [] }];
-  while (queue.length) {
-    const { value, path } = queue.shift();
-    if (!value || typeof value !== 'object') continue;
-    if (seen.has(value)) continue;
-    seen.add(value);
-    if (Array.isArray(value)) {
-      return { items: value, path: path.join('.') };
-    }
-    for (const [key, next] of Object.entries(value)) {
-      if (Array.isArray(next)) {
-        return { items: next, path: [...path, key].join('.') };
-      }
-      if (next && typeof next === 'object') {
-        queue.push({ value: next, path: [...path, key] });
-      }
-    }
-  }
-  return null;
 }
 
 function renderTemplate(template, item, index, data) {
@@ -323,19 +244,41 @@ function stringifyItem(item) {
 
 function renderList(el, data) {
   const info = getListInfo(el);
-  let items = info.key ? resolvePath(data, info.key) : undefined;
+  const keyAttr = (el.getAttribute('data-list') || '').trim() || null;
+  if (info.key !== keyAttr) {
+    info.key = keyAttr;
+    info.warned = false;
+  }
+  info.template = el.getAttribute('data-template') || null;
+  info.empty = el.getAttribute('data-empty') || null;
+  if (!info.key) return;
+
+  const items = resolvePath(data, info.key);
   if (!Array.isArray(items)) {
-    const fallback = findFirstArrayCandidate(data);
-    if (fallback && Array.isArray(fallback.items)) {
-      items = fallback.items;
-      if (!info.key) {
-        info.key = fallback.path || null;
-      }
+    if (!info.warned) {
+      console.warn(`[binder] Expected array for list "${info.key}"`, items);
+      info.warned = true;
     }
+
+    const fragment = document.createDocumentFragment();
+    const emptyText = info.empty;
+    if (emptyText) {
+      const p = document.createElement('p');
+      p.className = 'opt dim';
+      p.textContent = emptyText;
+      fragment.appendChild(p);
+    }
+    el.innerHTML = '';
+    if (fragment.childNodes.length) {
+      el.appendChild(fragment);
+    }
+    return;
   }
 
+  info.warned = false;
+
   const fragment = document.createDocumentFragment();
-  if (!Array.isArray(items) || items.length === 0) {
+  if (items.length === 0) {
     const emptyText = info.empty;
     if (emptyText) {
       const p = document.createElement('p');
@@ -348,11 +291,7 @@ function renderList(el, data) {
     return;
   }
 
-  if (!info.template && info.defaultTemplate === undefined) {
-    info.defaultTemplate = getDefaultListTemplate(el, info);
-  }
-
-  const template = info.template || info.defaultTemplate || null;
+  const template = info.template || null;
   items.forEach((item, index) => {
     let html;
     if (template) {
@@ -451,18 +390,8 @@ function bindInto(target, data, options = {}) {
 function applyBinding(root, data, scopeKey) {
   if (!data) return;
   replaceTextPlaceholders(root, data, scopeKey);
-  root.querySelectorAll('[data-list], .list[data-list], .list-placeholder').forEach((el) => {
+  root.querySelectorAll('[data-list]').forEach((el) => {
     renderList(el, data);
-  });
-  // Fallback: any element whose text is a bracketed placeholder
-  root.querySelectorAll('*').forEach((el) => {
-    if (el.children.length > 0) return;
-    const text = el.textContent ? el.textContent.trim() : '';
-    if (!text || !text.startsWith('[') || !text.endsWith(']')) return;
-    if (!LIST_INFO.has(el)) {
-      el.setAttribute('data-list', el.getAttribute('data-list') || '');
-      renderList(el, data);
-    }
   });
 }
 

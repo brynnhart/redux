@@ -662,6 +662,7 @@ who wooed whom — and who snuck in for a midnight tryst.
       class="list"
       data-list="conjugal.marriages"
       data-empty="No marriages recorded."
+      data-template="<p class='opt'>• {p1} ❤ {p2} — {since}</p>"
     ></div>
   </div>
 
@@ -687,6 +688,7 @@ they’ve been lurking.
       class="list"
       data-list="people.citizens"
       data-empty="No adventurers are online."
+      data-template="<p class='opt'>• {name} — {last_heartbeat_at}</p>"
     ></div>
   </div>
 
@@ -780,7 +782,7 @@ Your master is {Master Name for current player level}
   <div class="columns" aria-label="Options">
     <div>
       <p class="opt">Experience: {player XP}</p>
-      <p class="opt">Forest Fights: {player numever of forest fights left}</p>
+      <p class="opt">Forest Fights: {player forest fights left}</p>
       <p class="opt">Gold in Hand: {player gold in hand}</p>
       <p class="opt">Weapon: {player's weapon}</p>
       <p class="opt">Armor: {player's armor}</p>
@@ -791,10 +793,10 @@ Your master is {Master Name for current player level}
       <p class="opt">Level: {player level}</p>
       <p class="opt">HitPoints: {player current HP} of {player total HP}</p>
       <p class="opt">Player Fights Left: {player number of PVP fights left}</p>
-      <p class="opt">Forest Fights: {player numever of forest fights left}</p>
+      <p class="opt">Forest Fights: {player forest fights left}</p>
       <p class="opt">Gold in Hand: {player gold in hand}</p>
       <p class="opt">Attack Strength: {player's strength}</p>
-      <p class="opt">Defensive Strength: {player's strength}</p>
+      <p class="opt">Defensive Strength: {player's defense}</p>
       <p class="opt">Gems: {player's gems}</p>
       <p class="opt">Uses Today: {number of skill uses left today}</p>
     </div>
@@ -825,6 +827,7 @@ and sysop scribbles.
       class="list"
       data-list="news.items"
       data-empty="No news to report."
+      data-template="<p class='opt'>• [{created_at}] {text}</p>"
     ></div>
   </div>
 
@@ -862,6 +865,7 @@ Sort carefully; rivals take notes.
       class="list"
       data-list="warriors.list"
       data-empty="No warriors ranked yet."
+      data-template="<p class='opt'>• {name} — L{level}</p>"
     ></div>
   </div>
 
@@ -932,7 +936,7 @@ Options: (Y)es rest   (N)o
             <form class="modal__form" data-action="inn-converse">
               <label class="modal__label">
                 Your words
-                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="What do you say to the room?"></textarea>
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="What do you say to the room?" data-autofocus></textarea>
               </label>
               <div class="modal__actions">
                 <button type="submit" class="modal__button">[Submit]</button>
@@ -950,7 +954,7 @@ Options: (Y)es rest   (N)o
             <form class="modal__form" data-action="announce">
               <label class="modal__label">
                 Message to the realm
-                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all."></textarea>
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all." data-autofocus></textarea>
               </label>
               <div class="modal__actions">
                 <button type="submit" class="modal__button">[Submit]</button>
@@ -968,7 +972,7 @@ Options: (Y)es rest   (N)o
             <form class="modal__form" data-action="announce">
               <label class="modal__label">
                 Message to the realm
-                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all."></textarea>
+                <textarea name="text" class="modal__textarea" maxlength="500" required placeholder="Declare your news to all." data-autofocus></textarea>
               </label>
               <div class="modal__actions">
                 <button type="submit" class="modal__button">[Submit]</button>
@@ -986,7 +990,7 @@ Options: (Y)es rest   (N)o
             <form class="modal__form" data-action="mail-compose">
               <label class="modal__label">
                 Recipient
-                <input type="text" name="toName" class="modal__input" maxlength="60" required placeholder="Player name" />
+                <input type="text" name="toName" class="modal__input" maxlength="60" required placeholder="Player name" data-autofocus />
               </label>
               <label class="modal__label">
                 Message
@@ -1330,6 +1334,20 @@ Options: (Y)es rest   (N)o
     });
   }
 
+  function focusInitialField(panelEl) {
+    if (!panelEl) return;
+    const autofocus = panelEl.querySelector('[data-autofocus]:not([disabled])');
+    const fallback = panelEl.querySelector('input:not([disabled]):not([type="hidden"]), textarea:not([disabled])');
+    const interactive = autofocus || fallback || null;
+    const target = interactive || panelEl;
+    if (target === panelEl && !panelEl.hasAttribute('tabindex')) {
+      panelEl.setAttribute('tabindex', '-1');
+    }
+    if (typeof target.focus === 'function') {
+      target.focus({ preventScroll: true });
+    }
+  }
+
   function openModal(panelId){
     if (!MODAL) return;
     let target = null;
@@ -1341,8 +1359,10 @@ Options: (Y)es rest   (N)o
     if (!target) return;
     MODAL.classList.add('show');
     currentSub[current] = panelId;
-    target.setAttribute('tabindex','-1');
-    target.focus({ preventScroll: true });
+    if (!target.hasAttribute('tabindex')) {
+      target.setAttribute('tabindex','-1');
+    }
+    focusInitialField(target);
 
     const viewId = current;
     const modalId = panelId;
@@ -1438,10 +1458,10 @@ Options: (Y)es rest   (N)o
   }
 
   window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape'){ closeModal(); return; }
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     const k = ev.key.length === 1 ? ev.key.toUpperCase() : ev.key;
 
-    if (k === 'Escape'){ closeModal(); return; }
     if (k === '?'){ showHelp(); return; }
 
     const options = getOptions();
@@ -1486,8 +1506,34 @@ Options: (Y)es rest   (N)o
   });
 
   if (MODAL){
+    const QUICK_SUBMIT_ACTIONS = new Set(['announce', 'mail-compose', 'inn-converse']);
+
     MODAL.addEventListener('click', (e)=>{
       if (e.target.classList.contains('modal__backdrop')) closeModal();
+    });
+
+    MODAL.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeModal();
+        return;
+      }
+
+      const form = event.target.closest('form.modal__form');
+      if (!form) return;
+      const action = form.dataset.action;
+      if (!QUICK_SUBMIT_ACTIONS.has(action)) return;
+      if (event.key !== 'Enter') return;
+      if (event.altKey) return;
+
+      const comboSubmit = event.ctrlKey || event.metaKey;
+      const plainSubmit = !event.ctrlKey && !event.metaKey && !event.shiftKey;
+      if (!comboSubmit && !plainSubmit) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      submitModalForm(form);
     });
 
     const FORM_HANDLERS = {
@@ -1551,6 +1597,19 @@ Options: (Y)es rest   (N)o
       if (button) {
         button.disabled = submitting;
       }
+    }
+
+    function submitModalForm(form) {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return;
+      }
+      const button = form.querySelector('button[type="submit"]');
+      if (button && typeof button.click === 'function') {
+        button.click();
+        return;
+      }
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     }
 
     MODAL.addEventListener('submit', async (event) => {
