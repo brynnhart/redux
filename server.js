@@ -17,13 +17,13 @@ app.use(express.static(publicDir));
 app.get('/api/view/:id', async (req, res, next) => {
   const viewModule = views[req.params.id];
   if (!viewModule || typeof viewModule.get !== 'function') {
-    return res.status(404).json({ error: 'Unknown view' });
+    return res.status(404).json({ ok: false, error: 'Unknown view' });
   }
 
   try {
     const ctx = createContext(req, res);
     const payload = await viewModule.get(ctx);
-    res.json(payload ?? null);
+    res.json({ ok: true, data: payload ?? {} });
   } catch (error) {
     next(error);
   }
@@ -32,18 +32,18 @@ app.get('/api/view/:id', async (req, res, next) => {
 app.get('/api/modal/:view/:modal', async (req, res, next) => {
   const viewModule = views[req.params.view];
   if (!viewModule || typeof viewModule.get !== 'function') {
-    return res.status(404).json({ error: 'Unknown view' });
+    return res.status(404).json({ ok: false, error: 'Unknown view' });
   }
 
   const modalHandler = viewModule.modals?.[req.params.modal];
   if (typeof modalHandler !== 'function') {
-    return res.status(404).json({ error: 'Unknown modal' });
+    return res.status(404).json({ ok: false, error: 'Unknown modal' });
   }
 
   try {
     const ctx = createContext(req, res);
     const payload = await modalHandler(ctx);
-    res.json(payload ?? null);
+    res.json({ ok: true, data: payload ?? {} });
   } catch (error) {
     next(error);
   }
@@ -295,24 +295,29 @@ function loadViews(dir) {
 }
 
 function createContext(req, res) {
+  let cachedChar;
+
   const context = {
     req,
     res,
     db,
     params: req.params,
     query: req.query,
-    currentCharacter: undefined,
+    now: () => new Date(),
   };
 
-  context.getCurrentCharacter = () => {
-    if (context.currentCharacter === undefined) {
-      context.currentCharacter = currentChar() || null;
-    }
+  Object.defineProperty(context, 'currentChar', {
+    enumerable: true,
+    get: () => {
+      if (cachedChar === undefined) {
+        cachedChar = currentChar() || null;
+      }
+      return cachedChar;
+    },
+  });
 
-    return context.currentCharacter;
-  };
-
-  context.currentCharacter = context.getCurrentCharacter();
+  context.getCurrentCharacter = () => context.currentChar;
+  context.currentCharacter = context.currentChar;
 
   return context;
 }
