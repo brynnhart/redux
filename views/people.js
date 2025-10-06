@@ -4,17 +4,18 @@ module.exports = {
   async get(ctx) {
     const citizens = ctx.db
       .prepare(
-        `SELECT c.name,
-                c.level,
-                p.last_heartbeat_at,
-                CAST(strftime('%s', 'now') - strftime('%s', p.last_heartbeat_at) AS INTEGER) AS seconds_since
+        `SELECT c.name, p.last_heartbeat_at
          FROM presence p
          JOIN characters c ON c.id = p.char_id
          WHERE p.last_heartbeat_at >= datetime('now', ?)
          ORDER BY datetime(p.last_heartbeat_at) DESC`
       )
-      .all(`-${ONLINE_WINDOW_SECONDS} seconds`);
+      .all(`-${ONLINE_WINDOW_SECONDS} seconds`)
+      .map((row) => ({
+        name: row.name,
+        last_heartbeat_at: row.last_heartbeat_at,
+      }));
 
-    return { citizens, online_window_seconds: ONLINE_WINDOW_SECONDS };
+    return { citizens };
   },
 };
