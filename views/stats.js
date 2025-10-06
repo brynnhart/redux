@@ -1,3 +1,15 @@
+const MAX_FOREST_FIGHTS_PER_DAY = 13;
+
+function formatIsoDate(date) {
+  if (!date) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  if (typeof date === 'string') {
+    return new Date(date).toISOString().slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
 module.exports = {
   async get(ctx) {
     const character = ctx.getCurrentCharacter();
@@ -30,6 +42,13 @@ module.exports = {
 
     const baseStat = 5 + details.level;
 
+    const today = formatIsoDate(ctx.now());
+    const fightsRow = ctx.db
+      .prepare('SELECT fights_used FROM forest_fights WHERE char_id = ? AND fight_date = ?')
+      .get(character.id, today);
+    const fightsUsed = fightsRow?.fights_used ?? 0;
+    const forestFightsLeft = Math.max(0, MAX_FOREST_FIGHTS_PER_DAY - fightsUsed);
+
     return {
       character: {
         id: details.id,
@@ -49,7 +68,7 @@ module.exports = {
         className: 'Adventurer',
         totalSkillsPerDay: 3,
         skillUsesLeft: 3,
-        forestFightsLeft: 13,
+        forestFightsLeft,
         pvpFightsLeft: 3,
         weapon: details.weapon_name || 'Unarmed',
         armor: details.armour_name || 'Clothes',

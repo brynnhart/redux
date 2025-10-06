@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 
 const { db, currentChar } = require('./db');
@@ -10,6 +11,24 @@ const publicDir = path.join(__dirname, 'public');
 const viewsDir = path.join(__dirname, 'views');
 
 const views = loadViews(viewsDir);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS forest_fights (
+    char_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    fight_date TEXT NOT NULL,
+    fights_used INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (char_id, fight_date)
+  )
+`);
+
+const MAX_FOREST_FIGHTS_PER_DAY = 13;
+const FOREST_NEWS_KIND = 'forest';
+const FOREST_ENEMIES = [
+  { name: 'Goblin Scout', hp: 8, atk: 4, def: 2 },
+  { name: 'Forest Wolf', hp: 10, atk: 5, def: 3 },
+  { name: 'Shadow Bandit', hp: 12, atk: 6, def: 4 },
+  { name: 'Vine Troll', hp: 14, atk: 7, def: 4 },
+];
 const BANK_LIMITS = views.bank?.LIMITS ?? { transferLimitPerDay: 2, transferMax: 500 };
 const innView = views.inn || {};
 const INN_BARD_FLAG = innView.BARD_DAILY_FLAG || 'inn-bard';
@@ -191,6 +210,113 @@ app.post('/api/inn/bard', async (req, res, next) => {
       'The bard hums a comforting tune about distant heroes.';
 
     res.json({ song, bardAvailable: false });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/forest/fight', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const today = formatIsoDate(ctx.now());
+    const result = ctx.db.transaction((charId, dateStr) => {
+      const state = ctx.db
+        .prepare(
+          `SELECT c.id, c.name, c.level, c.xp, c.hp, c.hp_max, c.gold,
+                  COALESCE(w.stat, 0) AS weapon_stat,
+                  COALESCE(a.stat, 0) AS armour_stat
+           FROM characters c
+           LEFT JOIN shop_weapons w ON w.id = c.weapon_id
+           LEFT JOIN shop_armours a ON a.id = c.armour_id
+           WHERE c.id = ?`
+        )
+        .get(charId);
+
+      if (!state) {
+        throw new Error('Character not found');
+      }
+
+      if (state.hp <= 0) {
+        return { error: 'You are too weak to fight today.', status: 400 };
+      }
+
+      const fightsRow = ctx.db
+        .prepare('SELECT fights_used FROM forest_fights WHERE char_id = ? AND fight_date = ?')
+        .get(charId, dateStr);
+      const fightsUsed = fightsRow?.fights_used ?? 0;
+      if (fightsUsed >= MAX_FOREST_FIGHTS_PER_DAY) {
+        return { error: 'No forest fights left today.', status: 409 };
+      }
+
+      const fightCount = fightsUsed + 1;
+      const seed = computeForestSeed(dateStr, charId, fightCount);
+      const rng = createDeterministicRng(seed);
+      const enemy = selectForestEnemy(state.level, rng);
+      const outcome = resolveForestFight(state, enemy, rng);
+
+      const nextHp = Math.max(0, Math.min(state.hp_max, state.hp + outcome.deltaHp));
+      const nextGold = Math.max(0, state.gold + outcome.gold);
+      const nextXp = Math.max(0, state.xp + outcome.xp);
+
+      ctx.db
+        .prepare(
+          `INSERT INTO forest_fights (char_id, fight_date, fights_used)
+           VALUES (?, ?, ?)
+           ON CONFLICT(char_id, fight_date) DO UPDATE SET fights_used = excluded.fights_used`
+        )
+        .run(charId, dateStr, fightCount);
+
+      ctx.db
+        .prepare('UPDATE characters SET hp = ?, gold = ?, xp = ? WHERE id = ?')
+        .run(nextHp, nextGold, nextXp, charId);
+
+      const newsText = outcome.victory
+        ? `${state.name} bested ${enemy.name} in the forest.`
+        : `${state.name} was battered by ${enemy.name} in the forest.`;
+
+      ctx.db.prepare('INSERT INTO news (kind, text) VALUES (?, ?)').run(FOREST_NEWS_KIND, newsText);
+
+      return {
+        seed,
+        enemy,
+        roll: outcome.roll,
+        result: {
+          deltaHp: outcome.deltaHp,
+          gold: outcome.gold,
+          xp: outcome.xp,
+          victory: outcome.victory,
+        },
+        character: {
+          id: state.id,
+          name: state.name,
+          hp: nextHp,
+          hpMax: state.hp_max,
+          gold: nextGold,
+          xp: nextXp,
+        },
+        fightsLeft: Math.max(0, MAX_FOREST_FIGHTS_PER_DAY - fightCount),
+      };
+    })(character.id, today);
+
+    if (result?.error) {
+      const status = result.status && Number.isInteger(result.status) ? result.status : 400;
+      return res.status(status).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+    res.json({
+      enemy: result.enemy,
+      roll: result.roll,
+      result: result.result,
+      seed: result.seed,
+      fightsLeft: result.fightsLeft,
+      character: result.character,
+    });
   } catch (error) {
     next(error);
   }
@@ -623,6 +749,82 @@ app.post('/api/healer/heal', async (req, res, next) => {
     next(error);
   }
 });
+
+function formatIsoDate(date) {
+  if (!date) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  if (typeof date === 'string') {
+    return new Date(date).toISOString().slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function computeForestSeed(dateStr, charId, fightCount) {
+  return crypto.createHash('sha256').update(`${dateStr}|${charId}|${fightCount}`).digest('hex');
+}
+
+function createDeterministicRng(seed) {
+  const divisor = 0xffffffffffff;
+  let state = seed || '';
+  return () => {
+    state = crypto.createHash('sha256').update(String(state)).digest('hex');
+    const fragment = state.slice(0, 12);
+    const value = parseInt(fragment, 16);
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return value / divisor;
+  };
+}
+
+function selectForestEnemy(level, rng) {
+  const roll = rng();
+  const index = Number.isFinite(roll) ? Math.floor(roll * FOREST_ENEMIES.length) : 0;
+  const base = FOREST_ENEMIES[index % FOREST_ENEMIES.length] || FOREST_ENEMIES[0];
+  const levelBonus = Math.max(0, Math.floor(level / 3));
+  const defenceBonus = Math.max(0, Math.floor(level / 5));
+  return {
+    name: base.name,
+    hp: base.hp + levelBonus,
+    atk: base.atk + levelBonus,
+    def: base.def + defenceBonus,
+  };
+}
+
+function resolveForestFight(state, enemy, rng) {
+  const playerAttack = 5 + state.level + (state.weapon_stat || 0);
+  const playerDefense = 5 + state.level + (state.armour_stat || 0);
+
+  const youRoll = 1 + Math.floor(rng() * 20);
+  const enemyRoll = 1 + Math.floor(rng() * 20);
+
+  const damageToEnemy = Math.max(1, Math.floor(playerAttack * 0.6) + youRoll - enemy.def);
+  const victory = damageToEnemy >= enemy.hp;
+
+  let damageTaken;
+  if (victory) {
+    const glancing = Math.max(0, Math.floor(enemy.atk * 0.3) + Math.floor(enemyRoll / 2) - Math.floor(playerDefense * 0.5));
+    damageTaken = Math.max(0, glancing);
+  } else {
+    const assault = Math.max(1, Math.floor(enemy.atk * 0.7) + enemyRoll);
+    damageTaken = Math.max(1, assault - Math.floor(playerDefense * 0.5));
+  }
+
+  damageTaken = Math.min(Number.isFinite(damageTaken) ? damageTaken : 0, state.hp);
+  const deltaHp = -damageTaken;
+
+  const xpReward = victory ? 5 + Math.floor(rng() * (4 + enemy.atk)) : 1;
+  const goldReward = victory ? 8 + Math.floor(rng() * (5 + enemy.def)) : 0;
+
+  return {
+    roll: { you: youRoll, enemy: enemyRoll },
+    deltaHp,
+    xp: xpReward,
+    gold: goldReward,
+    victory,
+  };
+}
 
 app.use((err, req, res, next) => {
   console.error(err);
