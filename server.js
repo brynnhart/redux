@@ -492,6 +492,88 @@ app.post('/api/armour/sell', async (req, res, next) => {
   }
 });
 
+app.post('/api/healer/heal', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const modeRaw = typeof req.body?.mode === 'string' ? req.body.mode.trim().toLowerCase() : '';
+    if (modeRaw !== 'all' && modeRaw !== 'some') {
+      return res.status(400).json({ error: 'Invalid mode' });
+    }
+
+    let requestedAmount = null;
+    if (modeRaw === 'some') {
+      const amountValue = Number(req.body?.amount);
+      if (!Number.isFinite(amountValue) || amountValue <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+      }
+      requestedAmount = Math.floor(amountValue);
+    }
+
+    const result = ctx.db.transaction((charId, mode, amount) => {
+      const current = ctx.db
+        .prepare('SELECT hp, hp_max, gold FROM characters WHERE id = ?')
+        .get(charId);
+      if (!current) {
+        throw new Error('Character not found');
+      }
+
+      const missing = Math.max(current.hp_max - current.hp, 0);
+      if (missing <= 0) {
+        return { error: 'Already at full health' };
+      }
+
+      let healAmount = mode === 'all' ? missing : Math.min(amount, missing);
+      if (!Number.isFinite(healAmount) || healAmount <= 0) {
+        return { error: 'Invalid amount' };
+      }
+
+      const cost = healAmount * 2;
+      if (current.gold < cost) {
+        return { error: 'Insufficient funds' };
+      }
+
+      ctx.db
+        .prepare('UPDATE characters SET hp = hp + ?, gold = gold - ? WHERE id = ?')
+        .run(healAmount, cost, charId);
+
+      const updated = ctx.db
+        .prepare('SELECT hp, hp_max, gold FROM characters WHERE id = ?')
+        .get(charId);
+
+      return { healed: healAmount, spent: cost, character: updated };
+    })(character.id, modeRaw, requestedAmount);
+
+    if (result?.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+
+    let view = null;
+    if (views.healer?.get) {
+      view = await views.healer.get(ctx);
+    }
+
+    res.json({
+      healed: result.healed,
+      spent: result.spent,
+      character: {
+        hp: result.character.hp,
+        hpMax: result.character.hp_max,
+        gold: result.character.gold,
+      },
+      view,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) {
