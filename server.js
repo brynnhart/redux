@@ -357,11 +357,11 @@ app.post('/api/forest/fight', async (req, res, next) => {
         .get(charId);
 
       if (!state) {
-        throw new Error('Character not found');
+        return { error: 'CHARACTER_NOT_FOUND', status: 404 };
       }
 
       if (state.hp <= 0) {
-        return { error: 'You are too weak to fight today.', status: 400 };
+        return { error: 'HP_DEPLETED', status: 400 };
       }
 
       const fightsRow = ctx.db
@@ -369,14 +369,15 @@ app.post('/api/forest/fight', async (req, res, next) => {
         .get(charId, dateStr);
       const fightsUsed = fightsRow?.fights_used ?? 0;
       if (fightsUsed >= MAX_FOREST_FIGHTS_PER_DAY) {
-        return { error: 'No forest fights left today.', status: 409 };
+        return { error: 'NO_FIGHTS_LEFT', status: 409 };
       }
 
       const fightCount = fightsUsed + 1;
       const seed = computeForestSeed(dateStr, charId, fightCount);
       const rng = createDeterministicRng(seed);
+      const sanitizedStats = sanitizeEquipmentStats(state);
       const enemy = selectForestEnemy(state.level, rng);
-      const outcome = resolveForestFight(state, enemy, rng);
+      const outcome = resolveForestFight(sanitizedStats, enemy, rng);
 
       const nextHp = Math.max(0, Math.min(state.hp_max, state.hp + outcome.deltaHp));
       const nextGold = Math.max(0, state.gold + outcome.gold);
@@ -908,6 +909,19 @@ function selectForestEnemy(level, rng) {
     hp: base.hp + levelBonus,
     atk: base.atk + levelBonus,
     def: base.def + defenceBonus,
+  };
+}
+
+function sanitizeEquipmentStats(state) {
+  const toStat = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  return {
+    ...state,
+    weapon_stat: toStat(state.weapon_stat),
+    armour_stat: toStat(state.armour_stat),
   };
 }
 
