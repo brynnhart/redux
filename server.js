@@ -11,6 +11,17 @@ const viewsDir = path.join(__dirname, 'views');
 
 const views = loadViews(viewsDir);
 const BANK_LIMITS = views.bank?.LIMITS ?? { transferLimitPerDay: 2, transferMax: 500 };
+const innView = views.inn || {};
+const INN_BARD_FLAG = innView.BARD_DAILY_FLAG || 'inn-bard';
+const getInnTodayDate =
+  typeof innView.getTodayDate === 'function'
+    ? innView.getTodayDate
+    : (now) => now.toISOString().slice(0, 10);
+const BARD_SONGS = [
+  'Seth Able strums a jaunty ballad of dragons bested and hearts won.',
+  'The bard whispers a haunting melody about the moonlit Vale of Shadows.',
+  'A rousing chorus erupts: "Raise your mugs, for heroes never fall!"',
+];
 const SELL_RATE = 0.5;
 
 app.use(express.json());
@@ -137,10 +148,49 @@ app.post('/api/inn/converse', async (req, res, next) => {
     );
     const info = insert.run(character.id, text, color);
     const entry = ctx.db
-      .prepare('SELECT id, char_id, text, color, created_at FROM patrons WHERE id = ?')
+      .prepare(
+        `SELECT p.id, p.char_id, c.name AS author, p.text, COALESCE(p.color, 'white') AS color, p.created_at
+         FROM patrons p
+         JOIN characters c ON c.id = p.char_id
+         WHERE p.id = ?`
+      )
       .get(info.lastInsertRowid);
 
     res.status(201).json({ entry });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/inn/bard', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const today = getInnTodayDate(ctx.now());
+    const existing = ctx.db
+      .prepare('SELECT used_on FROM daily_flags WHERE char_id = ? AND flag = ?')
+      .get(character.id, INN_BARD_FLAG);
+
+    if (existing && existing.used_on === today) {
+      return res.status(409).json({ error: 'The bard has already performed for you today.' });
+    }
+
+    ctx.db
+      .prepare(
+        `INSERT INTO daily_flags (char_id, flag, used_on)
+         VALUES (?, ?, ?)
+         ON CONFLICT(char_id, flag) DO UPDATE SET used_on = excluded.used_on`
+      )
+      .run(character.id, INN_BARD_FLAG, today);
+
+    const song = BARD_SONGS[Math.floor(Math.random() * BARD_SONGS.length)] ||
+      'The bard hums a comforting tune about distant heroes.';
+
+    res.json({ song, bardAvailable: false });
   } catch (error) {
     next(error);
   }

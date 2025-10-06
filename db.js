@@ -71,6 +71,13 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS daily_flags (
+    char_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    flag TEXT NOT NULL,
+    used_on TEXT NOT NULL,
+    PRIMARY KEY (char_id, flag)
+  );
+
   CREATE TABLE IF NOT EXISTS presence (
     char_id INTEGER PRIMARY KEY REFERENCES characters(id) ON DELETE CASCADE,
     last_heartbeat_at TEXT NOT NULL DEFAULT (datetime('now'))
