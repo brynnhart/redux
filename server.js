@@ -10,6 +10,7 @@ const publicDir = path.join(__dirname, 'public');
 const viewsDir = path.join(__dirname, 'views');
 
 const views = loadViews(viewsDir);
+const BANK_LIMITS = views.bank?.LIMITS ?? { transferLimitPerDay: 2, transferMax: 500 };
 
 app.use(express.json());
 app.use(express.static(publicDir));
@@ -157,6 +158,10 @@ app.post('/api/bank/deposit', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    if (amount > BANK_LIMITS.transferMax) {
+      return res.status(400).json({ error: 'Amount exceeds transfer maximum' });
+    }
+
     const update = ctx.db.transaction((charId, amt) => {
       const current = ctx.db
         .prepare('SELECT gold, bank_gold FROM characters WHERE id = ?')
@@ -201,6 +206,10 @@ app.post('/api/bank/withdraw', async (req, res, next) => {
     const amount = Number(req.body?.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    if (amount > BANK_LIMITS.transferMax) {
+      return res.status(400).json({ error: 'Amount exceeds transfer maximum' });
     }
 
     const update = ctx.db.transaction((charId, amt) => {
