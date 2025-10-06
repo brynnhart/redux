@@ -1,18 +1,36 @@
+function toPositiveInt(value) {
+  const num = Number.parseInt(value, 10);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function buildPagination(query, total, { defaultLimit, maxLimit }) {
+  const requestedPage = toPositiveInt(query?.page) ?? 1;
+  let limit = toPositiveInt(query?.limit) ?? defaultLimit;
+  if (!limit) {
+    limit = defaultLimit;
+  }
+  limit = Math.max(1, Math.min(limit, maxLimit));
+
+  const totalPages = total === 0 ? 1 : Math.max(1, Math.ceil(total / limit));
+  const page = Math.min(requestedPage, totalPages);
+
+  return {
+    page,
+    limit,
+    total,
+    totalPages,
+    hasPrev: page > 1,
+    hasNext: page < totalPages,
+    offset: (page - 1) * limit,
+  };
+}
+
 module.exports = {
   async get(ctx) {
-    const page = Math.max(1, parseInt(ctx.query.page, 10) || 1);
-    let limit = parseInt(ctx.query.limit, 10);
-    if (!Number.isFinite(limit) || limit <= 0) {
-      limit = 25;
-    }
-    limit = Math.min(limit, 100);
-
     const total = ctx.db.prepare('SELECT COUNT(*) AS count FROM characters').get().count;
-    const totalPages = total === 0 ? 1 : Math.max(1, Math.ceil(total / limit));
-    const currentPage = Math.min(page, totalPages);
-    const offset = (currentPage - 1) * limit;
+    const pagination = buildPagination(ctx.query, total, { defaultLimit: 25, maxLimit: 100 });
 
-    const list = ctx.db
+    const items = ctx.db
       .prepare(
         `SELECT c.name, c.level, c.created_at, CASE WHEN p.last_heartbeat_at IS NULL THEN 0 ELSE 1 END AS online
          FROM characters c
@@ -20,7 +38,7 @@ module.exports = {
          ORDER BY c.level DESC, datetime(c.created_at) ASC
          LIMIT ? OFFSET ?`
       )
-      .all(limit, offset)
+      .all(pagination.limit, pagination.offset)
       .map((row) => ({
         name: row.name,
         level: row.level,
@@ -29,20 +47,25 @@ module.exports = {
       }));
 
     const payload = {
-      list,
+      items,
+      list: items,
       pagination: {
-        page: currentPage,
-        limit,
-        total,
-        totalPages,
-        hasPrev: currentPage > 1,
-        hasNext: currentPage < totalPages,
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        totalPages: pagination.totalPages,
+        hasPrev: pagination.hasPrev,
+        hasNext: pagination.hasNext,
       },
     };
 
     return {
       ...payload,
-      warriors: payload,
+      warriors: {
+        items: payload.items,
+        list: payload.list,
+        pagination: payload.pagination,
+      },
     };
   },
 };

@@ -1,16 +1,34 @@
+function toPositiveInt(value) {
+  const num = Number.parseInt(value, 10);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function buildPagination(query, total, { defaultLimit, maxLimit }) {
+  const requestedPage = toPositiveInt(query?.page) ?? 1;
+  let limit = toPositiveInt(query?.limit) ?? defaultLimit;
+  if (!limit) {
+    limit = defaultLimit;
+  }
+  limit = Math.max(1, Math.min(limit, maxLimit));
+
+  const totalPages = total === 0 ? 1 : Math.max(1, Math.ceil(total / limit));
+  const page = Math.min(requestedPage, totalPages);
+
+  return {
+    page,
+    limit,
+    total,
+    totalPages,
+    hasPrev: page > 1,
+    hasNext: page < totalPages,
+    offset: (page - 1) * limit,
+  };
+}
+
 module.exports = {
   async get(ctx) {
-    const page = Math.max(1, parseInt(ctx.query.page, 10) || 1);
-    let limit = parseInt(ctx.query.limit, 10);
-    if (!Number.isFinite(limit) || limit <= 0) {
-      limit = 10;
-    }
-    limit = Math.min(limit, 100);
-
     const total = ctx.db.prepare('SELECT COUNT(*) AS count FROM news').get().count;
-    const totalPages = total === 0 ? 1 : Math.max(1, Math.ceil(total / limit));
-    const currentPage = Math.min(page, totalPages);
-    const offset = (currentPage - 1) * limit;
+    const pagination = buildPagination(ctx.query, total, { defaultLimit: 10, maxLimit: 100 });
 
     const items = ctx.db
       .prepare(
@@ -19,17 +37,17 @@ module.exports = {
          ORDER BY datetime(created_at) DESC
          LIMIT ? OFFSET ?`
       )
-      .all(limit, offset);
+      .all(pagination.limit, pagination.offset);
 
     return {
       items,
       pagination: {
-        page: currentPage,
-        limit,
-        total,
-        totalPages,
-        hasPrev: currentPage > 1,
-        hasNext: currentPage < totalPages,
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        totalPages: pagination.totalPages,
+        hasPrev: pagination.hasPrev,
+        hasNext: pagination.hasNext,
       },
     };
   },
