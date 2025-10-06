@@ -446,12 +446,17 @@ and rumors tell of gamblers and gnomes with rigged games of chance....
 
   <div class="columns" aria-label="Options">
     <div>
-      <p class="opt">(<b>L</b>)ook for something to kill</p>
-      <p class="opt">(<b>H</b>)ealers hut</p>
-      <p class="opt">(<b>R</b>)eturn to town</p>
+      <p class="opt option" data-key="L" data-action="forest-fight">(<b>L</b>)ook for something to kill</p>
+      <p class="opt option" data-key="H" data-target="healer">(<b>H</b>)ealers hut</p>
+      <p class="opt option" data-key="R" data-target="town">(<b>R</b>)eturn to town</p>
     </div>
   </div>
-  <span class="">Hit Points: (30 of 30)  Fights: 30  Gold: 0  Gems: 1</span>
+  <div class="box">
+    <p class="opt">Hit Points: ({player current hp} of {player total hp})</p>
+    <p class="opt">Fights Left Today: {forest fights left}</p>
+    <p class="opt">Gold: {player gold in hand}  Gems: {player's gems}</p>
+    <p class="opt">Weapon: {player's weapon}</p>
+  </div>
   <div class="help">
     <span class="cyan">The Forest</span> <span class="white-dim">(? for menu)</span>
     <span class="keys">(L,H,R,Q)</span>
