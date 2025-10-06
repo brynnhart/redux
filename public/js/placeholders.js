@@ -34,10 +34,11 @@ export const PLACEHOLDERS = {
     "player defensive strength": "stats.defense",
   },
   training: {
-    "master name for current player level": "master.name",
-    "master name": "master.name",
-    "master level for current player level": "master.level",
-    "master level": "master.level",
+    "master name for current player level": "training.masterName",
+    "master name": "training.masterName",
+    "can challenge master": "training.canChallenge",
+    "can challenge the master": "training.canChallenge",
+    "challenge available": "training.canChallenge",
   },
   bank: {
     "gold on hand": "onHand",

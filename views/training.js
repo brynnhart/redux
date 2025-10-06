@@ -1,15 +1,14 @@
 module.exports = {
   async get(ctx) {
     const character = ctx.getCurrentCharacter();
-    const masterLevel = character && character.level >= 10 ? 15 : 8;
     const masterName = character && character.level >= 10 ? 'Sir Turgon' : 'Turgon';
+    const canChallenge = Boolean(character && character.level >= 5);
 
     return {
-      master: {
-        name: masterName,
-        level: masterLevel,
+      training: {
+        masterName,
+        canChallenge,
       },
-      canChallenge: Boolean(character && character.level >= 5),
     };
   },
 };
