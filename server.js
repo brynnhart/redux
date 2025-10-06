@@ -55,7 +55,7 @@ app.get('/api/view/:id', async (req, res, next) => {
   try {
     const ctx = createContext(req, res);
     const payload = await viewModule.get(ctx);
-    res.json({ ok: true, data: payload ?? {} });
+    res.json(payload ?? {});
   } catch (error) {
     next(error);
   }
@@ -96,6 +96,48 @@ app.post('/api/announce', async (req, res, next) => {
       .get(info.lastInsertRowid);
 
     res.status(201).json({ item });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/pvp/attack', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const targetName = typeof req.body?.targetName === 'string' ? req.body.targetName.trim() : '';
+
+    if (!targetName) {
+      return res.status(400).json({ error: 'targetName is required' });
+    }
+
+    const attacker = ctx.getCurrentCharacter();
+    if (!attacker) {
+      return res.status(403).json({ error: 'No active character available' });
+    }
+
+    const target = ctx.db
+      .prepare('SELECT id, name FROM characters WHERE name = ? COLLATE NOCASE')
+      .get(targetName);
+
+    if (!target) {
+      return res.status(404).json({ error: 'Target not found' });
+    }
+
+    if (target.id === attacker.id) {
+      return res.status(400).json({ error: 'You cannot attack yourself' });
+    }
+
+    const text = `${attacker.name} eyes ${target.name} for a future duel in the fields.`;
+    const insert = ctx.db.prepare('INSERT INTO news (kind, text) VALUES (?, ?)');
+    const info = insert.run('pvp', text);
+    const newsItem = ctx.db
+      .prepare('SELECT id, kind, text, created_at FROM news WHERE id = ?')
+      .get(info.lastInsertRowid);
+
+    res.status(201).json({
+      message: 'Attack intent recorded',
+      news: newsItem,
+    });
   } catch (error) {
     next(error);
   }
