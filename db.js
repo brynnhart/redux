@@ -16,6 +16,20 @@ db.exec(`
     username TEXT NOT NULL UNIQUE
   );
 
+  CREATE TABLE IF NOT EXISTS shop_weapons (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    stat INTEGER NOT NULL,
+    price INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS shop_armours (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    stat INTEGER NOT NULL,
+    price INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS characters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -28,6 +42,8 @@ db.exec(`
     bank_gold INTEGER NOT NULL DEFAULT 0,
     gems INTEGER NOT NULL DEFAULT 0,
     sleeping INTEGER NOT NULL DEFAULT 0,
+    weapon_id TEXT REFERENCES shop_weapons(id) ON DELETE SET NULL,
+    armour_id TEXT REFERENCES shop_armours(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -66,7 +82,21 @@ db.exec(`
     char2_id INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     since TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
 `);
+
+const characterColumns = db.prepare('PRAGMA table_info(characters)').all();
+const characterColumnNames = new Set(characterColumns.map((column) => column.name));
+if (!characterColumnNames.has('weapon_id')) {
+  db.exec(
+    "ALTER TABLE characters ADD COLUMN weapon_id TEXT REFERENCES shop_weapons(id) ON DELETE SET NULL"
+  );
+}
+if (!characterColumnNames.has('armour_id')) {
+  db.exec(
+    "ALTER TABLE characters ADD COLUMN armour_id TEXT REFERENCES shop_armours(id) ON DELETE SET NULL"
+  );
+}
 
 const seed = db.transaction(() => {
   const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get('player');
@@ -86,12 +116,60 @@ const seed = db.transaction(() => {
     const info = db
       .prepare(`
         INSERT INTO characters (
-          user_id, name, level, xp, hp, hp_max, gold, bank_gold, gems, sleeping, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          user_id, name, level, xp, hp, hp_max, gold, bank_gold, gems, sleeping, weapon_id, armour_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
-      .run(userId, 'PunkyRoo', 1, 0, 25, 25, 120, 350, 3, 0, now);
+      .run(
+        userId,
+        'PunkyRoo',
+        1,
+        0,
+        25,
+        25,
+        120,
+        350,
+        3,
+        0,
+        null,
+        null,
+        now
+      );
     charId = info.lastInsertRowid;
   }
+
+  const upsertWeapon = db.prepare(`
+    INSERT INTO shop_weapons (id, name, stat, price)
+    VALUES (@id, @name, @stat, @price)
+    ON CONFLICT(id) DO UPDATE SET name = excluded.name, stat = excluded.stat, price = excluded.price
+  `);
+
+  const weapons = [
+    { id: 'weapon-dagger', name: 'Dagger', stat: 3, price: 35 },
+    { id: 'weapon-sword', name: 'Longsword', stat: 9, price: 150 },
+    { id: 'weapon-axe', name: 'Battle Axe', stat: 13, price: 245 },
+  ];
+  weapons.forEach((weapon) => upsertWeapon.run(weapon));
+
+  const upsertArmour = db.prepare(`
+    INSERT INTO shop_armours (id, name, stat, price)
+    VALUES (@id, @name, @stat, @price)
+    ON CONFLICT(id) DO UPDATE SET name = excluded.name, stat = excluded.stat, price = excluded.price
+  `);
+
+  const armours = [
+    { id: 'armour-wooden-shield', name: 'Wooden Shield', stat: 3, price: 40 },
+    { id: 'armour-chainmail', name: 'Chainmail', stat: 8, price: 135 },
+    { id: 'armour-plate', name: 'Steel Plate', stat: 14, price: 280 },
+  ];
+  armours.forEach((armour) => upsertArmour.run(armour));
+
+  db.prepare(
+    `UPDATE characters SET weapon_id = COALESCE(weapon_id, 'weapon-dagger') WHERE id = ?`
+  ).run(charId);
+
+  db.prepare(
+    `UPDATE characters SET armour_id = COALESCE(armour_id, 'armour-wooden-shield') WHERE id = ?`
+  ).run(charId);
 
   const newsCount = db.prepare('SELECT COUNT(*) AS count FROM news').get().count;
   if (newsCount === 0) {

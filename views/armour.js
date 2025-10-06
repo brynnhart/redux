@@ -1,12 +1,12 @@
 module.exports = {
-  async get() {
+  async get(ctx) {
+    const items = ctx.db
+      .prepare('SELECT id, name, stat, price FROM shop_armours ORDER BY price ASC')
+      .all();
+
     return {
-      items: [
-        { id: 'armour-wooden-shield', name: 'Wooden Shield', stat: 3, price: 40 },
-        { id: 'armour-chainmail', name: 'Chainmail', stat: 8, price: 135 },
-        { id: 'armour-plate', name: 'Steel Plate', stat: 14, price: 280 },
-      ],
-      resaleHint: '~½ price; charm may improve offer',
+      items,
+      resaleHint: 'Merchants usually offer around 50% of the listed price.',
     };
   },
 };

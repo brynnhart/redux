@@ -11,6 +11,7 @@ const viewsDir = path.join(__dirname, 'views');
 
 const views = loadViews(viewsDir);
 const BANK_LIMITS = views.bank?.LIMITS ?? { transferLimitPerDay: 2, transferMax: 500 };
+const SELL_RATE = 0.5;
 
 app.use(express.json());
 app.use(express.static(publicDir));
@@ -271,6 +272,226 @@ app.post('/api/presence/heartbeat', async (req, res, next) => {
   }
 });
 
+app.post('/api/weapons/buy', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    if (!itemId) {
+      return res.status(400).json({ error: 'Item is required' });
+    }
+
+    const result = ctx.db.transaction((charId, weaponId) => {
+      const item = ctx.db
+        .prepare('SELECT id, name, stat, price FROM shop_weapons WHERE id = ?')
+        .get(weaponId);
+      if (!item) {
+        return { error: 'Weapon not found' };
+      }
+
+      const current = ctx.db
+        .prepare('SELECT gold FROM characters WHERE id = ?')
+        .get(charId);
+      if (!current) {
+        throw new Error('Character not found');
+      }
+
+      if (current.gold < item.price) {
+        return { error: 'Insufficient funds' };
+      }
+
+      ctx.db
+        .prepare('UPDATE characters SET gold = gold - ?, weapon_id = ? WHERE id = ?')
+        .run(item.price, item.id, charId);
+
+      const snapshot = getEquipmentSnapshot(ctx.db, charId);
+      return { snapshot, cost: item.price };
+    })(character.id, itemId);
+
+    if (result?.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+    res.json({
+      character: serializeEquipment(result.snapshot),
+      transaction: { type: 'buy', spent: result.cost },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/weapons/sell', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    if (!itemId) {
+      return res.status(400).json({ error: 'Item is required' });
+    }
+
+    const result = ctx.db.transaction((charId, weaponId) => {
+      const equipped = ctx.db
+        .prepare('SELECT weapon_id FROM characters WHERE id = ?')
+        .get(charId);
+      if (!equipped) {
+        throw new Error('Character not found');
+      }
+
+      if (equipped.weapon_id !== weaponId) {
+        return { error: 'Weapon not equipped' };
+      }
+
+      const item = ctx.db
+        .prepare('SELECT id, price FROM shop_weapons WHERE id = ?')
+        .get(weaponId);
+      if (!item) {
+        return { error: 'Weapon not found' };
+      }
+
+      const saleValue = Math.floor(item.price * SELL_RATE);
+
+      ctx.db
+        .prepare('UPDATE characters SET gold = gold + ?, weapon_id = NULL WHERE id = ?')
+        .run(saleValue, charId);
+
+      const snapshot = getEquipmentSnapshot(ctx.db, charId);
+      return { snapshot, saleValue };
+    })(character.id, itemId);
+
+    if (result?.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+    res.json({
+      character: serializeEquipment(result.snapshot),
+      transaction: { type: 'sell', received: result.saleValue },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/armour/buy', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    if (!itemId) {
+      return res.status(400).json({ error: 'Item is required' });
+    }
+
+    const result = ctx.db.transaction((charId, armourId) => {
+      const item = ctx.db
+        .prepare('SELECT id, name, stat, price FROM shop_armours WHERE id = ?')
+        .get(armourId);
+      if (!item) {
+        return { error: 'Armour not found' };
+      }
+
+      const current = ctx.db
+        .prepare('SELECT gold FROM characters WHERE id = ?')
+        .get(charId);
+      if (!current) {
+        throw new Error('Character not found');
+      }
+
+      if (current.gold < item.price) {
+        return { error: 'Insufficient funds' };
+      }
+
+      ctx.db
+        .prepare('UPDATE characters SET gold = gold - ?, armour_id = ? WHERE id = ?')
+        .run(item.price, item.id, charId);
+
+      const snapshot = getEquipmentSnapshot(ctx.db, charId);
+      return { snapshot, cost: item.price };
+    })(character.id, itemId);
+
+    if (result?.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+    res.json({
+      character: serializeEquipment(result.snapshot),
+      transaction: { type: 'buy', spent: result.cost },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/armour/sell', async (req, res, next) => {
+  try {
+    const ctx = createContext(req, res);
+    const character = ctx.getCurrentCharacter();
+    if (!character) {
+      return res.status(403).json({ error: 'No active character' });
+    }
+
+    const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId.trim() : '';
+    if (!itemId) {
+      return res.status(400).json({ error: 'Item is required' });
+    }
+
+    const result = ctx.db.transaction((charId, armourId) => {
+      const equipped = ctx.db
+        .prepare('SELECT armour_id FROM characters WHERE id = ?')
+        .get(charId);
+      if (!equipped) {
+        throw new Error('Character not found');
+      }
+
+      if (equipped.armour_id !== armourId) {
+        return { error: 'Armour not equipped' };
+      }
+
+      const item = ctx.db
+        .prepare('SELECT id, price FROM shop_armours WHERE id = ?')
+        .get(armourId);
+      if (!item) {
+        return { error: 'Armour not found' };
+      }
+
+      const saleValue = Math.floor(item.price * SELL_RATE);
+
+      ctx.db
+        .prepare('UPDATE characters SET gold = gold + ?, armour_id = NULL WHERE id = ?')
+        .run(saleValue, charId);
+
+      const snapshot = getEquipmentSnapshot(ctx.db, charId);
+      return { snapshot, saleValue };
+    })(character.id, itemId);
+
+    if (result?.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    ctx.reloadCharacter();
+    res.json({
+      character: serializeEquipment(result.snapshot),
+      transaction: { type: 'sell', received: result.saleValue },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) {
@@ -278,6 +499,58 @@ app.use((err, req, res, next) => {
   }
   res.status(500).json({ error: 'Internal Server Error' });
 });
+
+function getEquipmentSnapshot(database, charId) {
+  return database
+    .prepare(`
+      SELECT
+        c.id,
+        c.gold,
+        c.weapon_id,
+        c.armour_id,
+        w.name AS weapon_name,
+        w.stat AS weapon_stat,
+        w.price AS weapon_price,
+        a.name AS armour_name,
+        a.stat AS armour_stat,
+        a.price AS armour_price
+      FROM characters c
+      LEFT JOIN shop_weapons w ON w.id = c.weapon_id
+      LEFT JOIN shop_armours a ON a.id = c.armour_id
+      WHERE c.id = ?
+    `)
+    .get(charId);
+}
+
+function serializeEquipment(row) {
+  if (!row) {
+    return { gold: 0, weapon: null, armour: null };
+  }
+
+  const weapon = row.weapon_id
+    ? {
+        id: row.weapon_id,
+        name: row.weapon_name,
+        stat: row.weapon_stat,
+        price: row.weapon_price,
+      }
+    : null;
+
+  const armour = row.armour_id
+    ? {
+        id: row.armour_id,
+        name: row.armour_name,
+        stat: row.armour_stat,
+        price: row.armour_price,
+      }
+    : null;
+
+  return {
+    gold: row.gold,
+    weapon,
+    armour,
+  };
+}
 
 app.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);
@@ -327,6 +600,10 @@ function createContext(req, res) {
 
   context.getCurrentCharacter = () => context.currentChar;
   context.currentCharacter = context.currentChar;
+  context.reloadCharacter = () => {
+    cachedChar = undefined;
+    return context.currentChar;
+  };
 
   return context;
 }
