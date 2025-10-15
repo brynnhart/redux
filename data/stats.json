@@ -1,0 +1,14 @@
+{
+  "subtitle": "Hero Stats",
+  "lead": "Numbers to brag about. Or not.",
+  "prompt": {
+    "name": "PunkyRoo",
+    "time": "[10:12]"
+  },
+  "inject": [
+    {
+      "selector": "#view-stats .columns div:last-child",
+      "html": "<div class='opt'>\u2022 Tip: Defeating monsters increases fame.</div>"
+    }
+  ]
+}

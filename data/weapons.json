@@ -1,0 +1,14 @@
+{
+  "subtitle": "Weapons Shop",
+  "lead": "Fresh oil on steel. Prices wink like polished coins.",
+  "prompt": {
+    "name": "PunkyRoo",
+    "time": "[10:12]"
+  },
+  "inject": [
+    {
+      "selector": "#view-weapons .columns div:last-child",
+      "html": "<div class='opt'>\u2022 Dagger (dmg 2) \u2014 15 gold</div><div class='opt'>\u2022 Shortsword (dmg 4) \u2014 60 gold</div><div class='opt'>\u2022 Longsword (dmg 6) \u2014 180 gold</div>"
+    }
+  ]
+}
