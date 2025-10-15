@@ -1018,5 +1018,78 @@ BBS.viewHooks.forest = {
 */
 </script>
 
+
+<!-- Starter ACTIONS + viewHooks for Codex handoff -->
+<script>
+// Ensure ACTIONS exists (it is created in the core script in your file)
+window.ACTIONS = window.ACTIONS || {};
+
+// === Starter ACTIONS ===
+ACTIONS.deposit = async () => {
+  const amount = await startInputView({
+    question: 'How much would you like to deposit?',
+    type: 'number', min: 1, max: 100000,
+    hint: 'Numbers only. Enter to confirm. Esc to cancel.'
+  });
+  if (amount == null) return; // Esc or cancel
+  const box = document.querySelector('#view-bank .columns > div:last-child');
+  box?.insertAdjacentHTML('beforeend', `<p class="opt">• Deposited <b>${amount}</b> gold.</p>`);
+};
+
+ACTIONS.withdraw = async () => {
+  const amount = await startInputView({
+    question: 'Withdraw how much?',
+    type: 'number', min: 1, max: 100000,
+    hint: 'Numbers only. Enter to confirm. Esc to cancel.'
+  });
+  if (amount == null) return;
+  const box = document.querySelector('#view-bank .columns > div:last-child');
+  box?.insertAdjacentHTML('beforeend', `<p class="opt">• Withdrew <b>${amount}</b> gold.</p>`);
+};
+
+ACTIONS.composeMail = async () => {
+  const to = await BBS.prompt.text({ label: 'Send to:', maxLength: 24 });
+  if (!to) return;
+  const body = await startInputView({
+    question: `Write a message to ${to}:`,
+    type: 'text',
+    hint: 'Type your message. Enter sends. Esc cancels.'
+  });
+  if (body == null) return;
+  const box = document.querySelector('#view-mail .columns > div:last-child');
+  box?.insertAdjacentHTML('beforeend', `<p class="opt">• Sent mail to <b>${to}</b>: ${body}</p>`);
+};
+
+ACTIONS.hunt = async () => {
+  // Simple placeholder; Codex can expand this later
+  const outcomes = ['Nothing happens.', 'You spot tracks.', 'A squirrel judges you.', 'A goblin scampers off.'];
+  const roll = outcomes[Math.floor(Math.random()*outcomes.length)];
+  const box = document.querySelector('#view-forest .columns > div:last-child');
+  box?.insertAdjacentHTML('beforeend', `<p class="opt">• ${roll}</p>`);
+};
+
+// === Starter HOOKS ===
+window.BBS = window.BBS || {};
+BBS.viewHooks = BBS.viewHooks || {};
+
+BBS.viewHooks.bank = {
+  pre(data) {
+    const box = document.querySelector('#view-bank .columns > div:last-child');
+    if (!box) return;
+    const rate = 0.01; // 1% daily, demo only
+    box.insertAdjacentHTML('beforeend', `<p class="opt dim">• Interest hint: <b>${(rate*100).toFixed(1)}%</b> daily.</p>`);
+  }
+};
+
+BBS.viewHooks.forest = {
+  pre() {
+    const outcomes = ['The canopy whispers.', 'A branch snaps nearby.', 'You find a feather.', 'Fresh paw prints!'];
+    const roll = outcomes[Math.floor(Math.random()*outcomes.length)];
+    const box = document.querySelector('#view-forest .columns > div:last-child');
+    box?.insertAdjacentHTML('beforeend', `<p class="opt">• ${roll}</p>`);
+  }
+};
+</script>
+
 </body>
 </html>
