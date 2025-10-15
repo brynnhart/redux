@@ -285,8 +285,7 @@ and rumors tell of gamblers and gnomes with rigged games of chance....
   <div class="columns" aria-label="Options">
     <div>
       <p class="opt option" data-key="L" data-target="lookkill">(<b>L</b>)ook for something to kill</p>
-      <p class="opt option" data-key="E" data-target="healer">(<b>E</b>)nter the healer's hut</p>
-      <p class="opt option" data-key="H" data-action="hunt">(<b>H</b>)unt</p>
+      <p class="opt option" data-key="H" data-target="healer">(<b>H</b>)ealer's Hut</p>
       <p class="opt option" data-key="R" data-target="town">(<b>R</b>)eturn to Town</p>
     </div>
     <div id="forest-log" class="list" aria-live="polite"></div>
@@ -294,7 +293,7 @@ and rumors tell of gamblers and gnomes with rigged games of chance....
 
   <div class="help">
     <span class="cyan">The Forest</span> <span class="white-dim">(? for menu)</span>
-    <span class="keys">(L,E,H,R)</span>
+    <span class="keys">(L,H,R)</span>
   </div>
 
   <div class="prompt">
@@ -1111,13 +1110,6 @@ ACTIONS.composeMail = async () => {
   entry.append(who);
   entry.append(`: ${message}`);
   box.appendChild(entry);
-};
-
-ACTIONS.hunt = async () => {
-  const outcomes = ['Nothing happens.', 'You spot tracks.', 'A squirrel judges you.', 'A goblin scampers off.'];
-  const roll = outcomes[Math.floor(Math.random()*outcomes.length)];
-  const box = document.getElementById('forest-log');
-  box?.insertAdjacentHTML('beforeend', `<p class="opt">• ${roll}</p>`);
 };
 
 // === Starter HOOKS ===
