@@ -285,9 +285,10 @@ and rumors tell of gamblers and gnomes with rigged games of chance....
   <div class="columns" aria-label="Options">
     <div>
       <p class="opt option" data-key="L" data-target="lookkill">(<b>L</b>)ook for something to kill</p>
-      <p class="opt option" data-key="H" data-target="healer">(<b>H</b>)ealers hut</p>
+      <p class="opt option" data-key="H" data-target="healer">(<b>H</b>)ealer's Hut</p>
       <p class="opt option" data-key="R" data-target="town">(<b>R</b>)eturn to Town</p>
     </div>
+    <div id="forest-log" class="list" aria-live="polite"></div>
   </div>
 
   <div class="help">
@@ -416,16 +417,50 @@ gold — unless you prefer to tempt fate in the fields.
 
   <div class="columns" aria-label="Options">
     <div>
-      <p class="opt">(<b>D</b>)eposit gold</p>
-      <p class="opt">(<b>W</b>)ithdraw gold</p>
+      <p class="opt option" data-key="D" data-action="deposit">(<b>D</b>)eposit gold</p>
+      <p class="opt option" data-key="W" data-action="withdraw">(<b>W</b>)ithdraw gold</p>
       <p class="opt">(<b>T</b>)ransfer funds</p>
       <p class="opt option" data-key="R" data-target="town">(<b>R</b>)eturn to Town</p>
     </div>
+    <div id="bank-log" class="list" aria-live="polite"></div>
   </div>
 
   <div class="help">
     <span class="cyan">Ye Olde Bank</span> <span class="white-dim">(? for menu)</span>
-    <span class="keys">(D,W,B,T,R,Q)</span>
+    <span class="keys">(D,W,T,R)</span>
+  </div>
+
+  <div class="prompt">
+    Your command, <span class="name">PunkyRoo</span>? <span class="time">[44:06]</span> :
+  </div>
+</section>
+
+<!-- MAIL -->
+<section id="view-mail" class="view" aria-hidden="true">
+  <div class="title-line">
+    <span class="title">Legend Of The Redux Dragon</span>
+    <span class="bar">–</span>
+    <span class="subtitle">Courier's Post</span>
+  </div>
+
+  <div class="rule">-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</div>
+
+  <div class="lead">
+Letters crinkle beneath sealing wax. Quills scratch hurried secrets and
+rumors destined for distant allies.
+  </div>
+
+  <div class="columns" aria-label="Options">
+    <div>
+      <p class="opt option" data-key="C" data-action="composeMail">(<b>C</b>)ompose a letter</p>
+      <p class="opt option" data-key="R" data-target="town">(<b>R</b>)eturn to Town</p>
+    </div>
+    <div id="mail-log" class="list" aria-live="polite"></div>
+  </div>
+
+  <div class="help">
+    <span class="cyan">Courier's Post</span> <span class="white-dim">(? for menu)</span>
+    <span class="keys">(C,R)</span>
   </div>
 
   <div class="prompt">
@@ -1032,7 +1067,7 @@ ACTIONS.deposit = async () => {
     hint: 'Numbers only. Enter to confirm. Esc to cancel.'
   });
   if (amount == null) return; // Esc or cancel
-  const box = document.querySelector('#view-bank .columns > div:last-child');
+  const box = document.getElementById('bank-log');
   box?.insertAdjacentHTML('beforeend', `<p class="opt">• Deposited <b>${amount}</b> gold.</p>`);
 };
 
@@ -1043,29 +1078,38 @@ ACTIONS.withdraw = async () => {
     hint: 'Numbers only. Enter to confirm. Esc to cancel.'
   });
   if (amount == null) return;
-  const box = document.querySelector('#view-bank .columns > div:last-child');
+  const box = document.getElementById('bank-log');
   box?.insertAdjacentHTML('beforeend', `<p class="opt">• Withdrew <b>${amount}</b> gold.</p>`);
 };
 
 ACTIONS.composeMail = async () => {
-  const to = await BBS.prompt.text({ label: 'Send to:', maxLength: 24 });
+  let to;
+  try {
+    to = await BBS.prompt.text({ label: 'Send to:', maxLength: 24 });
+  } catch {
+    return;
+  }
   if (!to) return;
+
   const body = await startInputView({
     question: `Write a message to ${to}:`,
     type: 'text',
     hint: 'Type your message. Enter sends. Esc cancels.'
   });
   if (body == null) return;
-  const box = document.querySelector('#view-mail .columns > div:last-child');
-  box?.insertAdjacentHTML('beforeend', `<p class="opt">• Sent mail to <b>${to}</b>: ${body}</p>`);
-};
+  const message = typeof body === 'string' ? body.trim() : '';
+  if (!message) return;
 
-ACTIONS.hunt = async () => {
-  // Simple placeholder; Codex can expand this later
-  const outcomes = ['Nothing happens.', 'You spot tracks.', 'A squirrel judges you.', 'A goblin scampers off.'];
-  const roll = outcomes[Math.floor(Math.random()*outcomes.length)];
-  const box = document.querySelector('#view-forest .columns > div:last-child');
-  box?.insertAdjacentHTML('beforeend', `<p class="opt">• ${roll}</p>`);
+  const box = document.getElementById('mail-log');
+  if (!box) return;
+  const entry = document.createElement('p');
+  entry.className = 'opt';
+  entry.append('• Sent mail to ');
+  const who = document.createElement('b');
+  who.textContent = to;
+  entry.append(who);
+  entry.append(`: ${message}`);
+  box.appendChild(entry);
 };
 
 // === Starter HOOKS ===
@@ -1073,11 +1117,16 @@ window.BBS = window.BBS || {};
 BBS.viewHooks = BBS.viewHooks || {};
 
 BBS.viewHooks.bank = {
-  pre(data) {
-    const box = document.querySelector('#view-bank .columns > div:last-child');
+  pre() {
+    const box = document.getElementById('bank-log');
     if (!box) return;
+    box.querySelector('[data-interest-hint]')?.remove();
     const rate = 0.01; // 1% daily, demo only
-    box.insertAdjacentHTML('beforeend', `<p class="opt dim">• Interest hint: <b>${(rate*100).toFixed(1)}%</b> daily.</p>`);
+    const note = document.createElement('p');
+    note.className = 'opt dim';
+    note.setAttribute('data-interest-hint', '');
+    note.innerHTML = `• Interest hint: <b>${(rate*100).toFixed(1)}%</b> daily.`;
+    box.appendChild(note);
   }
 };
 
@@ -1085,7 +1134,7 @@ BBS.viewHooks.forest = {
   pre() {
     const outcomes = ['The canopy whispers.', 'A branch snaps nearby.', 'You find a feather.', 'Fresh paw prints!'];
     const roll = outcomes[Math.floor(Math.random()*outcomes.length)];
-    const box = document.querySelector('#view-forest .columns > div:last-child');
+    const box = document.getElementById('forest-log');
     box?.insertAdjacentHTML('beforeend', `<p class="opt">• ${roll}</p>`);
   }
 };
