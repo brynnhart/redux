@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export function runMigrations() {
   const db = getDb();
@@ -40,6 +40,45 @@ export function runMigrations() {
         turns_forest INTEGER NOT NULL DEFAULT 0,
         turns_pvp INTEGER NOT NULL DEFAULT 0
       );
+    `);
+  }
+
+  if (currentVersion < 2) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN turns_forest_max INTEGER NOT NULL DEFAULT 30;
+      ALTER TABLE players ADD COLUMN turns_forest_left INTEGER NOT NULL DEFAULT 30;
+      ALTER TABLE players ADD COLUMN turns_pvp_max INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN turns_pvp_left INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN last_daily_reset_date TEXT;
+      ALTER TABLE players ADD COLUMN spirits TEXT NOT NULL DEFAULT 'NORMAL' CHECK (spirits IN ('LOW','NORMAL','HIGH'));
+      ALTER TABLE players ADD COLUMN today_money_doubler_used INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN today_bard_listens INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN today_flirts INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS daily_news (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        type TEXT NOT NULL,
+        message TEXT NOT NULL,
+        player_id TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_daily_news_date ON daily_news (date);
+      CREATE INDEX IF NOT EXISTS idx_daily_news_player_date ON daily_news (player_id, date);
+    `);
+
+    db.exec(`
+      UPDATE players SET turns_forest_max = COALESCE(turns_forest_max, 30);
+      UPDATE players SET turns_forest_left = COALESCE(turns_forest_left, turns_forest, turns_forest_max);
+      UPDATE players SET turns_pvp_max = COALESCE(turns_pvp_max, 1);
+      UPDATE players SET turns_pvp_left = COALESCE(turns_pvp_left, turns_pvp, turns_pvp_max);
+      UPDATE players SET spirits = COALESCE(spirits, 'NORMAL');
+      UPDATE players SET today_money_doubler_used = COALESCE(today_money_doubler_used, 0);
+      UPDATE players SET today_bard_listens = COALESCE(today_bard_listens, 0);
+      UPDATE players SET today_flirts = COALESCE(today_flirts, 0);
     `);
   }
 

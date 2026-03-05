@@ -1,8 +1,9 @@
 import type { PlayerClass, PlayerRecord, PlayerSex } from './repos/playerRepo.js';
+import type { NewsRecord } from './services/newsService.js';
 
 let nextSessionId = 1;
 
-export type ScreenState = 'WELCOME' | 'LOGIN' | 'NEW_CHARACTER' | 'TOWN_SQUARE';
+export type ScreenState = 'WELCOME' | 'LOGIN' | 'NEW_CHARACTER' | 'DAILY_HAPPENINGS' | 'TOWN_SQUARE';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -22,6 +23,8 @@ export interface Session {
   notice: string;
   playerId?: string;
   player?: PlayerRecord;
+  dailyNews: NewsRecord[];
+  todayDate?: string;
   draft: {
     loginUsername?: string;
     username?: string;
@@ -42,7 +45,8 @@ export function createSession(): Session {
     inputBuffer: '',
     prompt: null,
     notice: '',
-    draft: {}
+    draft: {},
+    dailyNews: []
   };
 }
 
