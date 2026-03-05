@@ -8,101 +8,22 @@
       :root { color-scheme: dark; }
       body {
         margin: 0;
-        font-family: "Courier New", monospace;
         background: #03050a;
         color: #7fffd4;
+        font-family: "Courier New", monospace;
       }
       #screen {
         min-height: 100vh;
-        padding: 18px;
-        white-space: pre-wrap;
-      }
-      .title { color: #ffd700; }
-      .prompt { color: #ff7aa2; }
-      #inputLine {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-      #prompt {
-        color: #ff7aa2;
-      }
-      #command {
-        background: transparent;
-        border: none;
-        border-bottom: 1px solid #3f4d61;
-        color: #a9fff0;
-        font-family: inherit;
-        width: min(640px, 90vw);
-        outline: none;
+        padding: 16px;
+        white-space: pre;
+        line-height: 1.2;
+        font-size: 16px;
+        overflow: auto;
       }
     </style>
   </head>
   <body>
-    <div id="screen"></div>
-    <script>
-      const screen = document.getElementById('screen');
-      const ws = new WebSocket(`ws://${location.host}/ws`);
-
-      function render(ops) {
-        screen.innerHTML = '';
-        const content = document.createElement('div');
-
-        let promptText = '> ';
-
-        for (const op of ops) {
-          if (op.type === 'clear') {
-            content.innerHTML = '';
-            continue;
-          }
-          if (op.type === 'title') {
-            const line = document.createElement('div');
-            line.className = 'title';
-            line.textContent = op.text;
-            content.appendChild(line);
-            continue;
-          }
-          if (op.type === 'line') {
-            const line = document.createElement('div');
-            line.textContent = op.text;
-            content.appendChild(line);
-            continue;
-          }
-          if (op.type === 'prompt') {
-            promptText = op.text;
-          }
-        }
-
-        screen.appendChild(content);
-
-        const inputLine = document.createElement('form');
-        inputLine.id = 'inputLine';
-        const prompt = document.createElement('span');
-        prompt.id = 'prompt';
-        prompt.textContent = promptText;
-        const input = document.createElement('input');
-        input.id = 'command';
-        input.autocomplete = 'off';
-        input.spellcheck = false;
-
-        inputLine.append(prompt, input);
-        screen.appendChild(inputLine);
-        input.focus();
-
-        inputLine.addEventListener('submit', (event) => {
-          event.preventDefault();
-          const text = input.value;
-          ws.send(JSON.stringify({ type: 'input', text }));
-          input.value = '';
-        });
-      }
-
-      ws.addEventListener('message', (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'screen') {
-          render(msg.ops);
-        }
-      });
-    </script>
+    <pre id="screen">Connecting...</pre>
+    <script type="module" src="/client.js"></script>
   </body>
 </html>
