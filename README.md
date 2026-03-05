@@ -1,37 +1,41 @@
 # Web LoRD
 
-Standalone web-first LoRD-inspired game server, starting from a clean architecture.
+Ticket 000 scaffold for a WebSocket-driven browser terminal.
 
-## Current status
+## Features
 
-This repository includes Milestone 0 + Milestone 1 foundations:
-
-- Node.js server with WebSocket session endpoint.
-- Terminal-style browser client (`public/index.html`).
-- File-backed persistence (`data/players.json`) with player create/load.
-- Login/create player by name.
-- Basic Town Square flow with Bank screen stub.
+- Fastify server in TypeScript.
+- Static frontend served from `public/`.
+- WebSocket endpoint at `/ws`.
+- Minimal JSON protocol (`key`, `resize`, `screen`).
+- Per-connection session state (`id`, `cols`, `rows`, `lastKey`).
+- Full-frame screen redraw with a simple text buffer renderer.
 
 ## Run
 
 ```bash
+npm install
 npm run dev
 ```
 
 Open <http://localhost:3000>.
 
-## Protocol (initial)
+## Protocol v0
 
-Client -> server:
+Server -> Client:
 
-- `{ "type": "input", "text": "..." }`
-- `{ "type": "key", "key": "..." }` (reserved for future real-time keypress flows)
-- `{ "type": "resize", "cols": 80, "rows": 25 }` (reserved)
+```json
+{ "type": "screen", "frame": { "cols": 80, "rows": 25, "lines": ["..."] } }
+```
 
-Server -> client:
+Client -> Server (`key`):
 
-- `{ "type": "screen", "ops": [...] }`
-  - `clear`
-  - `title`
-  - `line`
-  - `prompt`
+```json
+{ "type": "key", "key": "A", "code": "KeyA", "ctrl": false, "alt": false, "shift": false }
+```
+
+Client -> Server (`resize`, optional):
+
+```json
+{ "type": "resize", "cols": 100, "rows": 30 }
+```
