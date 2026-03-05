@@ -15,7 +15,7 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
 
   drawBox(buffer, 0, 0, cols, rows);
   drawText(buffer, 3, 2, 'The Town Square');
-  drawText(buffer, 3, 4, 'F) Forest (coming soon)');
+  drawText(buffer, 3, 4, 'F) Forest');
   drawText(buffer, 3, 5, 'I) Inn (coming soon)');
   drawText(buffer, 3, 6, 'B) Bank (coming soon)');
   drawText(buffer, 3, 7, 'W) Weapons (coming soon)');
