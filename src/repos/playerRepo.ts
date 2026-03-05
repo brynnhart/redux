@@ -30,8 +30,20 @@ export interface PlayerRecord {
   today_money_doubler_used: number;
   today_bard_listens: number;
   today_flirts: number;
+  has_room: number;
+  daily_flirt_used: number;
+  daily_bard_used: number;
+  daily_room_rented: number;
+  inn_bribe_count_today: number;
   weapon_tier: number;
   armor_tier: number;
+}
+
+export interface InnTargetRecord {
+  id: string;
+  display_name: string;
+  level: number;
+  has_room: number;
 }
 
 export interface NewPlayerInput {
@@ -62,6 +74,11 @@ type MutablePlayerStats = Pick<
   | 'today_money_doubler_used'
   | 'today_bard_listens'
   | 'today_flirts'
+  | 'has_room'
+  | 'daily_flirt_used'
+  | 'daily_bard_used'
+  | 'daily_room_rented'
+  | 'inn_bribe_count_today'
   | 'weapon_tier'
   | 'armor_tier'
 >;
@@ -119,5 +136,18 @@ export class PlayerRepo {
     const setSql = entries.map(([key]) => `${key} = @${key}`).join(', ');
     const db = getDb();
     db.prepare(`UPDATE players SET ${setSql} WHERE id = @id`).run({ id, ...patch });
+  }
+
+  listInnTargets(excludePlayerId: string): InnTargetRecord[] {
+    const db = getDb();
+    return db
+      .prepare(
+        `SELECT id, display_name, level, has_room
+         FROM players
+         WHERE id != ?
+         ORDER BY level DESC, display_name COLLATE NOCASE ASC
+         LIMIT 50`
+      )
+      .all(excludePlayerId) as InnTargetRecord[];
   }
 }

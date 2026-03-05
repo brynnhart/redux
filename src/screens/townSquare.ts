@@ -21,8 +21,9 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 6, 'H) Healer Hut');
   drawText(buffer, 3, 7, "W) King Arthur's Weapons");
   drawText(buffer, 3, 8, "A) Abdul's Armor");
-  drawText(buffer, 3, 9, 'T) Training (coming soon)');
-  drawText(buffer, 3, 10, 'Q) Quit');
+  drawText(buffer, 3, 9, 'I) Inn');
+  drawText(buffer, 3, 10, 'T) Training (coming soon)');
+  drawText(buffer, 3, 11, 'Q) Quit');
 
   drawText(buffer, 38, 4, 'Stats');
   if (player) {

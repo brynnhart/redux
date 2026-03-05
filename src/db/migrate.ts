@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 export function runMigrations() {
   const db = getDb();
@@ -108,7 +108,25 @@ export function runMigrations() {
     `);
   }
 
-  db.prepare(
+  
+  if (currentVersion < 5) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN has_room INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN daily_flirt_used INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN daily_bard_used INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN daily_room_rented INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN inn_bribe_count_today INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players SET has_room = COALESCE(has_room, 0);
+      UPDATE players SET daily_flirt_used = COALESCE(daily_flirt_used, 0);
+      UPDATE players SET daily_bard_used = COALESCE(daily_bard_used, 0);
+      UPDATE players SET daily_room_rented = COALESCE(daily_room_rented, 0);
+      UPDATE players SET inn_bribe_count_today = COALESCE(inn_bribe_count_today, 0);
+    `);
+  }
+db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
   ).run(String(SCHEMA_VERSION));
