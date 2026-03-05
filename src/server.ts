@@ -13,6 +13,8 @@ import { AuthService } from './services/authService.js';
 import { DayService } from './services/dayService.js';
 import { NewsService } from './services/newsService.js';
 import { ForestService } from './services/forestService.js';
+import { BankService } from './services/bankService.js';
+import { HealerService } from './services/healerService.js';
 import { commitPrompt, createSession, resetDraft, setScreen, startPrompt, type Session } from './session.js';
 import { renderWelcome } from './screens/welcome.js';
 import { renderLogin } from './screens/login.js';
@@ -20,6 +22,8 @@ import { renderNewCharacter } from './screens/newCharacter.js';
 import { renderTownSquare } from './screens/townSquare.js';
 import { renderDailyHappenings } from './screens/dailyHappenings.js';
 import { renderForest } from './screens/forest.js';
+import { renderBank } from './screens/bank.js';
+import { renderHealer } from './screens/healer.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -27,6 +31,8 @@ const authService = new AuthService();
 const newsService = new NewsService();
 const dayService = new DayService(playerRepo, newsService);
 const forestService = new ForestService(playerRepo, newsService);
+const bankService = new BankService(playerRepo);
+const healerService = new HealerService(playerRepo);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -90,6 +96,31 @@ function beginNewCharacter(session: Session) {
   resetDraft(session);
   session.notice = 'Choose a username.';
   startPrompt(session, 'username');
+}
+
+
+function enterForest(session: Session) {
+  if (!session.player || !session.playerId) {
+    session.notice = 'No player loaded.';
+    return;
+  }
+  const { today } = dayService.ensureDailyReset(session.playerId);
+  refreshPlayer(session);
+  loadDailyNews(session, today);
+
+  if ((session.player?.turns_forest_left ?? 0) <= 0) {
+    setScreen(session, 'TOWN_SQUARE');
+    session.notice = 'You are too tired. Come back tomorrow.';
+    return;
+  }
+
+  setScreen(session, 'FOREST');
+  session.notice = 'You enter the Forest. It smells like danger and cabbage.';
+}
+
+function returnToTown(session: Session, message = 'You return to town.') {
+  setScreen(session, 'TOWN_SQUARE');
+  session.notice = message;
 }
 
 function handleWelcomeKey(session: Session, message: KeyMessage, close: () => void) {
@@ -291,8 +322,29 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
   }
 
   if (session.state === 'DAILY_HAPPENINGS') {
-    setScreen(session, 'TOWN_SQUARE');
-    session.notice = 'Welcome to town.';
+    returnToTown(session, 'Welcome to town.');
+    return;
+  }
+
+  if (session.playerId && ['T', 'R'].includes(key) && session.state !== 'FOREST') {
+    returnToTown(session);
+    return;
+  }
+
+  if (session.playerId && key === 'F') {
+    enterForest(session);
+    return;
+  }
+
+  if (session.playerId && key === 'B') {
+    setScreen(session, 'BANK');
+    session.notice = 'Welcome to the bank. Mind the ledgers.';
+    return;
+  }
+
+  if (session.playerId && key === 'H') {
+    setScreen(session, 'HEALER');
+    session.notice = 'The healer eyes your wounds and your wallet.';
     return;
   }
 
@@ -301,30 +353,71 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       close();
       return;
     }
-    if (key === 'F') {
-      if (!session.player || !session.playerId) {
-        session.notice = 'No player loaded.';
-        return;
-      }
-      const { today } = dayService.ensureDailyReset(session.playerId);
-      refreshPlayer(session);
-      loadDailyNews(session, today);
-      if ((session.player?.turns_forest_left ?? 0) <= 0) {
-        session.notice = 'You are too tired. Come back tomorrow.';
-        return;
-      }
-      setScreen(session, 'FOREST');
-      session.notice = 'You enter the Forest. It smells like danger and cabbage.';
+    session.notice = `${key} is not implemented yet.`;
+    return;
+  }
+
+  if (session.state === 'BANK') {
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
       return;
     }
-    session.notice = `${key} is not implemented yet.`;
+
+    if (key === '1') {
+      session.notice = bankService.deposit(session.player, session.player.gold).message;
+      refreshPlayer(session);
+      return;
+    }
+    if (key === '2') {
+      session.pendingBankAction = 'DEPOSIT';
+      session.notice = 'Deposit how much?';
+      startPrompt(session, 'bank_amount');
+      return;
+    }
+    if (key === '3') {
+      session.notice = bankService.withdraw(session.player, session.player.bank_gold).message;
+      refreshPlayer(session);
+      return;
+    }
+    if (key === '4') {
+      session.pendingBankAction = 'WITHDRAW';
+      session.notice = 'Withdraw how much?';
+      startPrompt(session, 'bank_amount');
+      return;
+    }
+    if (key === 'V') {
+      session.notice = `Balances — Carried: ${session.player.gold}, Bank: ${session.player.bank_gold}.`;
+      return;
+    }
+    session.notice = 'Bank keys: 1/2 deposit, 3/4 withdraw, V to view, R/T to town.';
+    return;
+  }
+
+  if (session.state === 'HEALER') {
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === '1') {
+      session.notice = healerService.heal(session.player, session.player.hp_max - session.player.hp);
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === '2') {
+      session.notice = healerService.heal(session.player, 5);
+      refreshPlayer(session);
+      return;
+    }
+
+    session.notice = 'Healer keys: 1 heal all possible, 2 heal 5 HP, R/T to town.';
     return;
   }
 
   if (session.state === 'FOREST') {
     if (!session.player || !session.playerId) {
-      setScreen(session, 'TOWN_SQUARE');
-      session.notice = 'You stumble back to town.';
+      returnToTown(session, 'You stumble back to town.');
       return;
     }
 
@@ -332,15 +425,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     refreshPlayer(session);
 
     if ((session.player?.turns_forest_left ?? 0) <= 0) {
-      setScreen(session, 'TOWN_SQUARE');
-      session.notice = 'You are too tired. Come back tomorrow.';
+      returnToTown(session, 'You are too tired. Come back tomorrow.');
       return;
     }
 
     if (key === 'T') {
-      forestService.clearEncounter(session.player.id);
-      setScreen(session, 'TOWN_SQUARE');
-      session.notice = 'You return to town with twigs in your hair.';
+      returnToTown(session, 'You return to town with twigs in your hair.');
       return;
     }
 
@@ -353,7 +443,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       session.notice = forestService.attack(session.player, today);
       refreshPlayer(session);
       if ((session.player?.turns_forest_left ?? 0) <= 0) {
-        setScreen(session, 'TOWN_SQUARE');
+        returnToTown(session, 'You are too tired. Come back tomorrow.');
       }
       return;
     }
@@ -368,8 +458,31 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town.';
+    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town, B bank, H healer.';
   }
+}
+
+function processBankCommit(session: Session, value: string) {
+  if (!session.player || !session.pendingBankAction) {
+    session.notice = 'The banker has no idea what you are doing.';
+    return;
+  }
+
+  const amount = Number(value);
+  if (!Number.isInteger(amount) || amount <= 0) {
+    session.notice = 'That amount is nonsense. Use a positive integer.';
+    startPrompt(session, 'bank_amount');
+    return;
+  }
+
+  if (session.pendingBankAction === 'DEPOSIT') {
+    session.notice = bankService.deposit(session.player, amount).message;
+  } else {
+    session.notice = bankService.withdraw(session.player, amount).message;
+  }
+
+  session.pendingBankAction = undefined;
+  refreshPlayer(session);
 }
 
 function handleTextEntry(session: Session, message: KeyMessage) {
@@ -386,6 +499,8 @@ function handleTextEntry(session: Session, message: KeyMessage) {
       processLoginCommit(session, field, value);
     } else if (session.state === 'NEW_CHARACTER') {
       processNewCharacterCommit(session, field, value);
+    } else if (session.state === 'BANK' && field === 'bank_amount') {
+      processBankCommit(session, value);
     }
     return;
   }
@@ -419,6 +534,12 @@ function renderSession(session: Session) {
   }
   if (session.state === 'FOREST') {
     return renderForest(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'BANK') {
+    return renderBank(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'HEALER') {
+    return renderHealer(session, { cols: session.cols, rows: session.rows });
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }

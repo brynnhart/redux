@@ -16,8 +16,8 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
   drawBox(buffer, 0, 0, cols, rows);
   drawText(buffer, 3, 2, 'The Town Square');
   drawText(buffer, 3, 4, 'F) Forest');
-  drawText(buffer, 3, 5, 'I) Inn (coming soon)');
-  drawText(buffer, 3, 6, 'B) Bank (coming soon)');
+  drawText(buffer, 3, 5, 'B) Bank');
+  drawText(buffer, 3, 6, 'H) Healer Hut');
   drawText(buffer, 3, 7, 'W) Weapons (coming soon)');
   drawText(buffer, 3, 8, 'A) Armor (coming soon)');
   drawText(buffer, 3, 9, 'T) Training (coming soon)');
@@ -30,7 +30,7 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
     drawText(buffer, 38, 7, `HP: ${player.hp}/${player.hp_max}`);
     drawText(buffer, 38, 8, `Gold: ${player.gold}   Bank: ${player.bank_gold}`);
     drawText(buffer, 38, 9, `Spirits: ${player.spirits}`);
-    drawText(buffer, 38, 10, `Forest fights: ${player.turns_forest_left} / ${player.turns_forest_max}`);
+    drawText(buffer, 38, 10, `Forest turns: ${player.turns_forest_left} / ${player.turns_forest_max}`);
     drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
     drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
     drawText(buffer, 38, 13, `Class: ${player.class}   Sex: ${player.sex}`);
