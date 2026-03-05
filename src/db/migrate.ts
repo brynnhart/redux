@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export function runMigrations() {
   const db = getDb();
@@ -93,6 +93,18 @@ export function runMigrations() {
         updated_at TEXT NOT NULL,
         FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
       );
+    `);
+  }
+
+  if (currentVersion < 4) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN weapon_tier INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN armor_tier INTEGER NOT NULL DEFAULT 1;
+    `);
+
+    db.exec(`
+      UPDATE players SET weapon_tier = COALESCE(weapon_tier, 1);
+      UPDATE players SET armor_tier = COALESCE(armor_tier, 1);
     `);
   }
 

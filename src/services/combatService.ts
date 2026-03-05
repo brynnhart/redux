@@ -1,4 +1,9 @@
+import { getArmorTier, getWeaponTier } from '../data/equipment.js';
 import type { PlayerRecord } from '../repos/playerRepo.js';
+
+const WEAPON_LEVEL_SCALE_BASE = 0.35;
+const WEAPON_LEVEL_SCALE_STEP = 0.05;
+const ARMOR_MITIGATION_FACTOR = 0.15;
 
 export interface ActiveEnemy {
   key: string;
@@ -37,13 +42,13 @@ export class CombatService {
 
     while (playerHp > 0 && enemyHp > 0) {
       if (playerStarts) {
-        enemyHp -= this.playerDamage(player.level, rounds);
+        enemyHp -= this.playerDamage(player, rounds);
         if (enemyHp <= 0) break;
-        playerHp -= this.enemyDamage(player.level);
+        playerHp -= this.enemyDamage(player.level, player.armor_tier);
       } else {
-        playerHp -= this.enemyDamage(player.level);
+        playerHp -= this.enemyDamage(player.level, player.armor_tier);
         if (playerHp <= 0) break;
-        enemyHp -= this.playerDamage(player.level, rounds);
+        enemyHp -= this.playerDamage(player, rounds);
       }
     }
 
@@ -61,20 +66,27 @@ export class CombatService {
     };
   }
 
-  private playerDamage(level: number, rounds: string[]) {
-    const min = Math.max(1, Math.floor(level * 2));
-    const max = Math.max(min, Math.floor(level * 4));
+  private playerDamage(player: PlayerRecord, rounds: string[]) {
+    const min = Math.max(1, Math.floor(player.level * 2));
+    const max = Math.max(min, Math.floor(player.level * 4));
     const base = randInt(min, max, this.rng);
+    const weapon = getWeaponTier(player.weapon_tier);
+    const scaledBonus = Math.floor(weapon.bonus * (WEAPON_LEVEL_SCALE_BASE + player.level * WEAPON_LEVEL_SCALE_STEP));
+    const damage = base + scaledBonus;
+
     if (this.rng() < 0.08) {
       rounds.push('POWER MOVE! You explode with righteous nonsense!');
-      return base * 3;
+      return damage * 3;
     }
-    return base;
+    return damage;
   }
 
-  private enemyDamage(level: number) {
+  private enemyDamage(level: number, armorTier: number) {
     const min = Math.max(1, Math.floor(level * 1));
     const max = Math.max(min, Math.floor(level * 3));
-    return randInt(min, max, this.rng);
+    const raw = randInt(min, max, this.rng);
+    const armor = getArmorTier(armorTier);
+    const mitigated = raw - Math.floor(armor.bonus * ARMOR_MITIGATION_FACTOR);
+    return Math.max(1, mitigated);
   }
 }

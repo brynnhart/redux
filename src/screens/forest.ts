@@ -22,7 +22,7 @@ export function renderForest(session: Session, dims: Dimensions) {
     drawText(buffer, 3, 6, `Forest fights left: ${player.turns_forest_left}`);
   }
 
-  drawText(buffer, 3, 8, '(L)ook  (A)ttack  (R)un  (T)own  (B)ank  (H)ealer');
+  drawText(buffer, 3, 8, '(L)ook  (A)ttack  (R)un  (T)own  (B)ank  (H)ealer  (W)eapons');
   drawText(buffer, 3, rows - 5, 'Forest is loud, violent, and full of bad decision-making.');
   drawText(buffer, 3, rows - 4, session.notice || 'You stand among the trees.');
 

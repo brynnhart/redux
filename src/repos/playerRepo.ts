@@ -30,6 +30,8 @@ export interface PlayerRecord {
   today_money_doubler_used: number;
   today_bard_listens: number;
   today_flirts: number;
+  weapon_tier: number;
+  armor_tier: number;
 }
 
 export interface NewPlayerInput {
@@ -60,6 +62,8 @@ type MutablePlayerStats = Pick<
   | 'today_money_doubler_used'
   | 'today_bard_listens'
   | 'today_flirts'
+  | 'weapon_tier'
+  | 'armor_tier'
 >;
 
 export class PlayerRepo {

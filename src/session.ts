@@ -11,7 +11,9 @@ export type ScreenState =
   | 'TOWN_SQUARE'
   | 'FOREST'
   | 'BANK'
-  | 'HEALER';
+  | 'HEALER'
+  | 'WEAPONS_SHOP'
+  | 'ARMOR_SHOP';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -34,6 +36,7 @@ export interface Session {
   dailyNews: NewsRecord[];
   todayDate?: string;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
+  pendingEquipmentAction?: 'BUY_WEAPON' | 'BUY_ARMOR';
   draft: {
     loginUsername?: string;
     username?: string;
