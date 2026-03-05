@@ -3,7 +3,15 @@ import type { NewsRecord } from './services/newsService.js';
 
 let nextSessionId = 1;
 
-export type ScreenState = 'WELCOME' | 'LOGIN' | 'NEW_CHARACTER' | 'DAILY_HAPPENINGS' | 'TOWN_SQUARE' | 'FOREST';
+export type ScreenState =
+  | 'WELCOME'
+  | 'LOGIN'
+  | 'NEW_CHARACTER'
+  | 'DAILY_HAPPENINGS'
+  | 'TOWN_SQUARE'
+  | 'FOREST'
+  | 'BANK'
+  | 'HEALER';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -25,6 +33,7 @@ export interface Session {
   player?: PlayerRecord;
   dailyNews: NewsRecord[];
   todayDate?: string;
+  pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
   draft: {
     loginUsername?: string;
     username?: string;
