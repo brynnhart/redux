@@ -13,7 +13,10 @@ export type ScreenState =
   | 'BANK'
   | 'HEALER'
   | 'WEAPONS_SHOP'
-  | 'ARMOR_SHOP';
+  | 'ARMOR_SHOP'
+  | 'INN'
+  | 'INN_BARTENDER'
+  | 'INN_BREAK_IN';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -37,6 +40,7 @@ export interface Session {
   todayDate?: string;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
   pendingEquipmentAction?: 'BUY_WEAPON' | 'BUY_ARMOR';
+  innTargetSelection?: string;
   draft: {
     loginUsername?: string;
     username?: string;

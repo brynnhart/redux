@@ -27,6 +27,8 @@ import { renderBank } from './screens/bank.js';
 import { renderHealer } from './screens/healer.js';
 import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
+import { renderInn, renderInnBartender, renderInnBreakIn } from './screens/inn.js';
+import { InnService } from './services/innService.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -37,6 +39,7 @@ const forestService = new ForestService(playerRepo, newsService);
 const bankService = new BankService(playerRepo);
 const healerService = new HealerService(playerRepo);
 const equipmentService = new EquipmentService(playerRepo);
+const innService = new InnService(playerRepo, newsService);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -125,6 +128,18 @@ function enterForest(session: Session) {
 function returnToTown(session: Session, message = 'You return to town.') {
   setScreen(session, 'TOWN_SQUARE');
   session.notice = message;
+}
+
+function enterInn(session: Session) {
+  if (!session.player || !session.playerId) {
+    session.notice = 'No player loaded.';
+    return;
+  }
+  const { today } = dayService.ensureDailyReset(session.playerId);
+  refreshPlayer(session);
+  loadDailyNews(session, today);
+  setScreen(session, 'INN');
+  session.notice = 'The Inn smells like ale, ambition, and bad decisions.';
 }
 
 function handleWelcomeKey(session: Session, message: KeyMessage, close: () => void) {
@@ -330,7 +345,11 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
-  if (session.playerId && ['T', 'R'].includes(key) && session.state !== 'FOREST') {
+  if (
+    session.playerId &&
+    ['T', 'R'].includes(key) &&
+    ['BANK', 'HEALER', 'WEAPONS_SHOP', 'ARMOR_SHOP'].includes(session.state)
+  ) {
     returnToTown(session);
     return;
   }
@@ -365,12 +384,129 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.playerId && key === 'I') {
+    enterInn(session);
+    return;
+  }
+
   if (session.state === 'TOWN_SQUARE') {
     if (key === 'Q') {
       close();
       return;
     }
     session.notice = `${key} is not implemented yet.`;
+    return;
+  }
+
+  if (session.state === 'INN') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+    const today = dayService.ensureDailyReset(session.playerId).today;
+    refreshPlayer(session);
+    const freshPlayer = session.player;
+    if (!freshPlayer) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q') {
+      returnToTown(session, 'You leave the Inn.');
+      return;
+    }
+    if (key === 'T') {
+      setScreen(session, 'INN_BARTENDER');
+      session.notice = 'Bartender squints at you.';
+      return;
+    }
+    if (key === 'V') {
+      session.notice = innService.flirt(freshPlayer, today).message;
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      return;
+    }
+    if (key === 'S') {
+      session.notice = innService.listenToBard(freshPlayer, today).message;
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      return;
+    }
+    if (key === 'R') {
+      session.notice = innService.rentRoom(freshPlayer, today).message;
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      return;
+    }
+    session.notice = 'Inn keys: V flirt, S bard, R rent room, T bartender, Q town.';
+    return;
+  }
+
+  if (session.state === 'INN_BARTENDER') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q') {
+      setScreen(session, 'INN');
+      session.notice = 'You step away from the bar.';
+      return;
+    }
+
+    if (key === 'N') {
+      session.notice = 'Name changes are coming soon.';
+      return;
+    }
+
+    if (key === 'B') {
+      const result = innService.bribeBartender(session.player);
+      session.notice = result.message;
+      refreshPlayer(session);
+      if (result.ok) {
+        setScreen(session, 'INN_BREAK_IN');
+      }
+      return;
+    }
+
+    session.notice = 'Bartender keys: B bribe, N name stub, Q back.';
+    return;
+  }
+
+  if (session.state === 'INN_BREAK_IN') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    const today = dayService.ensureDailyReset(session.playerId).today;
+    refreshPlayer(session);
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q') {
+      setScreen(session, 'INN_BARTENDER');
+      session.notice = 'You return to the bartender.';
+      return;
+    }
+
+    const targets = innService.getBreakInTargets(session.player);
+    if (/^[1-9]$/.test(key)) {
+      const idx = Number(key) - 1;
+      const target = targets[idx];
+      if (!target) {
+        session.notice = 'No such target on this list.';
+        return;
+      }
+      session.innTargetSelection = target.id;
+      session.notice = `Attack ${target.display_name}? (Y/N)`;
+      startPrompt(session, 'inn_confirm');
+      return;
+    }
+
+    session.notice = 'Break-in keys: 1-9 to choose, Q to back.';
     return;
   }
 
@@ -591,6 +727,22 @@ function handleTextEntry(session: Session, message: KeyMessage) {
       processBankCommit(session, value);
     } else if (field === 'weapon_tier' || field === 'armor_tier') {
       processEquipmentCommit(session, value);
+    } else if (field === 'inn_confirm' && session.state === 'INN_BREAK_IN') {
+      if (!session.player || !session.playerId || !session.innTargetSelection) {
+        session.notice = 'No target selected.';
+        return;
+      }
+      const choice = value.toUpperCase();
+      if (choice !== 'Y') {
+        session.notice = 'You decide not to kick that door tonight.';
+        session.innTargetSelection = undefined;
+        return;
+      }
+      const today = dayService.ensureDailyReset(session.playerId).today;
+      session.notice = innService.breakInAttack(session.player, session.innTargetSelection, today).message;
+      session.innTargetSelection = undefined;
+      refreshPlayer(session);
+      loadDailyNews(session, today);
     }
     return;
   }
@@ -636,6 +788,15 @@ function renderSession(session: Session) {
   }
   if (session.state === 'ARMOR_SHOP') {
     return renderArmorShop(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'INN') {
+    return renderInn(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'INN_BARTENDER') {
+    return renderInnBartender(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'INN_BREAK_IN') {
+    return renderInnBreakIn(session, { cols: session.cols, rows: session.rows }, session.player ? innService.getBreakInTargets(session.player) : []);
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }

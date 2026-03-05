@@ -48,6 +48,11 @@ export class DayService {
       today_money_doubler_used: 0,
       today_bard_listens: 0,
       today_flirts: 0,
+      has_room: 0,
+      daily_flirt_used: 0,
+      daily_bard_used: 0,
+      daily_room_rented: 0,
+      inn_bribe_count_today: 0,
       last_daily_reset_date: today
     });
 
