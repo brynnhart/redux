@@ -12,18 +12,21 @@ import { PlayerRepo, type PlayerClass, type PlayerSex } from './repos/playerRepo
 import { AuthService } from './services/authService.js';
 import { DayService } from './services/dayService.js';
 import { NewsService } from './services/newsService.js';
+import { ForestService } from './services/forestService.js';
 import { commitPrompt, createSession, resetDraft, setScreen, startPrompt, type Session } from './session.js';
 import { renderWelcome } from './screens/welcome.js';
 import { renderLogin } from './screens/login.js';
 import { renderNewCharacter } from './screens/newCharacter.js';
 import { renderTownSquare } from './screens/townSquare.js';
 import { renderDailyHappenings } from './screens/dailyHappenings.js';
+import { renderForest } from './screens/forest.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
 const authService = new AuthService();
 const newsService = new NewsService();
 const dayService = new DayService(playerRepo, newsService);
+const forestService = new ForestService(playerRepo, newsService);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -233,6 +236,16 @@ function processNewCharacterCommit(session: Session, field: string, value: strin
   }
 }
 
+function handleForestChoiceEvent(session: Session, key: string) {
+  if (!session.player || !session.playerId) {
+    session.notice = 'You blink and forget where you were.';
+    return;
+  }
+
+  const today = dayService.ensureDailyReset(session.playerId).today;
+  session.notice = forestService.resolveEventChoice(session.player, today, key);
+}
+
 function handleMenuKey(session: Session, message: KeyMessage, close: () => void) {
   const key = message.key.toUpperCase();
 
@@ -289,15 +302,73 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
     if (key === 'F') {
-      if (session.playerId) {
-        const { today } = dayService.ensureDailyReset(session.playerId);
-        refreshPlayer(session);
-        loadDailyNews(session, today);
+      if (!session.player || !session.playerId) {
+        session.notice = 'No player loaded.';
+        return;
       }
-      session.notice = 'You head out to the fields (coming soon).';
+      const { today } = dayService.ensureDailyReset(session.playerId);
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      if ((session.player?.turns_forest_left ?? 0) <= 0) {
+        session.notice = 'You are too tired. Come back tomorrow.';
+        return;
+      }
+      setScreen(session, 'FOREST');
+      session.notice = 'You enter the Forest. It smells like danger and cabbage.';
       return;
     }
     session.notice = `${key} is not implemented yet.`;
+    return;
+  }
+
+  if (session.state === 'FOREST') {
+    if (!session.player || !session.playerId) {
+      setScreen(session, 'TOWN_SQUARE');
+      session.notice = 'You stumble back to town.';
+      return;
+    }
+
+    const { today } = dayService.ensureDailyReset(session.playerId);
+    refreshPlayer(session);
+
+    if ((session.player?.turns_forest_left ?? 0) <= 0) {
+      setScreen(session, 'TOWN_SQUARE');
+      session.notice = 'You are too tired. Come back tomorrow.';
+      return;
+    }
+
+    if (key === 'T') {
+      forestService.clearEncounter(session.player.id);
+      setScreen(session, 'TOWN_SQUARE');
+      session.notice = 'You return to town with twigs in your hair.';
+      return;
+    }
+
+    if (key === 'L') {
+      session.notice = forestService.look(session.player, today);
+      return;
+    }
+
+    if (key === 'A') {
+      session.notice = forestService.attack(session.player, today);
+      refreshPlayer(session);
+      if ((session.player?.turns_forest_left ?? 0) <= 0) {
+        setScreen(session, 'TOWN_SQUARE');
+      }
+      return;
+    }
+
+    if (key === 'R') {
+      session.notice = forestService.run(session.player);
+      return;
+    }
+
+    if (['1', '2', '3', '4', '5', 'Y', 'N', 'C'].includes(key)) {
+      handleForestChoiceEvent(session, key);
+      return;
+    }
+
+    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town.';
   }
 }
 
@@ -345,6 +416,9 @@ function renderSession(session: Session) {
   }
   if (session.state === 'DAILY_HAPPENINGS') {
     return renderDailyHappenings(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'FOREST') {
+    return renderForest(session, { cols: session.cols, rows: session.rows });
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }

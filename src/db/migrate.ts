@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export function runMigrations() {
   const db = getDb();
@@ -79,6 +79,20 @@ export function runMigrations() {
       UPDATE players SET today_money_doubler_used = COALESCE(today_money_doubler_used, 0);
       UPDATE players SET today_bard_listens = COALESCE(today_bard_listens, 0);
       UPDATE players SET today_flirts = COALESCE(today_flirts, 0);
+    `);
+  }
+
+  
+  if (currentVersion < 3) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS forest_state (
+        player_id TEXT PRIMARY KEY,
+        encounter_type TEXT NOT NULL CHECK (encounter_type IN ('NONE','ENEMY','EVENT')),
+        encounter_key TEXT,
+        encounter_payload TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+      );
     `);
   }
 

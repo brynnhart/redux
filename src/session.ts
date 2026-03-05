@@ -3,7 +3,7 @@ import type { NewsRecord } from './services/newsService.js';
 
 let nextSessionId = 1;
 
-export type ScreenState = 'WELCOME' | 'LOGIN' | 'NEW_CHARACTER' | 'DAILY_HAPPENINGS' | 'TOWN_SQUARE';
+export type ScreenState = 'WELCOME' | 'LOGIN' | 'NEW_CHARACTER' | 'DAILY_HAPPENINGS' | 'TOWN_SQUARE' | 'FOREST';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
