@@ -42,7 +42,14 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       typeof raw.alt === 'boolean' &&
       typeof raw.shift === 'boolean'
     ) {
-      return raw as KeyMessage;
+      return {
+        type: "key",
+        key: raw.key,
+        code: raw.code,
+        ctrl: raw.ctrl,
+        alt: raw.alt,
+        shift: raw.shift
+      };
     }
     return null;
   }
