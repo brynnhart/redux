@@ -27,7 +27,7 @@ export function renderHealer(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 8, '1) Heal ALL possible');
   drawText(buffer, 3, 9, '2) Heal 5 HP');
   drawText(buffer, 3, 10, 'R/T) Return to Town');
-  drawText(buffer, 3, 11, 'F) Forest  B) Bank');
+  drawText(buffer, 3, 11, 'F) Forest  B) Bank  W) Weapons  A) Armor');
 
   drawText(buffer, 3, rows - 4, session.notice || 'The healer taps a jar labeled "donations".');
 

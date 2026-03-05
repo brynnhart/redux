@@ -15,6 +15,7 @@ import { NewsService } from './services/newsService.js';
 import { ForestService } from './services/forestService.js';
 import { BankService } from './services/bankService.js';
 import { HealerService } from './services/healerService.js';
+import { EquipmentService } from './services/equipmentService.js';
 import { commitPrompt, createSession, resetDraft, setScreen, startPrompt, type Session } from './session.js';
 import { renderWelcome } from './screens/welcome.js';
 import { renderLogin } from './screens/login.js';
@@ -24,6 +25,8 @@ import { renderDailyHappenings } from './screens/dailyHappenings.js';
 import { renderForest } from './screens/forest.js';
 import { renderBank } from './screens/bank.js';
 import { renderHealer } from './screens/healer.js';
+import { renderWeaponsShop } from './screens/weaponsShop.js';
+import { renderArmorShop } from './screens/armorShop.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -33,6 +36,7 @@ const dayService = new DayService(playerRepo, newsService);
 const forestService = new ForestService(playerRepo, newsService);
 const bankService = new BankService(playerRepo);
 const healerService = new HealerService(playerRepo);
+const equipmentService = new EquipmentService(playerRepo);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -336,7 +340,20 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
-  if (session.playerId && key === 'B') {
+  if (session.playerId && key === 'W') {
+    setScreen(session, 'WEAPONS_SHOP');
+    session.notice = "Arthur says: pick steel or stop breathing on my wares.";
+    return;
+  }
+
+  if (session.playerId && key === 'A' && session.state !== 'FOREST') {
+    setScreen(session, 'ARMOR_SHOP');
+    session.notice = "Abdul grunts: armor first, whining later.";
+    return;
+  }
+
+
+  if (session.playerId && key === 'B' && !['WEAPONS_SHOP', 'ARMOR_SHOP'].includes(session.state)) {
     setScreen(session, 'BANK');
     session.notice = 'Welcome to the bank. Mind the ledgers.';
     return;
@@ -415,6 +432,53 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+
+  if (session.state === 'WEAPONS_SHOP') {
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'B') {
+      session.pendingEquipmentAction = 'BUY_WEAPON';
+      session.notice = 'Buy which weapon tier? (1-15)';
+      startPrompt(session, 'weapon_tier');
+      return;
+    }
+
+    if (key === 'S') {
+      session.notice = equipmentService.sellWeapon(session.player).message;
+      refreshPlayer(session);
+      return;
+    }
+
+    session.notice = 'Weapons keys: B buy, S sell, R/T town.';
+    return;
+  }
+
+  if (session.state === 'ARMOR_SHOP') {
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'B') {
+      session.pendingEquipmentAction = 'BUY_ARMOR';
+      session.notice = 'Buy which armor tier? (1-15)';
+      startPrompt(session, 'armor_tier');
+      return;
+    }
+
+    if (key === 'S') {
+      session.notice = equipmentService.sellArmor(session.player).message;
+      refreshPlayer(session);
+      return;
+    }
+
+    session.notice = 'Armor keys: B buy, S sell, R/T town.';
+    return;
+  }
+
   if (session.state === 'FOREST') {
     if (!session.player || !session.playerId) {
       returnToTown(session, 'You stumble back to town.');
@@ -458,7 +522,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town, B bank, H healer.';
+    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town, B bank, H healer, W weapons.';
   }
 }
 
@@ -485,6 +549,30 @@ function processBankCommit(session: Session, value: string) {
   refreshPlayer(session);
 }
 
+
+function processEquipmentCommit(session: Session, value: string) {
+  if (!session.player || !session.pendingEquipmentAction) {
+    session.notice = 'The shopkeeper ignores your mumbling.';
+    return;
+  }
+
+  const tier = Number(value);
+  if (!Number.isInteger(tier)) {
+    session.notice = 'Use a whole tier number.';
+    startPrompt(session, session.pendingEquipmentAction === 'BUY_WEAPON' ? 'weapon_tier' : 'armor_tier');
+    return;
+  }
+
+  if (session.pendingEquipmentAction === 'BUY_WEAPON') {
+    session.notice = equipmentService.buyWeapon(session.player, tier).message;
+  } else {
+    session.notice = equipmentService.buyArmor(session.player, tier).message;
+  }
+
+  session.pendingEquipmentAction = undefined;
+  refreshPlayer(session);
+}
+
 function handleTextEntry(session: Session, message: KeyMessage) {
   const prompt = session.prompt;
   if (!prompt) {
@@ -501,6 +589,8 @@ function handleTextEntry(session: Session, message: KeyMessage) {
       processNewCharacterCommit(session, field, value);
     } else if (session.state === 'BANK' && field === 'bank_amount') {
       processBankCommit(session, value);
+    } else if (field === 'weapon_tier' || field === 'armor_tier') {
+      processEquipmentCommit(session, value);
     }
     return;
   }
@@ -540,6 +630,12 @@ function renderSession(session: Session) {
   }
   if (session.state === 'HEALER') {
     return renderHealer(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'WEAPONS_SHOP') {
+    return renderWeaponsShop(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'ARMOR_SHOP') {
+    return renderArmorShop(session, { cols: session.cols, rows: session.rows });
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }

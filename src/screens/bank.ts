@@ -28,7 +28,7 @@ export function renderBank(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 10, '4) Withdraw amount');
   drawText(buffer, 3, 11, 'V) View balances');
   drawText(buffer, 3, 12, 'R/T) Return to Town');
-  drawText(buffer, 3, 13, 'F) Forest  H) Healer');
+  drawText(buffer, 3, 13, 'F) Forest  H) Healer  W) Weapons  A) Armor');
 
   if (session.mode === 'TEXT_ENTRY' && session.prompt) {
     drawText(buffer, 3, 15, `Amount > ${masked}_`);

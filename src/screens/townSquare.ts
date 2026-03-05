@@ -1,3 +1,4 @@
+import { getArmorTier, getWeaponTier } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import type { Session } from '../session.js';
@@ -18,13 +19,15 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 4, 'F) Forest');
   drawText(buffer, 3, 5, 'B) Bank');
   drawText(buffer, 3, 6, 'H) Healer Hut');
-  drawText(buffer, 3, 7, 'W) Weapons (coming soon)');
-  drawText(buffer, 3, 8, 'A) Armor (coming soon)');
+  drawText(buffer, 3, 7, "W) King Arthur's Weapons");
+  drawText(buffer, 3, 8, "A) Abdul's Armor");
   drawText(buffer, 3, 9, 'T) Training (coming soon)');
   drawText(buffer, 3, 10, 'Q) Quit');
 
   drawText(buffer, 38, 4, 'Stats');
   if (player) {
+    const weapon = getWeaponTier(player.weapon_tier);
+    const armor = getArmorTier(player.armor_tier);
     drawText(buffer, 38, 5, `Name: ${player.display_name}`);
     drawText(buffer, 38, 6, `Level: ${player.level}   Exp: ${player.exp}`);
     drawText(buffer, 38, 7, `HP: ${player.hp}/${player.hp_max}`);
@@ -34,6 +37,8 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
     drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
     drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
     drawText(buffer, 38, 13, `Class: ${player.class}   Sex: ${player.sex}`);
+    drawText(buffer, 38, 14, `Weapon: ${weapon.name} (T${weapon.tier}, +${weapon.bonus} atk)`);
+    drawText(buffer, 38, 15, `Armor: ${armor.name} (T${armor.tier}, +${armor.bonus} def)`);
   }
 
   drawText(buffer, 3, rows - 4, session.notice || 'Welcome to town.');
