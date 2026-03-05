@@ -6,6 +6,11 @@ import type { NewsService } from './newsService.js';
 import { CombatService, type ActiveEnemy } from './combatService.js';
 import { ForestEventService, type ForestEventEncounter } from './forestEventService.js';
 
+export interface ForestEventResolution {
+  text: string;
+  promptField?: string;
+}
+
 function randInt(min: number, max: number, rng: () => number) {
   return Math.floor(rng() * (max - min + 1)) + min;
 }
@@ -36,21 +41,9 @@ export class ForestService {
       return `You spot ${enemy.name}! It snarls, probably about taxes. (A)ttack or (R)un.`;
     }
 
-    const event = this.eventService.rollEvent();
-    if (!event.choices) {
-      const outcome = this.eventService.resolveImmediate(event, player);
-      this.playerRepo.updatePlayerStats(player.id, outcome.patch);
-      if (outcome.globalNews) {
-        this.newsService.addNews({ date: today, type: 'GENERIC', message: outcome.globalNews });
-      }
-      if (outcome.bigGemHaul) {
-        this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} just hauled a mountain of gems.`, playerId: player.id });
-      }
-      return `${event.text} ${outcome.text}`;
-    }
-
+    const event = this.eventService.rollEvent(player);
     this.stateRepo.upsertEncounter(player.id, 'EVENT', event.key, event.payload);
-    return `${event.text} ${event.choices}`;
+    return `You wander deeper into the forest... ${event.text} ${event.choices ?? ''}`;
   }
 
   attack(player: PlayerRecord, today: string): string {
@@ -122,10 +115,10 @@ export class ForestService {
     return 'You bolt between the trees and escape. No turn spent.';
   }
 
-  resolveEventChoice(player: PlayerRecord, today: string, choice: string): string {
+  resolveEventChoice(player: PlayerRecord, today: string, choice: string, textInput?: string): ForestEventResolution {
     const current = this.stateRepo.findByPlayerId(player.id);
     if (current.encounterType !== 'EVENT' || !current.encounterKey) {
-      return 'No event is waiting for a choice.';
+      return { text: 'No event is waiting for a choice.' };
     }
 
     const encounter: ForestEventEncounter = {
@@ -134,18 +127,21 @@ export class ForestService {
       payload: current.encounterPayload
     };
 
-    const outcome = this.eventService.resolveChoice(encounter, player, choice);
+    const outcome = this.eventService.resolveChoice(encounter, player, choice, textInput);
     this.playerRepo.updatePlayerStats(player.id, outcome.patch);
+
+    if (outcome.keepOpen) {
+      this.stateRepo.upsertEncounter(player.id, 'EVENT', encounter.key, encounter.payload);
+      return { text: outcome.text, promptField: outcome.promptField };
+    }
+
     this.stateRepo.clearEncounter(player.id);
 
     if (outcome.globalNews) {
       this.newsService.addNews({ date: today, type: 'GENERIC', message: outcome.globalNews });
     }
-    if (outcome.bigGemHaul) {
-      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} just hauled a mountain of gems.`, playerId: player.id });
-    }
 
-    return outcome.text;
+    return { text: `${outcome.text} Press any key to continue...` };
   }
 
   clearEncounter(playerId: string) {

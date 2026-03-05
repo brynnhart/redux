@@ -286,14 +286,20 @@ function processNewCharacterCommit(session: Session, field: string, value: strin
   }
 }
 
-function handleForestChoiceEvent(session: Session, key: string) {
+function handleForestChoiceEvent(session: Session, key: string, textInput?: string) {
   if (!session.player || !session.playerId) {
     session.notice = 'You blink and forget where you were.';
     return;
   }
 
   const today = dayService.ensureDailyReset(session.playerId).today;
-  session.notice = forestService.resolveEventChoice(session.player, today, key);
+  const outcome = forestService.resolveEventChoice(session.player, today, key, textInput);
+  session.notice = outcome.text;
+  refreshPlayer(session);
+  loadDailyNews(session, today);
+  if (outcome.promptField) {
+    startPrompt(session, outcome.promptField);
+  }
 }
 
 function handleMenuKey(session: Session, message: KeyMessage, close: () => void) {
@@ -639,7 +645,9 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'A') {
+    const forestEncounter = forestService.getEncounter(session.player.id);
+
+    if (key === 'A' && forestEncounter.encounterType !== 'EVENT') {
       session.notice = forestService.attack(session.player, today);
       refreshPlayer(session);
       if ((session.player?.turns_forest_left ?? 0) <= 0) {
@@ -648,12 +656,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'R') {
+    if (key === 'R' && forestEncounter.encounterType !== 'EVENT') {
       session.notice = forestService.run(session.player);
       return;
     }
 
-    if (['1', '2', '3', '4', '5', 'Y', 'N', 'C'].includes(key)) {
+    if (['1', '2', '3', '4', '5', 'Y', 'N', 'C', 'A', 'L', 'G', 'T'].includes(key)) {
       handleForestChoiceEvent(session, key);
       return;
     }
@@ -743,6 +751,12 @@ function handleTextEntry(session: Session, message: KeyMessage) {
       session.innTargetSelection = undefined;
       refreshPlayer(session);
       loadDailyNews(session, today);
+    } else if (field === 'jennie_word' && session.state === 'FOREST') {
+      if (!session.player || !session.playerId) {
+        session.notice = 'Jennie is gone.';
+        return;
+      }
+      handleForestChoiceEvent(session, 'T', value);
     }
     return;
   }
