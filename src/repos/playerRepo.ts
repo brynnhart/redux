@@ -2,6 +2,7 @@ import { getDb } from '../db/db.js';
 
 export type PlayerClass = 'DEATH_KNIGHT' | 'MYSTICAL' | 'THIEF';
 export type PlayerSex = 'M' | 'F';
+export type Spirits = 'LOW' | 'NORMAL' | 'HIGH';
 
 export interface PlayerRecord {
   id: string;
@@ -20,8 +21,15 @@ export interface PlayerRecord {
   bank_gold: number;
   gems: number;
   charm: number;
-  turns_forest: number;
-  turns_pvp: number;
+  last_daily_reset_date: string | null;
+  spirits: Spirits;
+  turns_forest_max: number;
+  turns_forest_left: number;
+  turns_pvp_max: number;
+  turns_pvp_left: number;
+  today_money_doubler_used: number;
+  today_bard_listens: number;
+  today_flirts: number;
 }
 
 export interface NewPlayerInput {
@@ -35,7 +43,23 @@ export interface NewPlayerInput {
 
 type MutablePlayerStats = Pick<
   PlayerRecord,
-  'level' | 'exp' | 'hp' | 'hp_max' | 'gold' | 'bank_gold' | 'gems' | 'charm' | 'turns_forest' | 'turns_pvp'
+  | 'level'
+  | 'exp'
+  | 'hp'
+  | 'hp_max'
+  | 'gold'
+  | 'bank_gold'
+  | 'gems'
+  | 'charm'
+  | 'last_daily_reset_date'
+  | 'spirits'
+  | 'turns_forest_max'
+  | 'turns_forest_left'
+  | 'turns_pvp_max'
+  | 'turns_pvp_left'
+  | 'today_money_doubler_used'
+  | 'today_bard_listens'
+  | 'today_flirts'
 >;
 
 export class PlayerRepo {

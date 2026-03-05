@@ -29,9 +29,11 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
     drawText(buffer, 38, 6, `Level: ${player.level}   Exp: ${player.exp}`);
     drawText(buffer, 38, 7, `HP: ${player.hp}/${player.hp_max}`);
     drawText(buffer, 38, 8, `Gold: ${player.gold}   Bank: ${player.bank_gold}`);
-    drawText(buffer, 38, 9, `Gems: ${player.gems}   Charm: ${player.charm}`);
-    drawText(buffer, 38, 10, `Class: ${player.class}`);
-    drawText(buffer, 38, 11, `Sex: ${player.sex}`);
+    drawText(buffer, 38, 9, `Spirits: ${player.spirits}`);
+    drawText(buffer, 38, 10, `Forest fights: ${player.turns_forest_left} / ${player.turns_forest_max}`);
+    drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
+    drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
+    drawText(buffer, 38, 13, `Class: ${player.class}   Sex: ${player.sex}`);
   }
 
   drawText(buffer, 3, rows - 4, session.notice || 'Welcome to town.');

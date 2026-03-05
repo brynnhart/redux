@@ -10,15 +10,20 @@ import { getDbPath } from './db/db.js';
 import { runMigrations } from './db/migrate.js';
 import { PlayerRepo, type PlayerClass, type PlayerSex } from './repos/playerRepo.js';
 import { AuthService } from './services/authService.js';
+import { DayService } from './services/dayService.js';
+import { NewsService } from './services/newsService.js';
 import { commitPrompt, createSession, resetDraft, setScreen, startPrompt, type Session } from './session.js';
 import { renderWelcome } from './screens/welcome.js';
 import { renderLogin } from './screens/login.js';
 import { renderNewCharacter } from './screens/newCharacter.js';
 import { renderTownSquare } from './screens/townSquare.js';
+import { renderDailyHappenings } from './screens/dailyHappenings.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
 const authService = new AuthService();
+const newsService = new NewsService();
+const dayService = new DayService(playerRepo, newsService);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -43,6 +48,31 @@ function refreshPlayer(session: Session) {
     return;
   }
   session.player = playerRepo.findById(session.playerId) ?? undefined;
+}
+
+function loadDailyNews(session: Session, today: string) {
+  if (!session.playerId) {
+    session.dailyNews = [];
+    return;
+  }
+  session.dailyNews = newsService.getMergedNews(session.playerId, today, 50);
+  session.todayDate = today;
+}
+
+function handlePostLogin(session: Session, playerId: string, displayName: string) {
+  session.playerId = playerId;
+  const { today } = dayService.ensureDailyReset(playerId);
+
+  newsService.addNews({
+    date: today,
+    type: 'LOGIN',
+    message: `${displayName} has logged in.`
+  });
+
+  refreshPlayer(session);
+  loadDailyNews(session, today);
+  setScreen(session, 'DAILY_HAPPENINGS');
+  session.notice = 'Press any key to continue...';
 }
 
 function beginLogin(session: Session) {
@@ -101,10 +131,7 @@ function processLoginCommit(session: Session, field: string, value: string) {
   }
 
   playerRepo.updateLastLogin(player.id);
-  session.playerId = player.id;
-  setScreen(session, 'TOWN_SQUARE');
-  refreshPlayer(session);
-  session.notice = `Welcome back, ${player.display_name}.`;
+  handlePostLogin(session, player.id, player.display_name);
 }
 
 function parseClass(value: string): PlayerClass | null {
@@ -197,10 +224,7 @@ function processNewCharacterCommit(session: Session, field: string, value: strin
         sex: session.draft.sex,
         class: session.draft.class
       });
-      session.playerId = player.id;
-      setScreen(session, 'TOWN_SQUARE');
-      refreshPlayer(session);
-      session.notice = `Welcome, ${player.display_name}.`;
+      handlePostLogin(session, player.id, player.display_name);
       resetDraft(session);
     } catch {
       session.notice = 'Unable to create character. Try a different username.';
@@ -253,9 +277,24 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.state === 'DAILY_HAPPENINGS') {
+    setScreen(session, 'TOWN_SQUARE');
+    session.notice = 'Welcome to town.';
+    return;
+  }
+
   if (session.state === 'TOWN_SQUARE') {
     if (key === 'Q') {
       close();
+      return;
+    }
+    if (key === 'F') {
+      if (session.playerId) {
+        const { today } = dayService.ensureDailyReset(session.playerId);
+        refreshPlayer(session);
+        loadDailyNews(session, today);
+      }
+      session.notice = 'You head out to the fields (coming soon).';
       return;
     }
     session.notice = `${key} is not implemented yet.`;
@@ -303,6 +342,9 @@ function renderSession(session: Session) {
   }
   if (session.state === 'NEW_CHARACTER') {
     return renderNewCharacter(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'DAILY_HAPPENINGS') {
+    return renderDailyHappenings(session, { cols: session.cols, rows: session.rows });
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }
