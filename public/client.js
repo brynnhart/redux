@@ -69,16 +69,9 @@ const utilityScreens = new Set([
   'HALL_OF_HONOR'
 ]);
 
-const dramaticScreens = new Set([
-  'FOREST',
-  'SLAUGHTER_FIELDS',
-  'DAILY_HAPPENINGS',
-  'INN',
-  'INN_BARTENDER',
-  'INN_BREAK_IN',
-  'INN_CONVERSE',
-  'TRAINING'
-]);
+const dramaticNoticePattern = /(ultra sneaky move|terrifying blow|pinch reality|pass mark|you kill|has killed|killed in self-defense|self-defense|you are hurled into the street|everything goes black|you crawl back to town|you collapse|you crush|olivia|dead bird|rescue|fairies|jennie|old witch|mystic|weird|red dragon|dragon|fairy's tiny hands|heroic deed|defeated .*reached level|hall salutes your victory|bells toll once|step into the circle|prove your rank|challenge)/i;
+
+const dailyNewsHeadlinePattern = /(reading the realm news|realm news|daily happenings|showing latest entries|showing entries)/i;
 
 function styleKey(cell) {
   return `${cell.fg}|${cell.bold ? '1' : '0'}|${cell.dim ? '1' : '0'}`;
@@ -269,11 +262,11 @@ function shouldUseSlowPrint(ui, notice) {
     return false;
   }
 
-  if (dramaticScreens.has(screenState)) {
-    return true;
+  if (screenState === 'DAILY_HAPPENINGS') {
+    return dailyNewsHeadlinePattern.test(notice);
   }
 
-  return /(dragon|defeat|victory|killed|slain|rescue|olivia|weird|event|master|death|daily news|reading the realm news|press \[enter\]|press enter)/i.test(notice);
+  return dramaticNoticePattern.test(notice);
 }
 
 function shouldWaitForEnter(ui, notice) {
@@ -283,10 +276,10 @@ function shouldWaitForEnter(ui, notice) {
 
   const screenState = ui?.screenState ?? '';
   if (screenState === 'DAILY_HAPPENINGS') {
-    return (notice.length > 80) || /showing entries|realm news|highlight|killed|dragon|defeated/i.test(notice);
+    return /realm news|highlight|killed|dragon|defeated/i.test(notice);
   }
 
-  return /(dragon|victory|defeat|killed|slain|dies|death|rescue|olivia|master|challenge|event)/i.test(notice);
+  return /(you kill|killed|self-defense|dragon|victory|defeat|slain|dies|death|rescue|olivia|jennie|fairies|dead bird|master|challenge|hall salutes|bells toll)/i.test(notice);
 }
 
 function handleIncomingNotice(frame, ui) {
