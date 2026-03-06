@@ -60,12 +60,12 @@ export class PvpService {
                 this.playerRepo.updatePlayerStats(attacker.id, { hp: attackerHpAfter, turns_pvp_left: 0 });
                 const msg = `${attacker.display_name} failed to flee from ${target.display_name} and barely escaped.`;
                 this.newsService.addNews(todayDayKey, msg, { severity: 'pvp' });
-                this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE_FAIL', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} was cut while trying to flee from ${target.display_name}.` });
+                this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE_FAIL', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} tried to flee ${target.display_name} and got carved up for it.` });
                 return { ok: true, over: true, message: `You turn to run, but ${target.display_name} carves you for ${punish} damage before you escape.` };
             }
             const msg = `${attacker.display_name} has attacked ${target.display_name} and has run away.`;
             this.newsService.addNews(todayDayKey, msg, { severity: 'pvp' });
-            this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has run away like a scared rat.` });
+            this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} ran from ${target.display_name} before the blood settled.` });
             return { ok: true, over: true, message: 'You run away like a scared rat.' };
         }
         const rounds = [...state.rounds];
@@ -127,7 +127,12 @@ export class PvpService {
         });
         const goldText = stolen > 0 ? ` You steal ${stolen} gold.` : ' You find no gold on him.';
         this.newsService.addNews(todayDayKey, `${attacker.display_name} has killed ${target.display_name}.`, { severity: 'pvp' });
-        this.newsService.pvpKill(attacker.id, target.id, { dayKey: todayDayKey, killerName: attacker.display_name, victimName: target.display_name });
+        this.newsService.pvpKill(attacker.id, target.id, {
+            dayKey: todayDayKey,
+            killerName: attacker.display_name,
+            victimName: target.display_name,
+            mode: 'FIELDS'
+        });
         return `You kill ${target.display_name}. +${expGain} exp.${goldText}`;
     }
     resolveDefenderWin(attacker, target, todayDayKey) {
@@ -139,7 +144,12 @@ export class PvpService {
             killed_by_player_id: target.id
         });
         this.newsService.addNews(todayDayKey, `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.`, { severity: 'pvp' });
-        this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_DEFEND', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.` });
+        this.newsService.selfDefenseKill(attacker.id, target.id, {
+            dayKey: todayDayKey,
+            attackerName: attacker.display_name,
+            defenderName: target.display_name,
+            mode: 'FIELDS'
+        });
         return `${target.display_name} kills you in self-defense.`;
     }
     pvpRetaliationDamage(attacker, defender) {
