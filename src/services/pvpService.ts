@@ -2,6 +2,7 @@ import type { PlayerRecord, PlayerRepo } from '../repos/playerRepo.js';
 import type { NewsService } from './newsService.js';
 import { config } from '../config.js';
 import { getArmorById, getWeaponById } from '../data/equipment.js';
+import { getDayIndexFromDayKey } from './dayKey.js';
 
 export type PvpMode = 'FIELDS' | 'INN_BREAKIN';
 export type PvpAction = 'ATTACK' | 'RUN';
@@ -77,7 +78,7 @@ export class PvpService {
       this.consumeAttempt(attacker);
       const msg = `${attacker.display_name} has attacked ${target.display_name} and has run away.`;
       this.newsService.addNews(todayDayKey, msg, { severity: 'pvp' });
-      this.newsService.addDailyNews(todayDayKey, `${attacker.display_name} has run away like a scared rat.`, 'PVP_FLEE');
+      this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has run away like a scared rat.` });
       return { ok: true, over: true, message: 'You run away like a scared rat.' };
     }
 
@@ -153,7 +154,7 @@ export class PvpService {
 
     const goldText = stolen > 0 ? ` You steal ${stolen} gold.` : ' You find no gold on him.';
     this.newsService.addNews(todayDayKey, `${attacker.display_name} has killed ${target.display_name}.`, { severity: 'pvp' });
-    this.newsService.addDailyNews(todayDayKey, `${attacker.display_name} has killed ${target.display_name}.`, 'PVP_KILL');
+    this.newsService.pvpKill(attacker.id, target.id, { dayKey: todayDayKey, killerName: attacker.display_name, victimName: target.display_name });
     return `You kill ${target.display_name}. +${expGain} exp.${goldText}`;
   }
 
@@ -170,7 +171,7 @@ export class PvpService {
     });
 
     this.newsService.addNews(todayDayKey, `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.`, { severity: 'pvp' });
-    this.newsService.addDailyNews(todayDayKey, `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.`, 'PVP_DEFEND');
+    this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_DEFEND', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.` });
 
     return `${target.display_name} kills you in self-defense.`;
   }

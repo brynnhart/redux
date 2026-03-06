@@ -38,6 +38,7 @@ import { renderHallOfHonor } from './screens/hallOfHonor.js';
 import { renderHeroicDeedsRankings, renderOldManMenu, renderOldManTopList, renderPlayerRankings } from './screens/leaderboard.js';
 import { config } from './config.js';
 import { PvpService } from './services/pvpService.js';
+import { getDayIndexFromDayKey, getTodayDayKey } from './services/dayKey.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -88,6 +89,26 @@ app.get('/api/leaderboard/oldman', (request, reply) => {
   const limit = Math.min(100, Math.max(1, Number(query.limit ?? '10') || 10));
   reply.send({ rows: playerRepo.listOldManTop(category, limit) });
 });
+app.get('/api/news/today', (request, reply) => {
+  const dayKey = (request.query as { dayKey?: string }).dayKey ?? getTodayDayKey();
+  const limit = Math.min(50, Math.max(1, Number((request.query as { limit?: string }).limit ?? '30') || 30));
+  const day = getDayIndexFromDayKey(dayKey);
+  reply.send({ day, dayKey, rows: newsService.getDailyNews(day, limit, 0) });
+});
+
+app.get('/api/news/day/:day', (request, reply) => {
+  const params = request.params as { day: string };
+  const day = Number(params.day);
+  if (!Number.isInteger(day) || day < 0) {
+    reply.code(400).send({ error: 'Invalid day' });
+    return;
+  }
+  const query = request.query as { limit?: string; offset?: string };
+  const limit = Math.min(50, Math.max(1, Number(query.limit ?? '50') || 50));
+  const offset = Math.max(0, Number(query.offset ?? '0') || 0);
+  reply.send({ day, rows: newsService.getDailyNews(day, limit, offset) });
+});
+
 
 function refreshPlayer(session: Session) {
   if (!session.playerId) {
@@ -97,13 +118,13 @@ function refreshPlayer(session: Session) {
   session.player = playerRepo.findById(session.playerId) ?? undefined;
 }
 
-function loadDailyNews(session: Session, dayKey: string) {
-  if (!session.playerId) {
-    session.dailyNews = [];
-    return;
-  }
-  session.dailyNews = newsService.getDailyNewsForPlayer(session.playerId, dayKey, 50);
+function loadDailyNews(session: Session, dayKey: string, offset = session.dailyNewsOffset) {
+  const day = getDayIndexFromDayKey(dayKey);
+  session.dailyNewsOffset = Math.max(0, offset);
+  session.dailyNews = newsService.getDailyNews(day, 30, session.dailyNewsOffset);
+  session.dailyNewsHasMore = newsService.hasMoreDailyNews(day, session.dailyNewsOffset, 30);
   session.todayDate = dayKey;
+  session.todayDayNumber = day;
 }
 
 function handlePostLogin(session: Session, playerId: string, displayName: string) {
@@ -113,7 +134,8 @@ function handlePostLogin(session: Session, playerId: string, displayName: string
   newsService.addNews(todayDayKey, `${displayName} has logged in.`, { severity: 'info' });
 
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
   setScreen(session, config.enableDailyNewsAutoShow ? 'DAILY_HAPPENINGS' : 'TOWN_SQUARE');
   session.notice = config.enableDailyNewsAutoShow ? 'Press [Enter] to continue...' : 'Welcome to town.';
 }
@@ -140,7 +162,8 @@ function enterForest(session: Session) {
   }
   const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
 
   if ((session.player?.turns_forest_left ?? 0) <= 0) {
     setScreen(session, 'TOWN_SQUARE');
@@ -257,7 +280,8 @@ function enterInn(session: Session) {
   }
   const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
   setScreen(session, 'INN');
   session.notice = 'The Inn smells like ale, ambition, and bad decisions.';
 }
@@ -270,7 +294,8 @@ function enterTraining(session: Session) {
   }
   const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
   setScreen(session, 'TRAINING');
   session.notice = "Turgon cracks his knuckles. Train hard or go home.";
 }
@@ -282,7 +307,8 @@ function enterSlaughterFields(session: Session) {
   }
   const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
   session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
   session.pvpEncounter = undefined;
   session.pvpTargetSelection = undefined;
@@ -346,6 +372,7 @@ function resolveMasterChallenge(session: Session, todayDayKey: string) {
     patch.hp = session.player.hp_max + hpGain;
     playerRepo.updatePlayerStats(session.player.id, patch);
     newsService.addNews(todayDayKey, `${session.player.display_name} defeated ${master.name} and reached level ${nextLevel}!`, { severity: 'highlight' });
+    newsService.masterBeaten(session.player.id, todayDayKey, master.name, nextLevel, session.player.display_name);
     return `${rounds.join(' ')} ${master.flavor_win} You gain ${hpGain} max HP and reach level ${nextLevel}.`;
   }
 
@@ -508,7 +535,8 @@ function handleForestChoiceEvent(session: Session, key: string, textInput?: stri
   const outcome = forestService.resolveEventChoice(session.player, todayDayKey, key, textInput);
   session.notice = outcome.text;
   refreshPlayer(session);
-  loadDailyNews(session, todayDayKey);
+  session.dailyNewsOffset = 0;
+  loadDailyNews(session, todayDayKey, 0);
   if (outcome.promptField) {
     startPrompt(session, outcome.promptField);
   }
@@ -559,6 +587,18 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
   }
 
   if (session.state === 'DAILY_HAPPENINGS') {
+    if (key === 'N' && session.dailyNewsHasMore && session.todayDate) {
+      const nextOffset = session.dailyNewsOffset + 30;
+      loadDailyNews(session, session.todayDate, nextOffset);
+      session.notice = `Showing entries ${nextOffset + 1}-${nextOffset + session.dailyNews.length}.`;
+      return;
+    }
+    if (key === 'P' && session.dailyNewsOffset > 0 && session.todayDate) {
+      const prevOffset = Math.max(0, session.dailyNewsOffset - 30);
+      loadDailyNews(session, session.todayDate, prevOffset);
+      session.notice = prevOffset === 0 ? 'Showing latest entries.' : `Showing entries ${prevOffset + 1}-${prevOffset + session.dailyNews.length}.`;
+      return;
+    }
     returnToTown(session, 'Welcome to town.');
     return;
   }
@@ -620,6 +660,18 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
   if (session.playerId && key === 'L' && session.state === 'TOWN_SQUARE') {
     setScreen(session, 'PLAYER_RANKINGS');
     session.notice = 'The rankings board creaks as you scan the names.';
+    return;
+  }
+
+  if (session.playerId && (key === 'N' || key === 'D') && session.state === 'TOWN_SQUARE') {
+    if (!session.todayDate) {
+      session.notice = 'No day is loaded yet.';
+      return;
+    }
+    session.dailyNewsOffset = 0;
+    loadDailyNews(session, session.todayDate, 0);
+    setScreen(session, 'DAILY_HAPPENINGS');
+    session.notice = 'Reading the realm news...';
     return;
   }
 

@@ -1,15 +1,19 @@
 import { getDb } from '../db/db.js';
+import { getDayIndexFromDayKey } from './dayKey.js';
 
 export type NewsSeverity = 'info' | 'highlight' | 'pvp' | 'dragon' | 'system';
 export type PendingEventType = 'pvp_killed' | 'pvp_attacked_fled' | 'dragon_killed';
 
 export interface NewsRecord {
   id: number;
+  day: number;
   day_key: string;
   created_at: string;
   message: string;
-  severity: NewsSeverity;
-  player_id: string | null;
+  type: string;
+  actor_player_id: string | null;
+  target_player_id: string | null;
+  payload_json: string | null;
 }
 
 export interface PendingEventRecord {
@@ -31,17 +35,33 @@ interface AddPendingEventInput {
   payload: Record<string, string>;
 }
 
+interface AddDailyNewsInput {
+  day: number;
+  type: string;
+  actorId?: string;
+  targetId?: string;
+  message: string;
+  payload?: Record<string, unknown>;
+}
+
 export class NewsService {
-  addDailyNews(dayKey: string, message: string, type: string) {
+  addDailyNews(input: AddDailyNewsInput) {
     const db = getDb();
+    const safeMessage = sanitizeNewsMessage(input.message);
     db.prepare(
-      `INSERT INTO daily_news (day_key, created_at, message, type)
-       VALUES (@day_key, @created_at, @message, @type)`
+      `INSERT INTO daily_news (day, day_key, date, created_at, type, actor_player_id, target_player_id, player_id, payload_json, message)
+       VALUES (@day, @day_key, @date, @created_at, @type, @actor_player_id, @target_player_id, @player_id, @payload_json, @message)`
     ).run({
-      day_key: dayKey,
+      day: input.day,
+      day_key: dayIndexToDayKey(input.day),
       created_at: new Date().toISOString(),
-      message,
-      type
+      date: dayIndexToDayKey(input.day),
+      type: input.type,
+      actor_player_id: input.actorId ?? null,
+      target_player_id: input.targetId ?? null,
+      player_id: input.actorId ?? null,
+      payload_json: input.payload ? JSON.stringify(input.payload) : null,
+      message: safeMessage
     });
   }
 
@@ -59,17 +79,100 @@ export class NewsService {
     });
   }
 
-  getDailyNewsForPlayer(playerId: string, dayKey: string, limit = 100): NewsRecord[] {
+  getDailyNews(day: number, limit = 30, offset = 0): NewsRecord[] {
     const db = getDb();
     return db
       .prepare(
-        `SELECT * FROM news_events
-         WHERE day_key = ?
-           AND (player_id IS NULL OR player_id = ?)
+        `SELECT id, day, day_key, created_at, type, actor_player_id, target_player_id, payload_json, message
+         FROM daily_news
+         WHERE day = ?
          ORDER BY created_at DESC
-         LIMIT ?`
+         LIMIT ? OFFSET ?`
       )
-      .all([dayKey, playerId, limit]) as NewsRecord[];
+      .all([day, limit, Math.max(0, offset)]) as NewsRecord[];
+  }
+
+  getDailyNewsForPlayer(_playerId: string, dayKey: string, limit = 30, offset = 0): NewsRecord[] {
+    return this.getDailyNews(getDayIndexFromDayKey(dayKey), limit, offset);
+  }
+
+  hasMoreDailyNews(day: number, offset: number, limit: number): boolean {
+    const db = getDb();
+    const row = db
+      .prepare('SELECT 1 FROM daily_news WHERE day = ? ORDER BY created_at DESC LIMIT 1 OFFSET ?')
+      .get([day, Math.max(0, offset + limit)]) as { 1: number } | undefined;
+    return Boolean(row);
+  }
+
+  pvpKill(killerId: string, victimId: string, context: { dayKey: string; killerName: string; victimName: string }) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(context.dayKey),
+      type: 'PVP_KILL',
+      actorId: killerId,
+      targetId: victimId,
+      message: `${context.killerName} has killed ${context.victimName}.`,
+      payload: context
+    });
+  }
+
+  dragonKill(playerId: string, context: { dayKey: string; playerName: string }) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(context.dayKey),
+      type: 'DRAGON_KILL',
+      actorId: playerId,
+      message: `${context.playerName} has defeated the Red Dragon.`,
+      payload: context
+    });
+  }
+
+  masterBeaten(playerId: string, dayKey: string, masterName: string, newLevel: number, playerName: string) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(dayKey),
+      type: 'MASTER_BEATEN',
+      actorId: playerId,
+      message: `${playerName} has beaten ${masterName}.`,
+      payload: { masterName, newLevel }
+    });
+  }
+
+  moneyDoubler(playerId: string, dayKey: string, beforeGold: number, afterGold: number) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(dayKey),
+      type: 'MONEY_DOUBLER',
+      actorId: playerId,
+      message: 'Somewhere magic has happened!',
+      payload: { beforeGold, afterGold }
+    });
+  }
+
+  marriage(playerId: string, dayKey: string, npcName: string, playerName: string) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(dayKey),
+      type: 'MARRIAGE',
+      actorId: playerId,
+      message: `${playerName} married ${npcName}.`,
+      payload: { npcName }
+    });
+  }
+
+  divorce(playerId: string, dayKey: string, npcName: string, playerName: string) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(dayKey),
+      type: 'DIVORCE',
+      actorId: playerId,
+      message: `${playerName} left ${npcName}.`,
+      payload: { npcName }
+    });
+  }
+
+  rareEvent(playerId: string, dayKey: string, title: string, playerName: string) {
+    this.addDailyNews({
+      day: getDayIndexFromDayKey(dayKey),
+      type: 'RARE_EVENT',
+      actorId: playerId,
+      message: `${playerName}: ${title}`,
+      payload: { title }
+    });
   }
 
   addPendingEvent(input: AddPendingEventInput) {
@@ -101,4 +204,14 @@ export class NewsService {
 
     return events;
   }
+}
+
+function sanitizeNewsMessage(message: string): string {
+  const noControlChars = message.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u001b]/g, '');
+  return noControlChars.slice(0, 200);
+}
+
+function dayIndexToDayKey(day: number): string {
+  const date = new Date(day * 86400000);
+  return date.toISOString().slice(0, 10);
 }

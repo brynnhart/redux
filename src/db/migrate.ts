@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 
 export function runMigrations() {
   const db = getDb();
@@ -396,7 +396,7 @@ export function runMigrations() {
 
     if (!columnNames.has('day_key')) {
       db.exec('ALTER TABLE daily_news ADD COLUMN day_key TEXT;');
-      db.exec("UPDATE daily_news SET day_key = COALESCE(day_key, date, substr(created_at, 1, 10));");
+      db.exec("UPDATE daily_news SET day_key = COALESCE(day_key, substr(created_at, 1, 10));");
     }
     if (!columnNames.has('created_at')) {
       db.exec('ALTER TABLE daily_news ADD COLUMN created_at TEXT;');
@@ -551,6 +551,64 @@ export function runMigrations() {
     `);
   }
 
+
+
+  if (currentVersion < 18) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS daily_news (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day INTEGER NOT NULL,
+        day_key TEXT NOT NULL,
+        date TEXT,
+        created_at TEXT NOT NULL,
+        type TEXT NOT NULL,
+        actor_player_id TEXT,
+        target_player_id TEXT,
+        player_id TEXT,
+        payload_json TEXT,
+        message TEXT NOT NULL
+      );
+    `);
+
+    const dailyNewsColumns = db.prepare('PRAGMA table_info(daily_news)').all() as Array<{ name: string }>;
+    const names = new Set(dailyNewsColumns.map((column) => column.name));
+
+    if (!names.has('day')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN day INTEGER;');
+      db.exec("UPDATE daily_news SET day = CAST(strftime('%s', substr(COALESCE(day_key, created_at), 1, 10) || 'T00:00:00Z') AS INTEGER) / 86400 WHERE day IS NULL;");
+    }
+    if (!names.has('day_key')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN day_key TEXT;');
+      db.exec("UPDATE daily_news SET day_key = COALESCE(day_key, substr(created_at, 1, 10));");
+    }
+    if (!names.has('actor_player_id')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN actor_player_id TEXT;');
+      if (names.has('player_id')) {
+        db.exec('UPDATE daily_news SET actor_player_id = COALESCE(actor_player_id, player_id);');
+      }
+    }
+    if (!names.has('target_player_id')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN target_player_id TEXT;');
+    }
+    if (!names.has('payload_json')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN payload_json TEXT;');
+    }
+    if (!names.has('date')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN date TEXT;');
+      db.exec("UPDATE daily_news SET date = COALESCE(date, day_key, substr(created_at, 1, 10));");
+    }
+    if (!names.has('player_id')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN player_id TEXT;');
+      if (names.has('actor_player_id')) {
+        db.exec('UPDATE daily_news SET player_id = COALESCE(player_id, actor_player_id);');
+      }
+    }
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_daily_news_day ON daily_news (day);
+      CREATE INDEX IF NOT EXISTS idx_daily_news_day_created ON daily_news (day, created_at);
+    `);
+  }
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`

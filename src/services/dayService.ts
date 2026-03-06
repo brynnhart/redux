@@ -1,17 +1,9 @@
 import { config } from '../config.js';
+import { getDayIndexFromDayKey, getTodayDayKey } from './dayKey.js';
 import { getDb } from '../db/db.js';
 import { PlayerRepo } from '../repos/playerRepo.js';
 import { NewsService, type PendingEventRecord } from './newsService.js';
 import { getDailySkillUses } from './skillService.js';
-
-export function getTodayDayKey(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: config.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(now);
-}
 
 function isDayKeyBefore(left: string | null, right: string): boolean {
   if (!left) {
@@ -121,7 +113,7 @@ export class DayService {
           severity: 'info',
           playerId: player.id
         });
-        this.newsService.addDailyNews(todayDayKey, `The bank paid ${player.display_name} ${interest} gold in interest.`, 'BANK_INTEREST');
+        this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'BANK_INTEREST', actorId: player.id, message: `The bank paid ${player.display_name} ${interest} gold in interest.`, payload: { interest } });
         db.prepare('INSERT INTO bank_transactions (player_id, day_key, type, amount, created_at) VALUES (?, ?, ?, ?, ?)').run([player.id, todayDayKey, 'interest', interest, new Date().toISOString()]);
       }
 
