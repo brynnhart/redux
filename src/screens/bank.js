@@ -8,7 +8,7 @@ export function renderBank(session, dims) {
     const player = session.player;
     drawBox(buffer, 0, 0, cols, rows);
     drawText(buffer, 3, 1, '[b][c:yellow]Ye Olde Bank & Ledger House[b][c:white]');
-    drawText(buffer, 3, 2, '[dim]Ink, iron, and suspicion: every coin must be counted twice.[dim]');
+    drawText(buffer, 3, 2, '[dim]A thin clerk smiles like a trap. Your coin is safe-ish here.[dim]');
     if (player) {
         const onHand = player.gold_on_hand;
         const inBank = player.gold_in_bank;
@@ -18,19 +18,19 @@ export function renderBank(session, dims) {
         drawText(buffer, 3, 7, `Daily Interest .... ${(config.bankInterestRate * 100).toFixed(0)}%`);
     }
     drawText(buffer, 3, 9, '[b][c:magenta]Transactions[b][c:white]');
-    drawText(buffer, 3, 10, '[c:green]D[c:white]) Deposit        [c:green]1[c:white]) Deposit ALL');
-    drawText(buffer, 3, 11, '[c:green]W[c:white]) Withdraw       [c:green]2[c:white]) Withdraw ALL');
-    drawText(buffer, 3, 12, '[c:green]R[c:white]) Return to Town');
+    drawText(buffer, 3, 10, '[c:green]1[c:white]/[c:green]D[c:white]) Deposit amount   [c:green]3[c:white]) Deposit ALL now');
+    drawText(buffer, 3, 11, '[c:green]2[c:white]/[c:green]W[c:white]) Withdraw amount  [c:green]4[c:white]) Show balances');
+    drawText(buffer, 3, 12, '[c:green]Q[c:white]/[c:green]R[c:white]) Return to Town');
     if (session.bankState === 'DEPOSIT_PROMPT') {
-        drawText(buffer, 3, 14, `[b][c:cyan]Deposit Amount>[b][c:white] ${session.inputBuffer}_`);
+        drawText(buffer, 3, 14, `[b][c:cyan]Deposit how much?[b][c:white] ${session.inputBuffer}_`);
     }
     else if (session.bankState === 'WITHDRAW_PROMPT') {
-        drawText(buffer, 3, 14, `[b][c:cyan]Withdraw Amount>[b][c:white] ${session.inputBuffer}_`);
+        drawText(buffer, 3, 14, `[b][c:cyan]Withdraw how much?[b][c:white] ${session.inputBuffer}_`);
     }
     else {
         drawText(buffer, 3, 14, `[b][c:cyan]Ledger Command>[b][c:white] ${session.inputBuffer}`);
     }
-    drawText(buffer, 3, rows - 5, '[dim]System: banked gold is safer from thieves than pocket gold.[dim]');
-    drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]The clerk stamps your ledger with solemn satisfaction.[c:white]');
+    drawText(buffer, 3, rows - 5, '[dim]Muscle memory: smash 3 to dump pocket gold before heading back out.[dim]');
+    drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]The clerk licks his thumb, then your coin, then your ledger.[c:white]');
     return { cols, rows, lines: toLines(buffer) };
 }
