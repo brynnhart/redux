@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
@@ -52,10 +50,8 @@ const pvpService = new PvpService(playerRepo, newsService);
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
 await app.register(websocket);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 await app.register(fastifyStatic, {
-    root: path.join(__dirname, '../public'),
+    root: new URL('../public/', import.meta.url),
     prefix: '/'
 });
 app.get('/', (_request, reply) => {
