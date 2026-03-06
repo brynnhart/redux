@@ -1,6 +1,6 @@
 export const jennieEvent = {
     id: 'jennie',
-    weight: 5,
+    weight: 4,
     canTrigger(player) {
         return player.spirits === 'HIGH';
     },

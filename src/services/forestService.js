@@ -290,7 +290,7 @@ export class ForestService {
         const outcome = this.eventService.resolveChoice(encounter, player, choice, textInput);
         this.playerRepo.updatePlayerStats(player.id, outcome.patch);
         if (outcome.keepOpen) {
-            this.stateRepo.upsertEncounter(player.id, 'EVENT', encounter.key, encounter.payload);
+            this.stateRepo.upsertEncounter(player.id, 'EVENT', encounter.key, outcome.payload ?? encounter.payload);
             return { text: outcome.text, promptField: outcome.promptField };
         }
         this.stateRepo.clearEncounter(player.id);

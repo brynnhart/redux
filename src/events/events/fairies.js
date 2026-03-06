@@ -1,12 +1,12 @@
 export const fairiesEvent = {
     id: 'fairies',
-    weight: 30,
+    weight: 24,
     execute(player, session, rng = Math.random) {
         const choice = session.choice?.toUpperCase();
         if (!choice) {
             return {
                 text: [
-                    'You stumble upon a group of fairies bathing in a crystal pool.',
+                    'You stumble upon fairies bathing in a crystal pool bright as broken glass.',
                     'One fairy notices you watching.'
                 ],
                 choices: [
