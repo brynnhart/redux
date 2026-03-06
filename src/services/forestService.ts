@@ -87,7 +87,7 @@ export class ForestService {
         gemDrop = 1;
       }
 
-      patch.gold = player.gold + goldEarned;
+      patch.gold_on_hand = player.gold_on_hand + goldEarned;
       patch.exp = player.exp + expEarned;
       patch.gems = player.gems + gemDrop;
 
@@ -156,7 +156,7 @@ export class ForestService {
       if (this.rng() < enemy.gemChance) {
         gemDrop = 1;
       }
-      patch.gold = player.gold + goldEarned;
+      patch.gold_on_hand = player.gold_on_hand + goldEarned;
       patch.exp = player.exp + expEarned;
       patch.gems = player.gems + gemDrop;
       this.playerRepo.updatePlayerStats(player.id, patch);
@@ -259,8 +259,7 @@ export class ForestService {
         const lapBefore = player.current_lap || 1;
         const lapAfter = lapBefore + 1;
         const patch: Partial<PlayerRecord> = {
-          heroic_deeds_done: (player.heroic_deeds_done ?? player.heroic_deeds ?? 0) + 1,
-          heroic_deeds: (player.heroic_deeds_done ?? player.heroic_deeds ?? 0) + 1,
+          heroic_deeds_done: player.heroic_deeds_done + 1,
           dragon_kills_total: (player.dragon_kills_total ?? 0) + 1,
           current_lap: lapAfter,
           dragon_fought_today: 1,
@@ -269,14 +268,10 @@ export class ForestService {
           hp_max: config.baseHp,
           hp: config.baseHp,
           gold_on_hand: config.dragonResetGoldOnHand,
-          gold: config.dragonResetGoldOnHand,
-          gold_pocket: config.dragonResetGoldOnHand
         };
 
         if (!config.dragonResetKeepBankGold) {
           patch.gold_in_bank = 0;
-          patch.bank_gold = 0;
-          patch.gold_bank = 0;
         }
 
         if (!config.dragonResetKeepEquipment) {

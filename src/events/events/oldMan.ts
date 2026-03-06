@@ -35,7 +35,7 @@ export const oldManEvent: ForestEvent = {
       const gold = randInt(100, 250, rng) + player.level * 40;
       return {
         text: [`He slips you a heavy pouch. (+${gold} gold, -1 forest fight)`],
-        effects: { gold: player.gold + gold, turns_forest_left: Math.max(0, player.turns_forest_left - 1) }
+        effects: { gold_on_hand: player.gold_on_hand + gold, turns_forest_left: Math.max(0, player.turns_forest_left - 1) }
       };
     }
 

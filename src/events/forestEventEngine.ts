@@ -8,7 +8,7 @@ export interface Choice {
 export interface GameEffects {
   hp?: number;
   hp_max?: number;
-  gold?: number;
+  gold_on_hand?: number;
   exp?: number;
   gems?: number;
   charm?: number;
@@ -20,7 +20,7 @@ export interface GameEffects {
   skill_mastery_death?: number;
   skill_mastery_mystic?: number;
   skill_mastery_thief?: number;
-  daily_skill_training_used?: number;
+  training_challenge_used_today?: number;
   has_fairy?: number;
 }
 

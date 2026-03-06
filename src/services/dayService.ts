@@ -26,7 +26,7 @@ export class DayService {
     }
 
     const todayDayKey = getTodayDayKey();
-    if (player.last_day_key === todayDayKey) {
+    if (player.last_day_seen === todayDayKey) {
       return { didReset: false, todayDayKey };
     }
 
@@ -43,7 +43,7 @@ export class DayService {
 
     const spirits = this.rollSpirits();
     const forestMax = config.forestFightsPerDay;
-    const bankBeforeInterest = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+    const bankBeforeInterest = player.gold_in_bank;
     const rawInterest = Math.floor(bankBeforeInterest * config.bankInterestRate);
     const interest = config.bankInterestCap === null ? rawInterest : Math.min(rawInterest, config.bankInterestCap);
     const bankAfterInterest = this.safeAdd(bankBeforeInterest, interest).value;
@@ -55,52 +55,30 @@ export class DayService {
     db.exec('BEGIN');
     try {
       this.playerRepo.updatePlayerStats(player.id, {
-        last_day_key: todayDayKey,
-        last_daily_reset_date: todayDayKey,
+        last_day_seen: todayDayKey,
         spirits,
-        forest_fights_used_today: 0,
-        forest_fights_max_today: forestMax,
         turns_forest_max: forestMax,
-        player_fight_used_today: 0,
-        pvp_used_today: 0,
+        turns_forest_left: forestMax + (spirits === 'HIGH' ? 1 : 0),
         turns_pvp_max: config.pvpAttacksPerDay,
         turns_pvp_left: config.pvpAttacksPerDay,
-        inn_flirt_used_today: 0,
         flirt_used_today: 0,
         bard_listens_used_today: 0,
-        seth_listens_used_today: 0,
-        today_flirts: 0,
-        today_bard_listens: 0,
-        daily_flirt_used: 0,
-        daily_bard_used: 0,
         money_doubler_used_today: 0,
-        today_money_doubler_used: 0,
-        daily_skill_training_used: 0,
         training_challenge_used_today: 0,
         skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
         skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
         skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
-        has_room: shouldExpireRoom ? 0 : player.has_room,
-        in_room: shouldExpireRoom ? 0 : player.in_room,
         in_inn_room: shouldExpireRoom ? 0 : player.in_inn_room,
-        room_paid_until_day_key: shouldExpireRoom ? null : player.room_paid_until_day_key,
-        inn_room_day_key: shouldExpireRoom ? null : player.inn_room_day_key,
         inn_room_expires_day_key: shouldExpireRoom ? null : player.inn_room_expires_day_key,
-        room_expires_at: shouldExpireRoom ? null : player.room_expires_at,
-        inn_room_expires_at: shouldExpireRoom ? null : player.inn_room_expires_at,
-        is_dead: 0,
         is_alive: 1,
         hp: player.hp_max,
         killed_by_player_id: null,
         gold_in_bank: bankAfterInterest,
         inn_bribe_count_today: 0,
         inn_breakin_used_today: 0,
-        has_flirted_today: 0,
-        has_listened_bard_today: 0,
-        bonus_forest_fights: 0,
-        extra_forest_fights_today: 0,
-        turns_forest_left: forestMax + (spirits === 'HIGH' ? 1 : 0),
-        dragon_fought_today: 0
+        dragon_fought_today: 0,
+        olivia_used_today: 0,
+        pvp_used_today: 0
       });
 
       this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
@@ -112,7 +90,7 @@ export class DayService {
         severity: 'highlight',
         playerId: player.id
       });
-      if (player.is_dead || !player.is_alive) {
+      if (!player.is_alive) {
         this.newsService.addNews(todayDayKey, 'You wake up sore, but alive.', { severity: 'highlight', playerId: player.id });
       }
 

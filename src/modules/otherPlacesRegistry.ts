@@ -14,7 +14,7 @@ export type OtherPlacesTransition =
   | {
       type: 'module_update';
       notice: string;
-      patch: Partial<Pick<PlayerRecord, 'gold' | 'gold_on_hand' | 'gold_pocket' | 'gems' | 'charm' | 'hp'>>;
+      patch: Partial<Pick<PlayerRecord, 'gold_on_hand' | 'gems' | 'charm' | 'hp'>>;
     };
 
 export type OtherPlaceModule = {
@@ -66,7 +66,7 @@ const lordCavernModule: OtherPlaceModule = {
       return {
         type: 'module_update',
         notice: `You shake a corpse loose from the muck. Gain ${gold} gold.`,
-        patch: { gold, gold_on_hand: gold, gold_pocket: gold }
+        patch: { gold_on_hand: gold }
       };
     }
     if (roll === 1) {

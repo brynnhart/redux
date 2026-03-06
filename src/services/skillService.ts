@@ -50,7 +50,7 @@ export function consumeClassSkillUsePatch(player: PlayerRecord): Partial<PlayerR
 
 export function trainClassSkillPatch(player: PlayerRecord): Partial<PlayerRecord> {
   const path = getSkillPath(player.class);
-  const patch: Partial<PlayerRecord> = { daily_skill_training_used: 1 };
+  const patch: Partial<PlayerRecord> = { training_challenge_used_today: 1 };
 
   if (path === 'DEATH') {
     const next = player.skill_level_death + 1;

@@ -18,8 +18,8 @@ export function renderBank(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 2, 'Ye Olde Bank');
 
   if (player) {
-    const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
-    const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+    const onHand = player.gold_on_hand;
+    const inBank = player.gold_in_bank;
     drawText(buffer, 3, 4, `On hand: ${onHand} gold`);
     drawText(buffer, 3, 5, `In bank: ${inBank} gold`);
     drawText(buffer, 3, 6, `Daily interest: ${(config.bankInterestRate * 100).toFixed(0)}%`);

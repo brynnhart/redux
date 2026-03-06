@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 export function runMigrations() {
   const db = getDb();
@@ -607,6 +607,156 @@ export function runMigrations() {
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_daily_news_day ON daily_news (day);
       CREATE INDEX IF NOT EXISTS idx_daily_news_day_created ON daily_news (day, created_at);
+    `);
+  }
+
+
+  if (currentVersion < 19) {
+    db.exec(`
+      CREATE TABLE players_new (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        pass_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        last_login_at TEXT,
+        display_name TEXT NOT NULL,
+        sex TEXT NOT NULL CHECK (sex IN ('M','F')),
+        class TEXT NOT NULL CHECK (class IN ('DEATH_KNIGHT','MYSTICAL','THIEF')),
+        level INTEGER NOT NULL DEFAULT 1,
+        exp INTEGER NOT NULL DEFAULT 0,
+        heroic_deeds_done INTEGER NOT NULL DEFAULT 0,
+        current_lap INTEGER NOT NULL DEFAULT 1,
+        hp INTEGER NOT NULL DEFAULT 20,
+        hp_max INTEGER NOT NULL DEFAULT 20,
+        is_alive INTEGER NOT NULL DEFAULT 1,
+        last_killed_at TEXT,
+        gold_on_hand INTEGER NOT NULL DEFAULT 0,
+        gold_in_bank INTEGER NOT NULL DEFAULT 0,
+        gems INTEGER NOT NULL DEFAULT 0,
+        charm INTEGER NOT NULL DEFAULT 0,
+        weapon_id TEXT NOT NULL DEFAULT 'bare_hands',
+        armor_id TEXT NOT NULL DEFAULT 'rags',
+        turns_forest_left INTEGER NOT NULL DEFAULT 30,
+        turns_forest_max INTEGER NOT NULL DEFAULT 30,
+        turns_pvp_left INTEGER NOT NULL DEFAULT 1,
+        turns_pvp_max INTEGER NOT NULL DEFAULT 1,
+        training_challenge_used_today INTEGER NOT NULL DEFAULT 0,
+        flirt_used_today INTEGER NOT NULL DEFAULT 0,
+        bard_listens_used_today INTEGER NOT NULL DEFAULT 0,
+        money_doubler_used_today INTEGER NOT NULL DEFAULT 0,
+        in_inn_room INTEGER NOT NULL DEFAULT 0,
+        inn_room_expires_day_key TEXT,
+        last_day_seen TEXT,
+        spirits TEXT NOT NULL DEFAULT 'NORMAL' CHECK (spirits IN ('LOW','NORMAL','HIGH')),
+        skill_level_death INTEGER NOT NULL DEFAULT 0,
+        skill_level_mystic INTEGER NOT NULL DEFAULT 0,
+        skill_level_thief INTEGER NOT NULL DEFAULT 0,
+        skill_uses_death INTEGER NOT NULL DEFAULT 1,
+        skill_uses_mystic INTEGER NOT NULL DEFAULT 1,
+        skill_uses_thief INTEGER NOT NULL DEFAULT 1,
+        skill_mastery_death INTEGER NOT NULL DEFAULT 0,
+        skill_mastery_mystic INTEGER NOT NULL DEFAULT 0,
+        skill_mastery_thief INTEGER NOT NULL DEFAULT 0,
+        has_fairy INTEGER NOT NULL DEFAULT 0,
+        olivia_seen INTEGER NOT NULL DEFAULT 0,
+        olivia_clue_stage INTEGER NOT NULL DEFAULT 0,
+        olivia_used_today INTEGER NOT NULL DEFAULT 0,
+        pvp_used_today INTEGER NOT NULL DEFAULT 0,
+        killed_by_player_id TEXT,
+        player_kills INTEGER NOT NULL DEFAULT 0,
+        times_laid INTEGER NOT NULL DEFAULT 0,
+        elixirs INTEGER NOT NULL DEFAULT 0,
+        inn_bribe_count_today INTEGER NOT NULL DEFAULT 0,
+        inn_breakin_used_today INTEGER NOT NULL DEFAULT 0,
+        weapon_tier INTEGER NOT NULL DEFAULT 1,
+        armor_tier INTEGER NOT NULL DEFAULT 1,
+        dragon_kills_total INTEGER NOT NULL DEFAULT 0,
+        dragon_fought_today INTEGER NOT NULL DEFAULT 0,
+        mastery_title TEXT
+      );
+
+      INSERT INTO players_new (
+        id, username, pass_hash, created_at, last_login_at, display_name, sex, class,
+        level, exp, heroic_deeds_done, current_lap,
+        hp, hp_max, is_alive, last_killed_at,
+        gold_on_hand, gold_in_bank, gems, charm,
+        weapon_id, armor_id,
+        turns_forest_left, turns_forest_max, turns_pvp_left, turns_pvp_max,
+        training_challenge_used_today,
+        flirt_used_today, bard_listens_used_today, money_doubler_used_today,
+        in_inn_room, inn_room_expires_day_key, last_day_seen, spirits,
+        skill_level_death, skill_level_mystic, skill_level_thief,
+        skill_uses_death, skill_uses_mystic, skill_uses_thief,
+        skill_mastery_death, skill_mastery_mystic, skill_mastery_thief,
+        has_fairy, olivia_seen, olivia_clue_stage, olivia_used_today,
+        pvp_used_today, killed_by_player_id, player_kills, times_laid,
+        elixirs, inn_bribe_count_today, inn_breakin_used_today,
+        weapon_tier, armor_tier, dragon_kills_total, dragon_fought_today, mastery_title
+      )
+      SELECT
+        id,
+        username,
+        pass_hash,
+        created_at,
+        last_login_at,
+        display_name,
+        sex,
+        class,
+        COALESCE(level, 1),
+        COALESCE(exp, 0),
+        COALESCE(heroic_deeds_done, heroic_deeds, 0),
+        COALESCE(current_lap, 1),
+        COALESCE(hp, 20),
+        COALESCE(hp_max, 20),
+        COALESCE(is_alive, CASE WHEN COALESCE(is_dead, 0) = 1 THEN 0 ELSE 1 END, 1),
+        last_killed_at,
+        COALESCE(gold_on_hand, gold_pocket, gold, 0),
+        COALESCE(gold_in_bank, gold_bank, bank_gold, 0),
+        COALESCE(gems, 0),
+        COALESCE(charm, 0),
+        COALESCE(weapon_id, 'bare_hands'),
+        COALESCE(armor_id, 'rags'),
+        COALESCE(turns_forest_left, turns_forest_max, forest_fights_max_today, 30),
+        COALESCE(turns_forest_max, forest_fights_max_today, 30),
+        COALESCE(turns_pvp_left, CASE WHEN COALESCE(pvp_used_today, player_fight_used_today, 0) = 1 THEN 0 ELSE 1 END, 1),
+        COALESCE(turns_pvp_max, 1),
+        COALESCE(training_challenge_used_today, daily_skill_training_used, 0),
+        COALESCE(flirt_used_today, inn_flirt_used_today, has_flirted_today, daily_flirt_used, 0),
+        COALESCE(bard_listens_used_today, seth_listens_used_today, has_listened_bard_today, daily_bard_used, today_bard_listens, 0),
+        COALESCE(money_doubler_used_today, today_money_doubler_used, 0),
+        COALESCE(in_inn_room, in_room, has_room, 0),
+        COALESCE(inn_room_expires_day_key, room_paid_until_day_key),
+        COALESCE(last_day_key, last_daily_reset_date),
+        COALESCE(spirits, 'NORMAL'),
+        COALESCE(skill_level_death, 0),
+        COALESCE(skill_level_mystic, 0),
+        COALESCE(skill_level_thief, 0),
+        COALESCE(skill_uses_death, 1),
+        COALESCE(skill_uses_mystic, 1),
+        COALESCE(skill_uses_thief, 1),
+        COALESCE(skill_mastery_death, 0),
+        COALESCE(skill_mastery_mystic, 0),
+        COALESCE(skill_mastery_thief, 0),
+        COALESCE(has_fairy, 0),
+        0,
+        0,
+        0,
+        COALESCE(pvp_used_today, player_fight_used_today, 0),
+        killed_by_player_id,
+        COALESCE(player_kills, 0),
+        COALESCE(times_laid, 0),
+        COALESCE(elixirs, 0),
+        COALESCE(inn_bribe_count_today, 0),
+        COALESCE(inn_breakin_used_today, 0),
+        COALESCE(weapon_tier, 1),
+        COALESCE(armor_tier, 1),
+        COALESCE(dragon_kills_total, heroic_deeds_done, heroic_deeds, 0),
+        COALESCE(dragon_fought_today, 0),
+        mastery_title
+      FROM players;
+
+      DROP TABLE players;
+      ALTER TABLE players_new RENAME TO players;
     `);
   }
 db.prepare(

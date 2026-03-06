@@ -21,7 +21,7 @@ function formatSpirit(spirit: PlayerRecord['spirits']): string {
 }
 
 function formatRoomStatus(player: PlayerRecord): string {
-  return formatBoolYesNo(Boolean(player.has_room || player.in_room || player.in_inn_room));
+  return formatBoolYesNo(Boolean(player.in_inn_room));
 }
 
 function getNextLevelThreshold(level: number): number | null {
@@ -58,12 +58,12 @@ function formatSkillLine(label: string, level: number, uses: number, masteryFlag
 export function buildStatsView(player: PlayerRecord): StatsViewModel {
   const weapon = getWeaponById(player.weapon_id);
   const armor = getArmorById(player.armor_id);
-  const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
-  const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+  const onHand = player.gold_on_hand;
+  const inBank = player.gold_in_bank;
   const nextLevel = formatNextLevel(player);
-  const flirtUsed = Boolean(player.flirt_used_today || player.inn_flirt_used_today || player.has_flirted_today || player.daily_flirt_used);
-  const trainingUsed = Boolean(player.training_challenge_used_today || player.daily_skill_training_used);
-  const sethListens = Math.max(player.seth_listens_used_today ?? 0, player.bard_listens_used_today ?? 0, player.today_bard_listens ?? 0);
+  const flirtUsed = Boolean(player.flirt_used_today);
+  const trainingUsed = Boolean(player.training_challenge_used_today);
+  const sethListens = Math.max(player.bard_listens_used_today ?? 0, 0);
 
   return {
     title: 'Your Character Stats',
@@ -89,7 +89,7 @@ export function buildStatsView(player: PlayerRecord): StatsViewModel {
       `Training Challenge Used: ${formatBoolYesNo(trainingUsed)}`,
       `Flirt Used: ${formatBoolYesNo(flirtUsed)}`,
       `Seth Listens Used: ${sethListens}`,
-      `Money Doubler Used: ${formatBoolYesNo(Boolean(player.money_doubler_used_today || player.today_money_doubler_used))}`,
+      `Money Doubler Used: ${formatBoolYesNo(Boolean(player.money_doubler_used_today))}`,
       `Roomed: ${formatRoomStatus(player)}`,
       '',
       formatSkillLine('Death Knight Skill', player.skill_level_death, player.skill_uses_death, player.skill_mastery_death),

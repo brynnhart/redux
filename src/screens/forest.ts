@@ -18,7 +18,7 @@ export function renderForest(session: Session, dims: Dimensions) {
 
   if (player) {
     drawText(buffer, 3, 4, `Name: ${player.display_name}  Level: ${player.level}  Lap: ${player.current_lap}`);
-    drawText(buffer, 3, 5, `HP: ${player.hp}/${player.hp_max}  Gold: ${player.gold}  Gems: ${player.gems}`);
+    drawText(buffer, 3, 5, `HP: ${player.hp}/${player.hp_max}  Gold: ${player.gold_on_hand}  Gems: ${player.gems}`);
     drawText(buffer, 3, 6, `Forest fights left: ${player.turns_forest_left}  Fairy: ${player.has_fairy ? 'Yes' : 'No'}`);
   }
 

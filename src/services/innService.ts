@@ -11,7 +11,6 @@ export interface InnTarget {
   id: string;
   display_name: string;
   level: number;
-  has_room: number;
   weapon_id: string;
 }
 
@@ -34,7 +33,7 @@ export class InnService {
   ) {}
 
   flirt(player: PlayerRecord, today: string): ActionResult {
-    if (player.inn_flirt_used_today || player.flirt_used_today || player.has_flirted_today) {
+    if (player.flirt_used_today) {
       return { ok: false, message: 'You already flirted today.' };
     }
 
@@ -44,9 +43,6 @@ export class InnService {
     this.playerRepo.updatePlayerStats(player.id, {
       exp: player.exp + expGain,
       gold_on_hand: player.gold_on_hand + goldGain,
-      has_flirted_today: 1,
-      daily_flirt_used: 1,
-      inn_flirt_used_today: 1,
       flirt_used_today: 1
     });
 
@@ -56,7 +52,7 @@ export class InnService {
   }
 
   listenToBard(player: PlayerRecord, today: string): ActionResult {
-    if (player.bard_listens_used_today >= config.sethMaxListensPerDay || player.seth_listens_used_today >= config.sethMaxListensPerDay || player.has_listened_bard_today) {
+    if (player.bard_listens_used_today >= config.sethMaxListensPerDay) {
       return { ok: false, message: 'Seth Able has no encore for you today.' };
     }
 
@@ -66,12 +62,7 @@ export class InnService {
 
     const patch: Partial<PlayerRecord> = {
       turns_forest_left: player.turns_forest_left + bonus,
-      bonus_forest_fights: player.bonus_forest_fights + bonus,
-      has_listened_bard_today: 1,
-      daily_bard_used: 1,
-      bard_listens_used_today: player.bard_listens_used_today + 1,
-      seth_listens_used_today: player.seth_listens_used_today + 1,
-      extra_forest_fights_today: player.extra_forest_fights_today + bonus
+      bard_listens_used_today: player.bard_listens_used_today + 1
     };
 
     if (hpRestored) {
@@ -79,13 +70,12 @@ export class InnService {
     }
 
     let moneyDoublerText = '';
-    const doublerUsedToday = player.money_doubler_used_today || player.today_money_doubler_used;
+    const doublerUsedToday = player.money_doubler_used_today;
     if (!doublerUsedToday && this.rng() < config.moneyDoublerChance) {
-      const bankBefore = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+      const bankBefore = player.gold_in_bank;
       const doubled = this.safeMultiply(bankBefore, 2);
       patch.gold_in_bank = doubled.value;
       patch.money_doubler_used_today = 1;
-      patch.today_money_doubler_used = 1;
       this.newsService.moneyDoubler(player.id, today, bankBefore, doubled.value);
       this.recordBankTransaction(player.id, today, 'money_doubler', Math.max(0, doubled.value - bankBefore));
       moneyDoublerText = doubled.clamped
@@ -102,7 +92,7 @@ export class InnService {
   }
 
   rentRoom(player: PlayerRecord, today: string): ActionResult {
-    if (player.has_room) {
+    if (player.in_inn_room) {
       return { ok: false, message: 'You already rented a room for tonight.' };
     }
 
@@ -113,12 +103,7 @@ export class InnService {
 
     this.playerRepo.updatePlayerStats(player.id, {
       gold_on_hand: player.gold_on_hand - cost,
-      has_room: 1,
-      in_room: 1,
       in_inn_room: 1,
-      daily_room_rented: 1,
-      room_paid_until_day_key: today,
-      inn_room_day_key: today,
       inn_room_expires_day_key: today
     });
 
@@ -189,7 +174,7 @@ export class InnService {
     }
 
     const victim = this.playerRepo.findById(victimId);
-    if (!victim || victim.id === attacker.id || !victim.has_room || !victim.in_inn_room || !victim.is_alive) {
+    if (!victim || victim.id === attacker.id || !victim.in_inn_room || !victim.is_alive) {
       return { ok: false, message: 'That room is unavailable.' };
     }
     if (victim.level > attacker.level + 1) {
@@ -215,17 +200,13 @@ export class InnService {
         hp: Math.max(1, attackerHp),
         turns_pvp_left: 0,
         pvp_used_today: 1,
-        player_fight_used_today: 1,
         player_kills: attacker.player_kills + 1
       });
       this.playerRepo.updatePlayerStats(victim.id, {
         gold_on_hand: Math.max(0, victim.gold_on_hand - stealAmount),
         hp: 0,
-        is_dead: 1,
         is_alive: 0,
-        in_room: 0,
         in_inn_room: 0,
-        has_room: 0,
         last_killed_at: new Date().toISOString(),
         killed_by_player_id: attacker.id
       });
@@ -237,14 +218,12 @@ export class InnService {
 
     this.playerRepo.updatePlayerStats(attacker.id, {
       hp: 0,
-      is_dead: 1,
       is_alive: 0,
       last_killed_at: new Date().toISOString(),
       killed_by_player_id: victim.id,
       turns_forest_left: 0,
       turns_pvp_left: 0,
-      pvp_used_today: 1,
-      player_fight_used_today: 1
+      pvp_used_today: 1
     });
     this.recordBreakIn(attacker.id, victim.id, 'killed');
     this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });

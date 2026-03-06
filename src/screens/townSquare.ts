@@ -40,7 +40,7 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
     drawText(buffer, 38, 9, `Spirits: ${player.spirits}`);
     drawText(buffer, 38, 10, `Forest turns: ${player.turns_forest_left} / ${player.turns_forest_max}`);
     drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
-    drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
+    drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_day_seen ?? 'Unknown'}`);
     drawText(buffer, 38, 13, `Class: ${classLabel(player.class)}   Sex: ${player.sex}`);
     drawText(buffer, 38, 14, `Weapon: ${weapon.name} (T${weapon.tier}, +${weapon.atk_bonus} atk)`);
     drawText(buffer, 38, 15, `Armor: ${armor.name} (T${armor.tier}, +${armor.def_bonus} def)`);

@@ -134,7 +134,6 @@ export class PvpService {
       exp: attacker.exp + expGain,
       gold_on_hand: attacker.gold_on_hand + stolen,
       pvp_used_today: 1,
-      player_fight_used_today: 1,
       turns_pvp_left: 0,
       player_kills: attacker.player_kills + 1,
       hp: Math.max(1, attacker.hp)
@@ -142,11 +141,8 @@ export class PvpService {
 
     this.playerRepo.updatePlayerStats(target.id, {
       hp: 0,
-      is_dead: 1,
       is_alive: 0,
-      in_room: 0,
       in_inn_room: 0,
-      has_room: 0,
       last_killed_at: new Date().toISOString(),
       killed_by_player_id: attacker.id,
       gold_on_hand: Math.max(0, target.gold_on_hand - stolen)
@@ -161,10 +157,8 @@ export class PvpService {
   private resolveDefenderWin(attacker: PlayerRecord, target: PlayerRecord, todayDayKey: string) {
     this.playerRepo.updatePlayerStats(attacker.id, {
       hp: 0,
-      is_dead: 1,
       is_alive: 0,
       pvp_used_today: 1,
-      player_fight_used_today: 1,
       turns_pvp_left: 0,
       last_killed_at: new Date().toISOString(),
       killed_by_player_id: target.id
@@ -179,7 +173,6 @@ export class PvpService {
   private consumeAttempt(attacker: PlayerRecord) {
     this.playerRepo.updatePlayerStats(attacker.id, {
       pvp_used_today: 1,
-      player_fight_used_today: 1,
       turns_pvp_left: 0
     });
   }

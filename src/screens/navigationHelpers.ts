@@ -18,7 +18,7 @@ type Transition =
   | { type: 'goto'; screenId: ScreenState; notice?: string }
   | { type: 'logout' }
   | { type: 'error'; message: string }
-  | { type: 'other_places_module_update'; notice: string; patch: { gold?: number; gold_on_hand?: number; gold_pocket?: number; gems?: number; charm?: number; hp?: number } };
+  | { type: 'other_places_module_update'; notice: string; patch: { gold_on_hand?: number; gems?: number; charm?: number; hp?: number } };
 
 interface Screen {
   render: (ctx: ScreenContext, dims: Dimensions) => { cols: number; rows: number; lines: string[] };
