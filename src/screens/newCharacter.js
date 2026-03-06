@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderNewCharacter(session, dims) {
     const cols = Math.max(72, dims.cols);
@@ -18,5 +18,5 @@ export function renderNewCharacter(session, dims) {
     }
     drawText(buffer, 3, rows - 4, session.notice || 'Press N to begin character creation, Q to go back.');
     drawText(buffer, 3, rows - 2, 'Class: 1=Death Knight, 2=Mystical, 3=Thief');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { classLabel } from '../services/skillService.js';
 import { getMasterForLevel, isEligibleForMasterChallenge } from '../services/trainingService.js';
@@ -31,5 +31,5 @@ export function renderTraining(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[dim]In this hall, rank is granted by masters, not numbers on a ledger.[dim]');
     drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:red]Turgon stands at the rail, saying nothing, missing nothing.[c:white]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

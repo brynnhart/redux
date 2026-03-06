@@ -2,80 +2,32 @@ const screenEl = document.getElementById('screen');
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
 
-const COLOR_TOKENS = new Set(['green', 'red', 'yellow', 'cyan', 'magenta', 'white']);
-const STYLE_TOKENS = new Set(['dim', 'b']);
-const TOKEN_REGEX = /\[(c:(?:green|red|yellow|cyan|magenta|white)|dim|b)\]/g;
-
-function parseLineTokens(line) {
-  TOKEN_REGEX.lastIndex = 0;
-  const segments = [];
-  const rawLine = String(line);
-  let cursor = 0;
-  const activeStyles = new Set();
-  let match;
-
-  while ((match = TOKEN_REGEX.exec(rawLine)) !== null) {
-    if (match.index > cursor) {
-      segments.push({
-        text: rawLine.slice(cursor, match.index),
-        styles: new Set(activeStyles)
-      });
-    }
-
-    const token = match[1];
-
-    if (token.startsWith('c:')) {
-      for (const style of Array.from(activeStyles)) {
-        if (style.startsWith('c:')) {
-          activeStyles.delete(style);
-        }
-      }
-
-      const color = token.slice(2);
-      if (COLOR_TOKENS.has(color)) {
-        activeStyles.add(`c:${color}`);
-      }
-    } else if (STYLE_TOKENS.has(token)) {
-      if (activeStyles.has(token)) {
-        activeStyles.delete(token);
-      } else {
-        activeStyles.add(token);
-      }
-    }
-
-    cursor = match.index + match[0].length;
-  }
-
-  if (cursor < rawLine.length) {
-    segments.push({
-      text: rawLine.slice(cursor),
-      styles: new Set(activeStyles)
-    });
-  }
-
-  return segments;
+function styleKey(cell) {
+  return `${cell.fg}|${cell.bold ? '1' : '0'}|${cell.dim ? '1' : '0'}`;
 }
 
-function createSegmentNode(segment) {
-  if (segment.styles.size === 0) {
-    return document.createTextNode(segment.text);
+function createStyledSpan(text, cellStyle) {
+  if (!text) {
+    return null;
+  }
+
+  if (!cellStyle || (!cellStyle.bold && !cellStyle.dim && cellStyle.fg === 'white')) {
+    return document.createTextNode(text);
   }
 
   const span = document.createElement('span');
-  span.textContent = segment.text;
+  span.textContent = text;
 
-  for (const style of segment.styles) {
-    if (style.startsWith('c:')) {
-      span.classList.add(`tok-color-${style.slice(2)}`);
-    }
+  if (cellStyle.fg) {
+    span.classList.add(`tok-color-${cellStyle.fg}`);
+  }
 
-    if (style === 'dim') {
-      span.classList.add('tok-dim');
-    }
+  if (cellStyle.dim) {
+    span.classList.add('tok-dim');
+  }
 
-    if (style === 'b') {
-      span.classList.add('tok-bold');
-    }
+  if (cellStyle.bold) {
+    span.classList.add('tok-bold');
   }
 
   return span;
@@ -83,19 +35,43 @@ function createSegmentNode(segment) {
 
 function renderFrame(frame) {
   const fragment = document.createDocumentFragment();
+  const rows = Array.isArray(frame.cells) ? frame.cells : [];
 
-  for (const [lineIndex, line] of frame.lines.entries()) {
-    const segments = parseLineTokens(line);
+  for (const [rowIndex, row] of rows.entries()) {
+    let currentStyle = null;
+    let currentText = '';
 
-    if (segments.length === 0) {
-      fragment.appendChild(document.createTextNode(''));
-    } else {
-      for (const segment of segments) {
-        fragment.appendChild(createSegmentNode(segment));
+    for (const cell of row) {
+      const nextStyle = {
+        fg: cell.fg || 'white',
+        bold: Boolean(cell.bold),
+        dim: Boolean(cell.dim)
+      };
+
+      if (!currentStyle) {
+        currentStyle = nextStyle;
+        currentText = cell.char ?? ' ';
+        continue;
+      }
+
+      if (styleKey(currentStyle) === styleKey(nextStyle)) {
+        currentText += cell.char ?? ' ';
+      } else {
+        const node = createStyledSpan(currentText, currentStyle);
+        if (node) {
+          fragment.appendChild(node);
+        }
+        currentStyle = nextStyle;
+        currentText = cell.char ?? ' ';
       }
     }
 
-    if (lineIndex < frame.lines.length - 1) {
+    const node = createStyledSpan(currentText, currentStyle);
+    if (node) {
+      fragment.appendChild(node);
+    }
+
+    if (rowIndex < rows.length - 1) {
       fragment.appendChild(document.createElement('br'));
     }
   }

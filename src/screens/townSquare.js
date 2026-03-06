@@ -1,5 +1,5 @@
 import { getArmorById, getWeaponById } from '../data/equipment.js';
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { classLabel, skillLabel } from '../services/skillService.js';
 export function renderTownSquare(session, dims) {
@@ -32,5 +32,5 @@ export function renderTownSquare(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[b][c:yellow]Rhythm:[b][c:white] tap one letter, move fast, spill blood, repeat.');
     drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]The town is hungry. Feed it a story.[c:white]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

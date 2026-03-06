@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderForest(session, dims) {
     const cols = Math.max(72, dims.cols);
@@ -24,5 +24,5 @@ export function renderForest(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[dim]Pacing: Look for trouble, attack hard, run if needed, town to reset.[dim]');
     drawText(buffer, 3, rows - 4, '[c:green]Fast hands win days.[c:white]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

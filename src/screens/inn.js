@@ -1,5 +1,5 @@
 import { getWeaponById } from '../data/equipment.js';
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderInn(session, dims) {
     const cols = Math.max(80, dims.cols);
@@ -21,7 +21,7 @@ export function renderInn(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[dim]Rule of the house: pay in gold, gossip, or bruises.[dim]');
     drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]A toast rises in one corner while a deal dies in another.[c:white]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 export function renderInnConverse(session, dims) {
     const cols = Math.max(80, dims.cols);
@@ -34,7 +34,7 @@ export function renderInnConverse(session, dims) {
     drawText(buffer, 3, 6, 'Someone whispers your name, then lowers their voice.');
     drawText(buffer, 3, 8, '(R) Return to the Inn');
     drawText(buffer, 3, rows - 4, session.notice || 'Mugs clink. A chair scrapes. Nobody here sleeps deeply.');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 export function renderInnBartender(session, dims) {
     const cols = Math.max(80, dims.cols);
@@ -51,7 +51,7 @@ export function renderInnBartender(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[c:red]Warning:[c:white] Upstairs grudges survive longer than hangovers.');
     drawText(buffer, 3, rows - 4, session.notice || 'He wipes a glass and watches you choose what kind of villain to be.');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 export function renderInnBreakIn(session, dims, targets) {
     const cols = Math.max(80, dims.cols);
@@ -73,5 +73,5 @@ export function renderInnBreakIn(session, dims, targets) {
     }
     drawText(buffer, 3, rows - 5, '[b][c:cyan]Commands:[b][c:white] (1-9) target   (Q) back');
     drawText(buffer, 3, rows - 4, session.notice || '[dim]Floorboards mutter. A snore stops. Then starts again.[dim]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

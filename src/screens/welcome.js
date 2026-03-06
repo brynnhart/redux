@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderWelcome(session, dims) {
     const cols = Math.max(60, dims.cols);
@@ -11,5 +11,5 @@ export function renderWelcome(session, dims) {
     drawText(buffer, 3, 6, 'Q) Quit');
     drawText(buffer, 3, rows - 4, session.notice || 'Choose an option.');
     drawText(buffer, 3, rows - 2, `Session: ${session.id}`);
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

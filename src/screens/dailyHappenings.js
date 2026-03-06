@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 
 export function renderDailyHappenings(session, dims) {
@@ -34,5 +34,5 @@ export function renderDailyHappenings(session, dims) {
     drawText(buffer, 3, rows - 4, session.notice || '[dim]The crier lowers his voice and waits.[dim]');
     drawText(buffer, 3, rows - 3, '[c:cyan][Enter][c:white] Town   [c:cyan]N[c:white] Older   [c:cyan]P[c:white] Newer');
 
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

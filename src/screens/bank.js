@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { config } from '../config.js';
 export function renderBank(session, dims) {
@@ -32,5 +32,5 @@ export function renderBank(session, dims) {
     }
     drawText(buffer, 3, rows - 5, '[dim]Muscle memory: smash 3 to dump pocket gold before heading back out.[dim]');
     drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]The clerk licks his thumb, then your coin, then your ledger.[c:white]');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

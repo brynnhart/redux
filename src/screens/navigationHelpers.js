@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { getOtherPlaceModuleById, otherPlacesModules } from '../modules/otherPlacesRegistry.js';
 import { buildStatsView } from '../services/statsViewService.js';
@@ -18,7 +18,7 @@ const helpScreen = {
         drawText(buffer, 3, 8, 'Press [Enter] or R to return to town.');
         drawText(buffer, 3, rows - 4, session.notice || 'Read, nod, and return to town.');
         drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
-        return { cols, rows, lines: toLines(buffer) };
+        return { cols, rows, cells: toCells(buffer) };
     },
     handleInput: (_ctx, input) => {
         if (input === 'R' || input === '')
@@ -49,7 +49,7 @@ const statsScreen = {
         }
         drawText(buffer, 3, rows - 4, session.notice || 'Press [Enter], [R], or [Q] to return.');
         drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
-        return { cols, rows, lines: toLines(buffer) };
+        return { cols, rows, cells: toCells(buffer) };
     },
     handleInput: ({ session }, input) => {
         const previous = session.previousScreenId && session.previousScreenId !== 'VIEW_STATS' ? session.previousScreenId : 'TOWN_SQUARE';
@@ -81,7 +81,7 @@ const otherPlacesScreen = {
         drawText(buffer, 3, y + 1, '(R) Return to Town');
         drawText(buffer, 3, rows - 4, session.notice || 'A strange list of side places and bad ideas.');
         drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
-        return { cols, rows, lines: toLines(buffer) };
+        return { cols, rows, cells: toCells(buffer) };
     },
     handleInput: ({ session }, input) => {
         if (input === 'R')
@@ -113,7 +113,7 @@ const otherPlacesModuleScreen = {
             drawText(buffer, 3, 9, '(R) Return to Other Places');
             drawText(buffer, 3, rows - 4, session.notice || 'No module selected.');
             drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
-            return { cols, rows, lines: toLines(buffer) };
+            return { cols, rows, cells: toCells(buffer) };
         }
         return module.render(session, dims);
     },
