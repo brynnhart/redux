@@ -129,15 +129,21 @@ function loadDailyNews(session: Session, dayKey: string, offset = session.dailyN
 
 function handlePostLogin(session: Session, playerId: string, displayName: string) {
   session.playerId = playerId;
-  const { todayDayKey } = dayService.ensureDailyReset(playerId);
+  const { didReset, todayDayKey, spirits } = dayService.ensureDailyReset(playerId);
 
   newsService.addNews(todayDayKey, `${displayName} has logged in.`, { severity: 'info' });
 
   refreshPlayer(session);
   session.dailyNewsOffset = 0;
   loadDailyNews(session, todayDayKey, 0);
+  session.pendingNewDaySpirits = didReset ? spirits : undefined;
   setScreen(session, config.enableDailyNewsAutoShow ? 'DAILY_HAPPENINGS' : 'TOWN_SQUARE');
-  session.notice = config.enableDailyNewsAutoShow ? 'Press [Enter] to continue...' : 'Welcome to town.';
+  if (didReset) {
+    const spiritText = spirits ?? session.player?.spirits ?? 'NORMAL';
+    session.notice = `You wake up early, strap your weapon to your back, and head for the Town Square... You are in ${spiritText} spirits today. Press [Enter] to continue...`;
+  } else {
+    session.notice = config.enableDailyNewsAutoShow ? 'Press [Enter] to continue...' : 'Welcome to town.';
+  }
 }
 
 function beginLogin(session: Session) {
@@ -599,7 +605,11 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       session.notice = prevOffset === 0 ? 'Showing latest entries.' : `Showing entries ${prevOffset + 1}-${prevOffset + session.dailyNews.length}.`;
       return;
     }
-    returnToTown(session, 'Welcome to town.');
+    const wakeupNotice = session.pendingNewDaySpirits
+      ? `You are in ${session.pendingNewDaySpirits} spirits today.`
+      : 'Welcome to town.';
+    session.pendingNewDaySpirits = undefined;
+    returnToTown(session, wakeupNotice);
     return;
   }
 
@@ -1488,7 +1498,11 @@ app.get('/ws', { websocket: true }, (connection) => {
 
       if (message.key === 'Enter') {
         if (session.state === 'DAILY_HAPPENINGS') {
-          returnToTown(session, 'Welcome to town.');
+          const wakeupNotice = session.pendingNewDaySpirits
+            ? `You are in ${session.pendingNewDaySpirits} spirits today.`
+            : 'Welcome to town.';
+          session.pendingNewDaySpirits = undefined;
+          returnToTown(session, wakeupNotice);
         } else {
           const transition = handleCoreNavigationInput(session, session.inputBuffer);
           applyCoreNavigationTransition(session, transition, () => socket.close());
