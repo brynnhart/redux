@@ -31,9 +31,13 @@ export interface PlayerRecord {
   forest_fights_max_today: number;
   player_fight_used_today: number;
   inn_flirt_used_today: number;
+  flirt_used_today: number;
   bard_listens_used_today: number;
+  seth_listens_used_today: number;
   in_room: number;
   room_paid_until_day_key: string | null;
+  inn_room_day_key: string | null;
+  inn_room_expires_day_key: string | null;
   is_dead: number;
   is_alive: number;
   last_killed_at: string | null;
@@ -62,6 +66,7 @@ export interface PlayerRecord {
   has_flirted_today: number;
   has_listened_bard_today: number;
   bonus_forest_fights: number;
+  extra_forest_fights_today: number;
   weapon_tier: number;
   armor_tier: number;
   weapon_id: string;
@@ -137,9 +142,13 @@ type MutablePlayerStats = Pick<
   | 'forest_fights_max_today'
   | 'player_fight_used_today'
   | 'inn_flirt_used_today'
+  | 'flirt_used_today'
   | 'bard_listens_used_today'
+  | 'seth_listens_used_today'
   | 'in_room'
   | 'room_paid_until_day_key'
+  | 'inn_room_day_key'
+  | 'inn_room_expires_day_key'
   | 'is_dead'
   | 'is_alive'
   | 'last_killed_at'
@@ -168,6 +177,7 @@ type MutablePlayerStats = Pick<
   | 'has_flirted_today'
   | 'has_listened_bard_today'
   | 'bonus_forest_fights'
+  | 'extra_forest_fights_today'
   | 'weapon_tier'
   | 'armor_tier'
   | 'weapon_id'

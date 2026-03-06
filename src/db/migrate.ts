@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 
 export function runMigrations() {
   const db = getDb();
@@ -407,6 +407,40 @@ export function runMigrations() {
 
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_daily_news_day_key ON daily_news (day_key);
+    `);
+  }
+
+
+  if (currentVersion < 14) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN inn_room_day_key TEXT;
+      ALTER TABLE players ADD COLUMN inn_room_expires_day_key TEXT;
+      ALTER TABLE players ADD COLUMN flirt_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN seth_listens_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN extra_forest_fights_today INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        flirt_used_today = COALESCE(flirt_used_today, inn_flirt_used_today, has_flirted_today, 0),
+        seth_listens_used_today = COALESCE(seth_listens_used_today, bard_listens_used_today, has_listened_bard_today, 0),
+        extra_forest_fights_today = COALESCE(extra_forest_fights_today, bonus_forest_fights, 0),
+        inn_room_day_key = COALESCE(inn_room_day_key, room_paid_until_day_key),
+        inn_room_expires_day_key = COALESCE(inn_room_expires_day_key, room_paid_until_day_key);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS inn_conversations (
+        id TEXT PRIMARY KEY,
+        day_key TEXT NOT NULL,
+        player_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_inn_conversations_day_key ON inn_conversations (day_key, created_at);
     `);
   }
 

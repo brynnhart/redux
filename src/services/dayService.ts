@@ -59,8 +59,6 @@ export class DayService {
     const pendingEvents = this.newsService.consumePendingEventsForPlayer(playerId);
     const pendingEventNews = this.mapPendingEventsToNews(pendingEvents);
 
-    const shouldExpireRoom = isDayKeyBefore(player.room_paid_until_day_key, todayDayKey);
-
     db.exec('BEGIN');
     try {
       this.playerRepo.updatePlayerStats(player.id, {
@@ -76,7 +74,9 @@ export class DayService {
         turns_pvp_max: 1,
         turns_pvp_left: 1,
         inn_flirt_used_today: 0,
+        flirt_used_today: 0,
         bard_listens_used_today: 0,
+        seth_listens_used_today: 0,
         today_flirts: 0,
         today_bard_listens: 0,
         daily_flirt_used: 0,
@@ -88,11 +88,14 @@ export class DayService {
         skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
         skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
         skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
-        has_room: shouldExpireRoom ? 0 : player.has_room,
-        in_room: shouldExpireRoom ? 0 : player.in_room,
-        in_inn_room: shouldExpireRoom ? 0 : player.in_inn_room,
-        room_expires_at: shouldExpireRoom ? null : player.room_expires_at,
-        inn_room_expires_at: shouldExpireRoom ? null : player.inn_room_expires_at,
+        has_room: 0,
+        in_room: 0,
+        in_inn_room: 0,
+        room_paid_until_day_key: null,
+        inn_room_day_key: null,
+        inn_room_expires_day_key: null,
+        room_expires_at: null,
+        inn_room_expires_at: null,
         is_dead: 0,
         is_alive: 1,
         hp: player.hp_max,
@@ -102,7 +105,8 @@ export class DayService {
         inn_breakin_used_today: 0,
         has_flirted_today: 0,
         has_listened_bard_today: 0,
-        bonus_forest_fights: 0
+        bonus_forest_fights: 0,
+        extra_forest_fights_today: 0
       });
 
       this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
