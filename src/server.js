@@ -1307,6 +1307,8 @@ app.get('/ws', { websocket: true }, (connection) => {
             type: 'screen',
             frame: renderSession(session),
             ui: {
+                screenState: session.state,
+                notice: session.notice,
                 inputMode: getInputMode(),
                 hiddenInput: Boolean(session.prompt?.hidden),
                 inputBuffer: session.inputBuffer,

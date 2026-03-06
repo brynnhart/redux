@@ -5,11 +5,53 @@ const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
 const RESPONSE_DELAY_MS = 90;
 const BLOCK_CURSOR = '█';
 
+const clientConfig = {
+  defaultSlowPrintMsPerChar: 16,
+  defaultPauseAfterLineMs: 300,
+  enableSlowPrint: true,
+  enableEnterPauses: true
+};
+
 let lastFrame = null;
 let lastUi = null;
 let pendingMenuEcho = '';
 let waitingForServerOutput = false;
 let cursorBlinkOn = true;
+let suppressNextEnterToServer = false;
+
+const printQueue = {
+  queue: [],
+  active: null,
+  timer: null
+};
+
+const utilityScreens = new Set([
+  'WELCOME',
+  'LOGIN',
+  'NEW_CHARACTER',
+  'TOWN',
+  'TOWN_SQUARE',
+  'WEAPONS_SHOP',
+  'ARMOR_SHOP',
+  'BANK',
+  'HEALER',
+  'PLAYER_RANKINGS',
+  'HEROIC_DEEDS_RANKINGS',
+  'OLD_MAN_MENU',
+  'OLD_MAN_TOP_LIST',
+  'HALL_OF_HONOR'
+]);
+
+const dramaticScreens = new Set([
+  'FOREST',
+  'SLAUGHTER_FIELDS',
+  'DAILY_HAPPENINGS',
+  'INN',
+  'INN_BARTENDER',
+  'INN_BREAK_IN',
+  'INN_CONVERSE',
+  'TRAINING'
+]);
 
 function styleKey(cell) {
   return `${cell.fg}|${cell.bold ? '1' : '0'}|${cell.dim ? '1' : '0'}`;
@@ -97,6 +139,178 @@ function applyLocalEcho(rows, ui) {
   }
 }
 
+function clearPrintTimer() {
+  if (printQueue.timer) {
+    clearTimeout(printQueue.timer);
+    printQueue.timer = null;
+  }
+}
+
+function completeActivePrintJob() {
+  const job = printQueue.active;
+  if (!job) {
+    return;
+  }
+
+  job.revealed = job.text;
+  job.index = job.text.length;
+  job.mode = 'done';
+
+  if (job.pauseAfterMs > 0) {
+    clearPrintTimer();
+    printQueue.timer = setTimeout(() => {
+      if (job.waitForEnter && clientConfig.enableEnterPauses) {
+        job.mode = 'wait_enter';
+      } else {
+        printQueue.active = null;
+      }
+      rerender();
+      processPrintQueue();
+    }, job.pauseAfterMs);
+    return;
+  }
+
+  if (job.waitForEnter && clientConfig.enableEnterPauses) {
+    job.mode = 'wait_enter';
+  } else {
+    printQueue.active = null;
+  }
+
+  rerender();
+  processPrintQueue();
+}
+
+function processPrintQueue() {
+  if (printQueue.active || printQueue.queue.length === 0) {
+    return;
+  }
+
+  const next = printQueue.queue.shift();
+  printQueue.active = {
+    ...next,
+    index: next.mode === 'instant' ? next.text.length : 0,
+    revealed: next.mode === 'instant' ? next.text : '',
+    mode: next.mode === 'instant' ? 'done' : 'printing'
+  };
+
+  if (printQueue.active.mode === 'done') {
+    completeActivePrintJob();
+    return;
+  }
+
+  const tick = () => {
+    const active = printQueue.active;
+    if (!active || active.mode !== 'printing') {
+      return;
+    }
+
+    active.index += 1;
+    active.revealed = active.text.slice(0, active.index);
+    rerender();
+
+    if (active.index >= active.text.length) {
+      completeActivePrintJob();
+      return;
+    }
+
+    clearPrintTimer();
+    printQueue.timer = setTimeout(tick, active.speed);
+  };
+
+  clearPrintTimer();
+  printQueue.timer = setTimeout(tick, printQueue.active.speed);
+}
+
+function resetPrintQueue() {
+  clearPrintTimer();
+  printQueue.queue = [];
+  printQueue.active = null;
+}
+
+function enqueuePrintJob(job) {
+  printQueue.queue.push(job);
+  processPrintQueue();
+}
+
+function shouldUseSlowPrint(ui, notice) {
+  if (!clientConfig.enableSlowPrint || !notice) {
+    return false;
+  }
+
+  const screenState = ui?.screenState ?? '';
+  if (utilityScreens.has(screenState)) {
+    return false;
+  }
+
+  if (dramaticScreens.has(screenState)) {
+    return true;
+  }
+
+  return /(dragon|defeat|victory|killed|slain|rescue|olivia|weird|event|master|death|daily news|reading the realm news|press \[enter\]|press enter)/i.test(notice);
+}
+
+function shouldWaitForEnter(ui, notice) {
+  if (!clientConfig.enableEnterPauses || !notice) {
+    return false;
+  }
+
+  const screenState = ui?.screenState ?? '';
+  if (screenState === 'DAILY_HAPPENINGS') {
+    return (notice.length > 80) || /showing entries|realm news|highlight|killed|dragon|defeated/i.test(notice);
+  }
+
+  return /(dragon|victory|defeat|killed|slain|dies|death|rescue|olivia|master|challenge|event)/i.test(notice);
+}
+
+function handleIncomingNotice(frame, ui) {
+  const notice = ui?.notice ?? '';
+  const previous = lastUi?.notice ?? '';
+
+  if (!notice || notice === previous) {
+    return;
+  }
+
+  resetPrintQueue();
+
+  const mode = shouldUseSlowPrint(ui, notice) ? 'slow' : 'instant';
+  enqueuePrintJob({
+    text: notice,
+    sourceText: notice,
+    mode,
+    speed: clientConfig.defaultSlowPrintMsPerChar,
+    pauseAfterMs: clientConfig.defaultPauseAfterLineMs,
+    waitForEnter: shouldWaitForEnter(ui, notice)
+  });
+}
+
+function applyPrintQueueOverlay(rows) {
+  const active = printQueue.active;
+  if (!active || !active.sourceText || rows.length === 0) {
+    return;
+  }
+
+  const renderText = active.mode === 'wait_enter'
+    ? `${active.revealed}   Press ENTER to continue`
+    : active.revealed;
+
+  for (const row of rows) {
+    const rowText = row.map((cell) => cell.char).join('');
+    const idx = rowText.indexOf(active.sourceText);
+    if (idx === -1) {
+      continue;
+    }
+
+    for (let i = 0; i < active.sourceText.length && idx + i < row.length; i += 1) {
+      row[idx + i].char = ' ';
+    }
+
+    for (let i = 0; i < renderText.length && idx + i < row.length; i += 1) {
+      row[idx + i].char = renderText[i];
+    }
+    break;
+  }
+}
+
 function renderFrame(frame, ui) {
   const rows = cellsToRows(frame?.cells);
   if (rows.length === 0) {
@@ -105,6 +319,7 @@ function renderFrame(frame, ui) {
   }
 
   applyLocalEcho(rows, ui);
+  applyPrintQueueOverlay(rows);
 
   const showCursor = !waitingForServerOutput && cursorBlinkOn && ui?.inputMode !== null;
   if (showCursor) {
@@ -177,6 +392,7 @@ ws.addEventListener('open', () => {
 ws.addEventListener('message', (event) => {
   const msg = JSON.parse(event.data);
   if (msg.type === 'screen') {
+    handleIncomingNotice(msg.frame, msg.ui ?? {});
     lastFrame = msg.frame;
     lastUi = msg.ui ?? { inputMode: 'MENU', hiddenInput: false, inputBuffer: '' };
     waitingForServerOutput = false;
@@ -188,6 +404,28 @@ ws.addEventListener('message', (event) => {
 window.addEventListener('keydown', (event) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
     event.preventDefault();
+  }
+
+  const isEnterOrSpace = event.key === 'Enter' || event.key === ' ';
+  const active = printQueue.active;
+
+  if (active?.mode === 'printing' && isEnterOrSpace) {
+    completeActivePrintJob();
+    suppressNextEnterToServer = true;
+    return;
+  }
+
+  if (active?.mode === 'wait_enter' && isEnterOrSpace) {
+    printQueue.active = null;
+    suppressNextEnterToServer = true;
+    rerender();
+    processPrintQueue();
+    return;
+  }
+
+  if (suppressNextEnterToServer && isEnterOrSpace) {
+    suppressNextEnterToServer = false;
+    return;
   }
 
   if (ws.readyState !== WebSocket.OPEN) {
