@@ -1,11 +1,13 @@
-import { ENEMY_TABLE } from '../content/enemies.js';
 import { config } from '../config.js';
 import { getDb } from '../db/db.js';
+import { loadRepoJson } from '../data/loadRepoJson.js';
 import { ForestStateRepo } from '../repos/forestStateRepo.js';
 import { CombatService } from './combatService.js';
 import { ForestEventService } from './forestEventService.js';
 import { consumeClassSkillUsePatch } from './skillService.js';
 import { getDayIndexFromDayKey } from './dayKey.js';
+const ENEMY_TABLE = loadRepoJson('enemies.json', import.meta.url);
+
 function randInt(min, max, rng) {
     return Math.floor(rng() * (max - min + 1)) + min;
 }
