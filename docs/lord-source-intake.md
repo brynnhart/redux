@@ -1,37 +1,70 @@
-# How to provide LORD source files for migration
+# LORD source intake + migration kickoff
 
-Since chat file uploads are limited, use one of these paths:
+You can share the Synchronet LORD code with me **without ZIP uploads** by pulling it directly from GitHub into this repo.
 
-1. **Best option (repeatable): run the fetch script in this repo**
-   ```bash
-   ./scripts/fetch-lord-source.sh
-   ```
-   This pulls `xtrn/lord` from Synchronet and copies it into `./vendor/lord`.
+## Fastest path (recommended)
 
-2. **Git submodule (if you want a pinned upstream reference)**
-   ```bash
-   git submodule add https://github.com/SynchronetBBS/sbbs.git vendor/sbbs
-   cd vendor/sbbs && git sparse-checkout init --cone && git sparse-checkout set xtrn/lord
-   ```
+Run:
 
-3. **Manual export**
-   Download that subdirectory and place it under `vendor/lord/`.
+```bash
+./scripts/fetch-lord-source.sh
+```
 
-## What to send next so implementation can start
+That command sparse-clones Synchronet and copies `xtrn/lord` into `./vendor/lord`.
 
-After files are in `vendor/lord`, provide:
+If you want a custom destination:
 
-- Any gameplay behavior you want preserved exactly vs. modernized.
-- Whether multiplayer concurrency must mirror BBS turn-order semantics.
-- Password policy / account recovery requirements.
-- Hosting constraints (single-node Node.js process vs. containerized deploy).
+```bash
+./scripts/fetch-lord-source.sh ./lord
+```
 
-## High-level migration blueprint (recommended)
+## Alternative: keep upstream repo as a submodule
 
-- **Runtime**: Node.js + Express (or Fastify) server.
-- **Persistence**: SQLite with Prisma/Knex migrations.
-- **Auth**: built-in username/password with bcrypt/argon2 + session cookies.
-- **UI**: terminal-emulator style web client (xterm.js or custom ANSI-like renderer).
-- **Game logic**: isolate legacy mechanics into a pure domain module first, then wrap routes.
-- **Compatibility**: preserve key command grammar and game-day cycles.
+```bash
+git submodule add https://github.com/SynchronetBBS/sbbs.git vendor/sbbs
+cd vendor/sbbs
+git sparse-checkout init --cone
+git sparse-checkout set xtrn/lord
+```
+
+## If you already have a `/lord` folder in this repo
+
+Great — that is enough to start. Next, share any constraints that affect parity:
+
+- Must gameplay text/flow be 100% identical, or can UX be modernized?
+- Do we keep classic "daily turns" semantics exactly?
+- Any account requirements (email verification, reset flow, password policy)?
+- Single-node deploy only, or future multi-node scaling?
+
+## Full-conversion blueprint (Node + SQLite + web terminal)
+
+1. **Source audit**
+   - Inventory game loop, persistence points, and file I/O in existing JS code.
+   - Capture command grammar and edge cases.
+2. **Domain extraction**
+   - Move battle/town/forest mechanics into pure TypeScript modules.
+   - Add deterministic tests around core mechanics before behavior changes.
+3. **Persistence layer**
+   - SQLite schema for users, characters, inventory, events, combat logs, and day resets.
+   - Migration system (Prisma or Knex).
+4. **Authentication**
+   - Built-in account creation + login.
+   - Argon2/bcrypt password hashing, secure session cookies, CSRF protections.
+5. **Web terminal UI**
+   - Browser terminal interface (xterm.js or equivalent).
+   - Preserve command-driven input and ANSI-like output styling.
+6. **Server API**
+   - Node.js service to process commands, enforce turns, and persist state.
+   - Clear separation between game engine and HTTP/session concerns.
+7. **Compatibility + rollout**
+   - Golden transcript tests versus legacy outputs for key player flows.
+   - Import script for any legacy player data we decide to keep.
+
+## Definition of done for MVP
+
+- Account signup/login/logout working.
+- New character creation and saved progress in SQLite.
+- Main LORD gameplay loop accessible through browser terminal.
+- Daily reset/turn logic implemented.
+- Basic admin controls (reset day, inspect player/account health).
 
