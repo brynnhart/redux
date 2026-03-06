@@ -155,7 +155,7 @@ export class InnService {
   }
 
   getBreakInTargets(attacker: PlayerRecord): InnTarget[] {
-    if (attacker.level <= 1 || !attacker.inn_breakin_used_today || attacker.pvp_used_today) {
+    if (attacker.level <= 1 || !attacker.inn_breakin_used_today || attacker.turns_pvp_left <= 0) {
       return [];
     }
     const targets = this.playerRepo.listInnTargets(attacker.id);
@@ -169,7 +169,7 @@ export class InnService {
     if (!attacker.inn_breakin_used_today) {
       return { ok: false, message: 'You need to bribe the bartender first.' };
     }
-    if (attacker.pvp_used_today) {
+    if (attacker.turns_pvp_left <= 0) {
       return { ok: false, message: 'You already used your PvP attempt today.' };
     }
 
@@ -199,7 +199,6 @@ export class InnService {
         gold_on_hand: attacker.gold_on_hand + stealAmount,
         hp: Math.max(1, attackerHp),
         turns_pvp_left: 0,
-        pvp_used_today: 1,
         player_kills: attacker.player_kills + 1
       });
       this.playerRepo.updatePlayerStats(victim.id, {
@@ -222,8 +221,7 @@ export class InnService {
       last_killed_at: new Date().toISOString(),
       killed_by_player_id: victim.id,
       turns_forest_left: 0,
-      turns_pvp_left: 0,
-      pvp_used_today: 1
+      turns_pvp_left: 0
     });
     this.recordBreakIn(attacker.id, victim.id, 'killed');
     this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });

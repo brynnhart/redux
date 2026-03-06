@@ -40,7 +40,7 @@ export class PvpService {
     if (!attacker.is_alive) {
       return { ok: false, message: 'You are dead and in no shape to attack anyone.', over: true };
     }
-    if (attacker.pvp_used_today) {
+    if (attacker.turns_pvp_left <= 0) {
       return { ok: false, message: 'You already used your PvP attempt today.', over: true };
     }
     if (!target.is_alive) {
@@ -133,7 +133,6 @@ export class PvpService {
     this.playerRepo.updatePlayerStats(attacker.id, {
       exp: attacker.exp + expGain,
       gold_on_hand: attacker.gold_on_hand + stolen,
-      pvp_used_today: 1,
       turns_pvp_left: 0,
       player_kills: attacker.player_kills + 1,
       hp: Math.max(1, attacker.hp)
@@ -158,7 +157,6 @@ export class PvpService {
     this.playerRepo.updatePlayerStats(attacker.id, {
       hp: 0,
       is_alive: 0,
-      pvp_used_today: 1,
       turns_pvp_left: 0,
       last_killed_at: new Date().toISOString(),
       killed_by_player_id: target.id
@@ -172,7 +170,6 @@ export class PvpService {
 
   private consumeAttempt(attacker: PlayerRecord) {
     this.playerRepo.updatePlayerStats(attacker.id, {
-      pvp_used_today: 1,
       turns_pvp_left: 0
     });
   }

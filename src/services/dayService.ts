@@ -77,8 +77,7 @@ export class DayService {
         inn_bribe_count_today: 0,
         inn_breakin_used_today: 0,
         dragon_fought_today: 0,
-        olivia_used_today: 0,
-        pvp_used_today: 0
+        olivia_used_today: 0
       });
 
       this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
