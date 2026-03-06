@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-export function getSkillPath(klass) {
+function getSkillPath(klass) {
     if (klass === 'DEATH_KNIGHT')
         return 'DEATH';
     if (klass === 'MYSTICAL')
@@ -23,20 +23,6 @@ export function skillLabel(klass) {
     if (klass === 'MYSTICAL')
         return 'Mystic Skill';
     return 'Thief Skill';
-}
-export function getClassSkillLevel(player) {
-    if (player.class === 'DEATH_KNIGHT')
-        return player.skill_level_death;
-    if (player.class === 'MYSTICAL')
-        return player.skill_level_mystic;
-    return player.skill_level_thief;
-}
-export function getClassSkillUses(player) {
-    if (player.class === 'DEATH_KNIGHT')
-        return player.skill_uses_death;
-    if (player.class === 'MYSTICAL')
-        return player.skill_uses_mystic;
-    return player.skill_uses_thief;
 }
 export function consumeClassSkillUsePatch(player) {
     if (player.class === 'DEATH_KNIGHT') {
