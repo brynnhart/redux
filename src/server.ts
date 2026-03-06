@@ -29,6 +29,7 @@ import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
 import { renderInn, renderInnBartender, renderInnBreakIn, renderInnFlirt } from './screens/inn.js';
 import { renderTraining } from './screens/training.js';
+import { handleCoreNavigationInput, isCoreNavigationScreen, renderCoreNavigationScreen } from './screens/coreNavigation.js';
 import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
 import { config } from './config.js';
@@ -127,6 +128,34 @@ function enterForest(session: Session) {
 function returnToTown(session: Session, message = 'You return to town.') {
   setScreen(session, 'TOWN_SQUARE');
   session.notice = message;
+}
+
+function shouldUseLineInput(session: Session) {
+  if (!session.playerId) return false;
+  return session.state === 'DAILY_HAPPENINGS' || isCoreNavigationScreen(session.state);
+}
+
+function applyCoreNavigationTransition(session: Session, transition: { type: string; screenId?: Session['state']; notice?: string; message?: string }, close: () => void) {
+  if (transition.type === 'logout') {
+    close();
+    return;
+  }
+  if (transition.type === 'goto') {
+    if (!transition.screenId) {
+      session.notice = 'Huh?';
+      return;
+    }
+    setScreen(session, transition.screenId);
+    session.notice = transition.notice ?? '';
+    return;
+  }
+  if (transition.type === 'error') {
+    session.notice = transition.message ?? 'Huh?';
+    return;
+  }
+  if (transition.notice) {
+    session.notice = transition.notice;
+  }
 }
 
 function enterInn(session: Session) {
@@ -935,6 +964,10 @@ function renderSession(session: Session) {
     refreshPlayer(session);
   }
 
+  if (isCoreNavigationScreen(session.state)) {
+    return renderCoreNavigationScreen(session, { cols: session.cols, rows: session.rows });
+  }
+
   if (session.state === 'WELCOME') {
     return renderWelcome(session, { cols: session.cols, rows: session.rows });
   }
@@ -982,18 +1015,19 @@ function renderSession(session: Session) {
 
 app.get('/ws', { websocket: true }, (connection) => {
   const session = createSession();
+  const socket = (connection as { socket?: { send: (text: string) => void; on: (event: string, fn: (raw: Buffer) => void) => void; close: () => void } }).socket ?? (connection as unknown as { send: (text: string) => void; on: (event: string, fn: (raw: Buffer) => void) => void; close: () => void });
 
   const sendScreen = () => {
     const screen: ScreenMessage = {
       type: 'screen',
       frame: renderSession(session)
     };
-    connection.socket.send(JSON.stringify(screen));
+    socket.send(JSON.stringify(screen));
   };
 
   sendScreen();
 
-  connection.socket.on('message', (raw) => {
+  socket.on('message', (raw: Buffer) => {
     let payload: unknown;
     try {
       payload = JSON.parse(raw.toString());
@@ -1018,9 +1052,38 @@ app.get('/ws', { websocket: true }, (connection) => {
 
     if (session.mode === 'TEXT_ENTRY') {
       handleTextEntry(session, message);
-    } else {
-      handleMenuKey(session, message, () => connection.socket.close());
+      sendScreen();
+      return;
     }
+
+    if (shouldUseLineInput(session)) {
+      if (message.key === 'Backspace') {
+        session.inputBuffer = session.inputBuffer.slice(0, -1);
+        sendScreen();
+        return;
+      }
+
+      if (message.key === 'Enter') {
+        if (session.state === 'DAILY_HAPPENINGS') {
+          returnToTown(session, 'Welcome to town.');
+        } else {
+          const transition = handleCoreNavigationInput(session, session.inputBuffer);
+          applyCoreNavigationTransition(session, transition, () => socket.close());
+        }
+        session.inputBuffer = '';
+        sendScreen();
+        return;
+      }
+
+      if (message.key.length === 1 && !message.ctrl && !message.alt) {
+        session.inputBuffer += message.key;
+      }
+
+      sendScreen();
+      return;
+    }
+
+    handleMenuKey(session, message, () => socket.close());
 
     sendScreen();
   });

@@ -9,6 +9,8 @@ export type ScreenState =
   | 'NEW_CHARACTER'
   | 'DAILY_HAPPENINGS'
   | 'TOWN_SQUARE'
+  | 'VIEW_STATS'
+  | 'HELP_MENU'
   | 'FOREST'
   | 'BANK'
   | 'HEALER'
@@ -18,7 +20,9 @@ export type ScreenState =
   | 'INN_BARTENDER'
   | 'INN_FLIRT'
   | 'INN_BREAK_IN'
-  | 'TRAINING';
+  | 'TRAINING'
+  | 'SLAUGHTER_FIELDS'
+  | 'OTHER_PLACES';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -38,6 +42,7 @@ export interface Session {
   notice: string;
   playerId?: string;
   player?: PlayerRecord;
+  screenParams?: Record<string, string>;
   dailyNews: NewsRecord[];
   todayDate?: string;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
