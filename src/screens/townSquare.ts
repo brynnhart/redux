@@ -1,4 +1,4 @@
-import { getArmorTier, getWeaponTier } from '../data/equipment.js';
+import { getArmorById, getWeaponById } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { classLabel, skillLabel } from '../services/skillService.js';
@@ -28,19 +28,19 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
 
   drawText(buffer, 38, 4, 'Stats');
   if (player) {
-    const weapon = getWeaponTier(player.weapon_tier);
-    const armor = getArmorTier(player.armor_tier);
+    const weapon = getWeaponById(player.weapon_id);
+    const armor = getArmorById(player.armor_id);
     drawText(buffer, 38, 5, `Name: ${player.display_name}`);
     drawText(buffer, 38, 6, `Level: ${player.level}   Exp: ${player.exp}`);
     drawText(buffer, 38, 7, `HP: ${player.hp}/${player.hp_max}`);
-    drawText(buffer, 38, 8, `Gold: ${player.gold}   Bank: ${player.bank_gold}`);
+    drawText(buffer, 38, 8, `Gold: ${player.gold_on_hand}   Bank: ${player.gold_in_bank}`);
     drawText(buffer, 38, 9, `Spirits: ${player.spirits}`);
     drawText(buffer, 38, 10, `Forest turns: ${player.turns_forest_left} / ${player.turns_forest_max}`);
     drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
     drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
     drawText(buffer, 38, 13, `Class: ${classLabel(player.class)}   Sex: ${player.sex}`);
-    drawText(buffer, 38, 14, `Weapon: ${weapon.name} (T${weapon.tier}, +${weapon.bonus} atk)`);
-    drawText(buffer, 38, 15, `Armor: ${armor.name} (T${armor.tier}, +${armor.bonus} def)`);
+    drawText(buffer, 38, 14, `Weapon: ${weapon.name} (T${weapon.tier}, +${weapon.atk_bonus} atk)`);
+    drawText(buffer, 38, 15, `Armor: ${armor.name} (T${armor.tier}, +${armor.def_bonus} def)`);
     const skillUses = player.class === 'DEATH_KNIGHT' ? player.skill_uses_death : player.class === 'MYSTICAL' ? player.skill_uses_mystic : player.skill_uses_thief;
     const skillLevel = player.class === 'DEATH_KNIGHT' ? player.skill_level_death : player.class === 'MYSTICAL' ? player.skill_level_mystic : player.skill_level_thief;
     drawText(buffer, 38, 16, `${skillLabel(player.class)}: ${skillLevel} (Uses left: ${skillUses})`);

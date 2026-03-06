@@ -783,7 +783,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Weapons keys: B buy, S sell, R/T town.';
+    if (key === 'L') {
+      session.notice = 'Browse fast: 1-15 from Stick to Death Sword.';
+      return;
+    }
+
+    session.notice = 'Weapons keys: B buy, S sell, L list, R/T town.';
     return;
   }
 
@@ -806,7 +811,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Armor keys: B buy, S sell, R/T town.';
+    if (key === 'L') {
+      session.notice = 'Browse fast: 1-15 armor tiers, same price ladder.';
+      return;
+    }
+
+    session.notice = 'Armor keys: B buy, S sell, L list, R/T town.';
     return;
   }
 
@@ -934,6 +944,13 @@ function processBankCommit(session: Session, value: string) {
 function processEquipmentCommit(session: Session, value: string) {
   if (!session.player || !session.pendingEquipmentAction) {
     session.notice = 'The shopkeeper ignores your mumbling.';
+    return;
+  }
+
+  const command = value.trim().toUpperCase();
+  if (command === 'R') {
+    session.pendingEquipmentAction = undefined;
+    session.notice = 'Purchase canceled.';
     return;
   }
 

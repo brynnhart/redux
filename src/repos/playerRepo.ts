@@ -57,6 +57,8 @@ export interface PlayerRecord {
   bonus_forest_fights: number;
   weapon_tier: number;
   armor_tier: number;
+  weapon_id: string;
+  armor_id: string;
   skill_level_death: number;
   skill_level_mystic: number;
   skill_level_thief: number;
@@ -75,6 +77,7 @@ export interface InnTargetRecord {
   level: number;
   has_room: number;
   weapon_tier: number;
+  weapon_id: string;
 }
 
 export interface NewPlayerInput {
@@ -132,6 +135,8 @@ type MutablePlayerStats = Pick<
   | 'bonus_forest_fights'
   | 'weapon_tier'
   | 'armor_tier'
+  | 'weapon_id'
+  | 'armor_id'
   | 'skill_level_death'
   | 'skill_level_mystic'
   | 'skill_level_thief'
@@ -236,7 +241,7 @@ export class PlayerRepo {
     const db = getDb();
     return db
       .prepare(
-        `SELECT id, display_name, level, has_room, weapon_tier
+        `SELECT id, display_name, level, has_room, weapon_tier, weapon_id
          FROM players
          WHERE id != ?
            AND has_room = 1

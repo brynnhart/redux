@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 export function runMigrations() {
   const db = getDb();
@@ -282,6 +282,57 @@ export function runMigrations() {
 
       CREATE INDEX IF NOT EXISTS idx_bank_transactions_player_created
       ON bank_transactions (player_id, created_at);
+    `);
+  }
+
+
+  if (currentVersion < 11) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN weapon_id TEXT NOT NULL DEFAULT 'bare_hands';
+      ALTER TABLE players ADD COLUMN armor_id TEXT NOT NULL DEFAULT 'rags';
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        weapon_id = CASE COALESCE(weapon_tier, 0)
+          WHEN 0 THEN 'bare_hands'
+          WHEN 1 THEN 'stick'
+          WHEN 2 THEN 'dagger'
+          WHEN 3 THEN 'short_sword'
+          WHEN 4 THEN 'long_sword'
+          WHEN 5 THEN 'huge_axe'
+          WHEN 6 THEN 'bone_cruncher'
+          WHEN 7 THEN 'twin_swords'
+          WHEN 8 THEN 'power_axe'
+          WHEN 9 THEN 'ables_sword'
+          WHEN 10 THEN 'wans_weapon'
+          WHEN 11 THEN 'spear_of_gold'
+          WHEN 12 THEN 'crystal_shard'
+          WHEN 13 THEN 'niras_teeth'
+          WHEN 14 THEN 'blood_sword'
+          WHEN 15 THEN 'death_sword'
+          ELSE 'bare_hands'
+        END,
+        armor_id = CASE COALESCE(armor_tier, 0)
+          WHEN 0 THEN 'rags'
+          WHEN 1 THEN 'patched_leather'
+          WHEN 2 THEN 'leather_vest'
+          WHEN 3 THEN 'studded_jacket'
+          WHEN 4 THEN 'chain_shirt'
+          WHEN 5 THEN 'reinforced_mail'
+          WHEN 6 THEN 'tower_plate'
+          WHEN 7 THEN 'dread_scale'
+          WHEN 8 THEN 'warlords_plate'
+          WHEN 9 THEN 'ables_guard'
+          WHEN 10 THEN 'wans_ward'
+          WHEN 11 THEN 'golden_aegis'
+          WHEN 12 THEN 'crystal_carapace'
+          WHEN 13 THEN 'niras_hide'
+          WHEN 14 THEN 'blood_plate'
+          WHEN 15 THEN 'death_plate'
+          ELSE 'rags'
+        END;
     `);
   }
 

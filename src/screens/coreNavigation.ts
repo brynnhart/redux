@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { getArmorTier, getWeaponTier } from '../data/equipment.js';
+import { getArmorById, getWeaponById } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { classLabel } from '../services/skillService.js';
@@ -276,8 +276,8 @@ const statsScreen: Screen = {
 
     const player = session.player;
     if (player) {
-      const weapon = getWeaponTier(player.weapon_tier);
-      const armor = getArmorTier(player.armor_tier);
+      const weapon = getWeaponById(player.weapon_id);
+      const armor = getArmorById(player.armor_id);
       const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
       const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
       drawText(buffer, 3, 7, `Name: ${player.display_name}`);

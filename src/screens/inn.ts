@@ -1,4 +1,4 @@
-import { getWeaponTier } from '../data/equipment.js';
+import { getWeaponById } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import type { Session } from '../session.js';
@@ -94,7 +94,7 @@ export function renderInnBreakIn(session: Session, dims: Dimensions, targets: In
     const maxRows = Math.min(9, targets.length);
     for (let i = 0; i < maxRows; i += 1) {
       const target = targets[i]!;
-      const weapon = getWeaponTier(target.weapon_tier);
+      const weapon = getWeaponById(target.weapon_id);
       drawText(buffer, 3, 6 + i, `${i + 1}) ${target.display_name} L${target.level}  Weapon: ${weapon.name}`);
     }
   }

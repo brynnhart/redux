@@ -1,4 +1,4 @@
-import { WEAPON_TIERS, getWeaponTier, getSellPrice } from '../data/equipment.js';
+import { getSellPrice, getWeaponById, listBuyableWeapons } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import type { Session } from '../session.js';
@@ -16,24 +16,24 @@ export function renderWeaponsShop(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 2, "King Arthur's Weapons");
 
   if (player) {
-    const current = getWeaponTier(player.weapon_tier);
-    drawText(buffer, 3, 4, `Gold: ${player.gold}`);
-    drawText(buffer, 3, 5, `Current weapon: T${current.tier} ${current.name} (+${current.bonus} atk)`);
-    drawText(buffer, 3, 6, `Sell value now: ${getSellPrice(current.price)} gold`);
+    const current = getWeaponById(player.weapon_id);
+    drawText(buffer, 3, 4, `Gold on hand: ${player.gold_on_hand}`);
+    drawText(buffer, 3, 5, `Current weapon: ${current.name} (+${current.atk_bonus} atk)`);
+    drawText(buffer, 3, 6, `Sell value now: ${getSellPrice(current.cost)} gold`);
   }
 
-  drawText(buffer, 3, 8, '1-15) Weapon tiers:');
-  WEAPON_TIERS.forEach((tier, i) => {
+  drawText(buffer, 3, 8, '1-15) Weapon list:');
+  listBuyableWeapons().forEach((weapon, i) => {
     const col = i < 8 ? 3 : 46;
     const row = 9 + (i % 8);
-    drawText(buffer, col, row, `${tier.tier.toString().padStart(2, ' ')}. ${tier.name.padEnd(18, ' ')} ${tier.price}`);
+    drawText(buffer, col, row, `${weapon.tier.toString().padStart(2, ' ')}. ${weapon.name.padEnd(18, ' ')} ${weapon.cost}`);
   });
 
-  drawText(buffer, 3, 19, 'B) Buy tier (prompt)   S) Sell current   R/T) Return to Town');
+  drawText(buffer, 3, 19, 'B) Buy weapon #   S) Sell current   L) List weapons   R/T) Return to Town');
   drawText(buffer, 3, 20, 'F) Forest   A) Armor   H) Healer');
 
   if (session.mode === 'TEXT_ENTRY' && session.prompt?.field === 'weapon_tier') {
-    drawText(buffer, 3, 22, `Buy which tier > ${masked}_`);
+    drawText(buffer, 3, 22, `Buy which weapon #? (R=Return) > ${masked}_`);
   }
 
   drawText(buffer, 3, rows - 4, session.notice || 'Arthur grunts: buy fast or leave.');
