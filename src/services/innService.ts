@@ -1,4 +1,8 @@
-import { getArmorTier, getWeaponTier } from '../data/equipment.js';
+import { randomUUID } from 'node:crypto';
+
+import { config } from '../config.js';
+import { getDb } from '../db/db.js';
+import { getWeaponTier } from '../data/equipment.js';
 import type { PlayerRecord, PlayerRepo } from '../repos/playerRepo.js';
 import type { NewsService } from './newsService.js';
 
@@ -7,6 +11,7 @@ export interface InnTarget {
   display_name: string;
   level: number;
   has_room: number;
+  weapon_tier: number;
 }
 
 interface ActionResult {
@@ -25,86 +30,84 @@ export class InnService {
     private readonly rng: () => number = Math.random
   ) {}
 
-  flirt(player: PlayerRecord, today: string): ActionResult {
-    if (player.daily_flirt_used) {
-      return { ok: false, message: 'Violet has heard enough pickup lines from you today.' };
+  flirt(player: PlayerRecord, today: string, style: 'SWEET' | 'COCKY' | 'WEIRD'): ActionResult {
+    if (player.has_flirted_today) {
+      return { ok: false, message: 'Violet smiles politely. You already had your shot today.' };
     }
 
-    const expGain = Math.floor(100 + player.level * 20 + player.charm * 0.5);
-    const patch = {
+    const minExp = style === 'WEIRD' ? player.level * 20 : player.level * 30;
+    const maxExp = style === 'WEIRD' ? player.level * 40 : player.level * 60;
+    const expGain = randInt(minExp, Math.max(minExp, maxExp), this.rng);
+
+    const patch: Partial<PlayerRecord> = {
       exp: player.exp + expGain,
+      has_flirted_today: 1,
       daily_flirt_used: 1
     };
 
-    let rewardText = '';
+    const rewards: string[] = [`+${expGain} exp`];
     if (this.rng() < 0.1) {
-      patch.gems = player.gems + 1;
-      rewardText += ' She flips you a sparkling gem.';
+      patch.charm = player.charm + 1;
+      rewards.push('+1 charm');
     }
-    if (this.rng() < 0.2) {
-      const goldGain = player.level * 200;
-      patch.gold = (patch.gold ?? player.gold) + goldGain;
-      rewardText += ` You also find ${goldGain} gold in your pocket somehow.`;
+    if (this.rng() < 0.05) {
+      patch.gems = player.gems + 1;
+      rewards.push('+1 gem');
     }
 
     this.playerRepo.updatePlayerStats(player.id, patch);
     this.newsService.addNews({
       date: today,
       type: 'GENERIC',
-      message: `Violet giggled at ${player.display_name}'s awful pickup line.`
+      message: `${player.display_name} spent time flirting with Violet at the Inn.`
     });
 
-    return { ok: true, message: `Violet laughs despite herself. +${expGain} exp.${rewardText}` };
+    const opener = style === 'SWEET'
+      ? 'You talk sweetly, and Violet laughs behind her hand.'
+      : style === 'COCKY'
+        ? 'You swagger and boast. Violet rolls her eyes... then grins.'
+        : 'You ramble about moonlit turnips. Violet cannot look away.';
+
+    return { ok: true, message: `${opener} Rewards: ${rewards.join(', ')}.` };
   }
 
   listenToBard(player: PlayerRecord, today: string): ActionResult {
-    if (player.daily_bard_used) {
-      return { ok: false, message: 'Seth Able is saving his voice for tomorrow.' };
+    if (player.has_listened_bard_today) {
+      return { ok: false, message: 'Seth Able has no encore for you today.' };
     }
 
-    const roll = this.rng();
-    const lyrics = this.getLyrics();
-    const patch = { daily_bard_used: 1 };
-    let outcome = '';
+    const bonus = config.innBardBonusFights;
+    this.playerRepo.updatePlayerStats(player.id, {
+      turns_forest_left: player.turns_forest_left + bonus,
+      bonus_forest_fights: player.bonus_forest_fights + bonus,
+      has_listened_bard_today: 1,
+      daily_bard_used: 1
+    });
 
-    if (roll < 0.6) {
-      patch.turns_forest_left = player.turns_forest_left + 1;
-      outcome = 'You feel adventurous. (+1 forest fight)';
-    } else if (roll < 0.85) {
-      patch.turns_forest_left = player.turns_forest_left + 2;
-      outcome = 'Your blood sings with battle. (+2 forest fights)';
-    } else if (roll < 0.95) {
-      patch.hp = player.hp_max;
-      outcome = 'You feel restored to full health.';
-    } else {
-      patch.charm = player.charm + 1;
-      outcome = 'You learn a smoother smile. (+1 charm)';
-    }
-
-    this.playerRepo.updatePlayerStats(player.id, patch);
     this.newsService.addNews({
       date: today,
       type: 'GENERIC',
-      message: `${player.display_name} listened to Seth Able and left humming.`
+      message: `${player.display_name} listened to Seth Able and gained extra Forest courage.`
     });
 
-    return { ok: true, message: `${lyrics} ${outcome}` };
+    return { ok: true, message: `${this.getLyrics()} (+${bonus} bonus forest fights)` };
   }
 
   rentRoom(player: PlayerRecord, today: string): ActionResult {
     if (player.has_room) {
-      return { ok: false, message: 'You already have a room key for tonight.' };
+      return { ok: false, message: 'You already rented a room for tonight.' };
     }
 
-    const cost = Math.floor(300 + player.level * 150);
+    const cost = Math.max(1, config.innRoomCostPerLevel * player.level);
     if (player.gold < cost) {
-      return { ok: false, message: `A room costs ${cost} gold. You only have ${player.gold}.` };
+      return { ok: false, message: `Room cost is ${cost} gold. You only have ${player.gold}.` };
     }
 
     this.playerRepo.updatePlayerStats(player.id, {
       gold: player.gold - cost,
       has_room: 1,
-      daily_room_rented: 1
+      daily_room_rented: 1,
+      room_expires_at: `${today}T23:59:59`
     });
 
     this.newsService.addNews({
@@ -113,121 +116,134 @@ export class InnService {
       message: `${player.display_name} rented a room at the Inn.`
     });
 
-    return { ok: true, message: `You rent a room for ${cost} gold and lock the door.` };
+    return { ok: true, message: 'You rent a room. You sleep behind a locked door...' };
+  }
+
+  buyElixir(player: PlayerRecord): ActionResult {
+    if (player.gold < config.innElixirGoldCost) {
+      return { ok: false, message: `An elixir costs ${config.innElixirGoldCost} gold.` };
+    }
+    this.playerRepo.updatePlayerStats(player.id, {
+      gold: player.gold - config.innElixirGoldCost,
+      elixirs: player.elixirs + 1
+    });
+    return { ok: true, message: 'You buy a bitter elixir and pocket it for later.' };
+  }
+
+  tradeGemsForElixir(player: PlayerRecord): ActionResult {
+    if (player.gems < config.innGemTradeCost) {
+      return { ok: false, message: `${config.innGemTradeCost} gems are required for one elixir.` };
+    }
+    this.playerRepo.updatePlayerStats(player.id, {
+      gems: player.gems - config.innGemTradeCost,
+      elixirs: player.elixirs + 1
+    });
+    return { ok: true, message: `Trade made: -${config.innGemTradeCost} gems, +1 elixir.` };
   }
 
   bribeBartender(player: PlayerRecord): ActionResult {
     if (player.level <= 1) {
-      return { ok: false, message: 'The bartender laughs: come back when you survive level 1.' };
+      return { ok: false, message: 'The bartender snorts: level 1 pups are not invited upstairs.' };
     }
-
-    const cost = Math.floor(200 + player.level * 100);
-    if (player.gold < cost) {
-      return { ok: false, message: `Bribe costs ${cost} gold. You only have ${player.gold}.` };
+    if (player.inn_breakin_used_today) {
+      return { ok: true, message: 'The bartender nods. You already paid for tonight\'s access.' };
+    }
+    if (player.gold < config.innBribeCost) {
+      return { ok: false, message: `Bribe costs ${config.innBribeCost} gold.` };
     }
 
     this.playerRepo.updatePlayerStats(player.id, {
-      gold: player.gold - cost,
+      gold: player.gold - config.innBribeCost,
+      inn_breakin_used_today: 1,
       inn_bribe_count_today: player.inn_bribe_count_today + 1
     });
 
-    return { ok: true, message: `You slide ${cost} gold across the bar. The back door opens.` };
+    return { ok: true, message: 'You slide coins over. The bartender whispers: "quiet doors, third hall."' };
   }
 
   getBreakInTargets(attacker: PlayerRecord): InnTarget[] {
+    if (attacker.level <= 1 || !attacker.inn_breakin_used_today) {
+      return [];
+    }
     const targets = this.playerRepo.listInnTargets(attacker.id);
-    return targets.filter((target) => target.level <= attacker.level);
+    return targets.filter((target) => target.level <= attacker.level + 1);
   }
 
   breakInAttack(attacker: PlayerRecord, victimId: string, today: string): ActionResult {
-    if (attacker.turns_pvp_left <= 0) {
-      return { ok: false, message: 'You are out of player fights today.' };
+    if (attacker.level <= 1) {
+      return { ok: false, message: 'Level 1 adventurers cannot break into rooms.' };
+    }
+    if (!attacker.inn_breakin_used_today) {
+      return { ok: false, message: 'You need to bribe the bartender first.' };
     }
 
     const victim = this.playerRepo.findById(victimId);
-    if (!victim || victim.id === attacker.id) {
-      return { ok: false, message: 'That victim is gone.' };
+    if (!victim || victim.id === attacker.id || !victim.has_room) {
+      return { ok: false, message: 'That room is unavailable.' };
+    }
+    if (victim.level > attacker.level + 1) {
+      return { ok: false, message: 'That target is too high level for your break-in.' };
     }
 
-    if (victim.level > attacker.level) {
-      return { ok: false, message: 'You may only break in on your level or lower (for now).' };
-    }
-
-    const rounds: string[] = [];
+    const rounds: string[] = [`You force ${victim.display_name}'s lock.`];
     let attackerHp = attacker.hp;
     let victimHp = victim.hp;
 
     while (attackerHp > 0 && victimHp > 0) {
       victimHp -= this.playerDamage(attacker, victim, rounds);
-      if (victimHp <= 0) {
-        break;
-      }
+      if (victimHp <= 0) break;
       attackerHp -= this.playerDamage(victim, attacker, rounds);
     }
 
-    const attackerWon = victimHp <= 0;
-    if (attackerWon) {
-      const xpGain = Math.floor(victim.level * 5000 + victim.exp * 0.05);
-      const stealAmount = Math.min(victim.gold, Math.floor(victim.bank_gold * 0.01));
-
+    if (victimHp <= 0) {
+      const xpGain = Math.min(attacker.level * 2500, victim.level * 3500);
+      const stealAmount = Math.max(0, Math.floor(victim.gold * 0.15));
       this.playerRepo.updatePlayerStats(attacker.id, {
         exp: attacker.exp + xpGain,
         gold: attacker.gold + stealAmount,
         hp: Math.max(1, attackerHp),
-        turns_pvp_left: attacker.turns_pvp_left - 1
+        turns_pvp_left: Math.max(0, attacker.turns_pvp_left - 1)
       });
-
       this.playerRepo.updatePlayerStats(victim.id, {
-        gold: victim.gold - stealAmount,
+        gold: Math.max(0, victim.gold - stealAmount),
         hp: 1
       });
-
-      this.newsService.addNews({
-        date: today,
-        type: 'GENERIC',
-        message: `${attacker.display_name} broke into ${victim.display_name}'s inn space and won.`
-      });
-
-      return {
-        ok: true,
-        message: `${rounds.join(' ')} You win! +${xpGain} exp and steal ${stealAmount} gold.`
-      };
+      this.recordBreakIn(attacker.id, victim.id, 'killed');
+      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${attacker.display_name} broke into ${victim.display_name}'s room and won.` });
+      return { ok: true, message: `${rounds.join(' ')} You win. +${xpGain} exp, ${stealAmount} gold stolen.` };
     }
 
     this.playerRepo.updatePlayerStats(attacker.id, {
       hp: 1,
-      turns_pvp_left: Math.max(0, attacker.turns_pvp_left - 1),
-      turns_forest_left: 0
+      turns_forest_left: 0,
+      turns_pvp_left: Math.max(0, attacker.turns_pvp_left - 1)
     });
+    this.recordBreakIn(attacker.id, victim.id, 'killed');
+    this.newsService.addNews({ date: today, type: 'GENERIC', message: `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.` });
+    return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
+  }
 
-    this.newsService.addNews({
-      date: today,
-      type: 'GENERIC',
-      message: `${attacker.display_name} died trying to break into ${victim.display_name}'s inn space.`
-    });
-
-    return { ok: true, message: `${rounds.join(' ')} You lose and wake up at 1 HP. Your forest day is over.` };
+  private recordBreakIn(attackerPlayerId: string, targetPlayerId: string, result: string) {
+    getDb()
+      .prepare('INSERT INTO inn_breakins (id, attacker_player_id, target_player_id, created_at, result) VALUES (@id, @attacker_player_id, @target_player_id, @created_at, @result)')
+      .run({ id: randomUUID(), attacker_player_id: attackerPlayerId, target_player_id: targetPlayerId, created_at: new Date().toISOString(), result });
   }
 
   private getLyrics() {
     const lines = [
-      'Seth sings: "Swing low, sweet cabbage cart, carry me home for loot..."',
-      'Seth strums: "Oh hero mine, your boots are mud, your coin purse full of holes..."',
-      'Seth croons: "Raise your mug and duck your debts, the moon forgives all fools..."'
+      'Seth Able sings: "Raise your blade, then raise your tab; heroes pay both debts."',
+      'Seth Able hums: "Moon over rooftops, steel under cloaks, courage in short supply."',
+      'Seth Able grins: "If dawn finds you breathing, call that a ballad ending well."'
     ];
     return lines[randInt(0, lines.length - 1, this.rng)] ?? lines[0]!;
   }
 
   private playerDamage(attacker: PlayerRecord, defender: PlayerRecord, rounds: string[]) {
-    const min = Math.max(1, Math.floor(attacker.level * 2));
-    const max = Math.max(min, Math.floor(attacker.level * 4));
-    const base = randInt(min, max, this.rng);
+    const base = randInt(Math.max(1, attacker.level * 2), Math.max(2, attacker.level * 4), this.rng);
     const weapon = getWeaponTier(attacker.weapon_tier);
-    const armor = getArmorTier(defender.armor_tier);
-    const damage = Math.max(1, base + Math.floor(weapon.bonus * 0.4) - Math.floor(armor.bonus * 0.15));
-
+    const damage = Math.max(1, base + Math.floor(weapon.bonus * 0.35));
     if (this.rng() < 0.08) {
-      rounds.push(`${attacker.display_name} lands a brutal cheap shot!`);
+      rounds.push(`${attacker.display_name} lands a savage hit!`);
       return damage * 2;
     }
     return damage;

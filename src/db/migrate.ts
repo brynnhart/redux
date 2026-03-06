@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 export function runMigrations() {
   const db = getDb();
@@ -153,6 +153,39 @@ export function runMigrations() {
       UPDATE players SET skill_mastery_mystic = COALESCE(skill_mastery_mystic, 0);
       UPDATE players SET skill_mastery_thief = COALESCE(skill_mastery_thief, 0);
       UPDATE players SET daily_skill_training_used = COALESCE(daily_skill_training_used, 0);
+    `);
+  }
+
+
+  if (currentVersion < 7) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN elixirs INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN room_expires_at TEXT;
+      ALTER TABLE players ADD COLUMN inn_breakin_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN has_flirted_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN has_listened_bard_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN bonus_forest_fights INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players SET elixirs = COALESCE(elixirs, 0);
+      UPDATE players SET inn_breakin_used_today = COALESCE(inn_breakin_used_today, 0);
+      UPDATE players SET has_flirted_today = COALESCE(has_flirted_today, 0);
+      UPDATE players SET has_listened_bard_today = COALESCE(has_listened_bard_today, 0);
+      UPDATE players SET bonus_forest_fights = COALESCE(bonus_forest_fights, 0);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS inn_breakins (
+        id TEXT PRIMARY KEY,
+        attacker_player_id TEXT NOT NULL,
+        target_player_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        result TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_inn_breakins_attacker ON inn_breakins (attacker_player_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_inn_breakins_target ON inn_breakins (target_player_id, created_at);
     `);
   }
 db.prepare(
