@@ -7,28 +7,30 @@ export function renderBank(session, dims) {
     const buffer = createBuffer(cols, rows);
     const player = session.player;
     drawBox(buffer, 0, 0, cols, rows);
-    drawText(buffer, 3, 2, 'Ye Olde Bank');
+    drawText(buffer, 3, 1, '[b][c:yellow]Ye Olde Bank & Ledger House[b][c:white]');
+    drawText(buffer, 3, 2, '[dim]Ink, iron, and suspicion: every coin must be counted twice.[dim]');
     if (player) {
         const onHand = player.gold_on_hand;
         const inBank = player.gold_in_bank;
-        drawText(buffer, 3, 4, `On hand: ${onHand} gold`);
-        drawText(buffer, 3, 5, `In bank: ${inBank} gold`);
-        drawText(buffer, 3, 6, `Daily interest: ${(config.bankInterestRate * 100).toFixed(0)}%`);
+        drawText(buffer, 3, 4, '[b][c:cyan]Ledger Snapshot[b][c:white]');
+        drawText(buffer, 3, 5, `Pocket Balance .... [c:yellow]${onHand}[c:white] gold`);
+        drawText(buffer, 3, 6, `Vault Balance ..... [c:green]${inBank}[c:white] gold`);
+        drawText(buffer, 3, 7, `Daily Interest .... ${(config.bankInterestRate * 100).toFixed(0)}%`);
     }
-    drawText(buffer, 3, 8, '(D) Deposit');
-    drawText(buffer, 3, 9, '(W) Withdraw');
-    drawText(buffer, 3, 10, '(1) Deposit ALL');
-    drawText(buffer, 3, 11, '(2) Withdraw ALL');
-    drawText(buffer, 3, 12, '(R) Return to Town');
+    drawText(buffer, 3, 9, '[b][c:magenta]Transactions[b][c:white]');
+    drawText(buffer, 3, 10, '[c:green]D[c:white]) Deposit        [c:green]1[c:white]) Deposit ALL');
+    drawText(buffer, 3, 11, '[c:green]W[c:white]) Withdraw       [c:green]2[c:white]) Withdraw ALL');
+    drawText(buffer, 3, 12, '[c:green]R[c:white]) Return to Town');
     if (session.bankState === 'DEPOSIT_PROMPT') {
-        drawText(buffer, 3, 14, `Deposit how much? (1=All, R=Return) ${session.inputBuffer}_`);
+        drawText(buffer, 3, 14, `[b][c:cyan]Deposit Amount>[b][c:white] ${session.inputBuffer}_`);
     }
     else if (session.bankState === 'WITHDRAW_PROMPT') {
-        drawText(buffer, 3, 14, `Withdraw how much? (2=All, R=Return) ${session.inputBuffer}_`);
+        drawText(buffer, 3, 14, `[b][c:cyan]Withdraw Amount>[b][c:white] ${session.inputBuffer}_`);
     }
     else {
-        drawText(buffer, 3, 14, `Command> ${session.inputBuffer}`);
+        drawText(buffer, 3, 14, `[b][c:cyan]Ledger Command>[b][c:white] ${session.inputBuffer}`);
     }
-    drawText(buffer, 3, rows - 4, session.notice || 'You stash your gold where thieves can\'t easily sniff it.');
+    drawText(buffer, 3, rows - 5, '[dim]System: banked gold is safer from thieves than pocket gold.[dim]');
+    drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]The clerk stamps your ledger with solemn satisfaction.[c:white]');
     return { cols, rows, lines: toLines(buffer) };
 }
