@@ -41,6 +41,7 @@ export function challengeMaster(player, master, combatService = new CombatServic
         hp: master.hp,
         attackMin: master.atk,
         attackMax: master.atk + 4,
+        defense: master.def,
         goldReward: 0,
         expReward: 0,
         gemChance: 0
