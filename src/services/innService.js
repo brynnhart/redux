@@ -18,7 +18,7 @@ export class InnService {
     }
     flirt(player, today) {
         if (player.flirt_used_today) {
-            return { ok: false, message: 'You already flirted today.' };
+            return { ok: false, message: 'Violet flicks your forehead. "One dance per day, hero."' };
         }
         const expGain = 150 + randInt(0, 150, this.rng);
         const goldGain = randInt(0, 50, this.rng);
@@ -28,11 +28,11 @@ export class InnService {
             flirt_used_today: 1
         });
         this.newsService.addNews(today, `${player.display_name} flirted with Violet at the Inn.`, { severity: 'info' });
-        return { ok: true, message: `Violet laughs and plays along. (+${expGain} exp, +${goldGain} gold)` };
+        return { ok: true, message: `Violet smiles like she knows your secrets, then steals a kiss and a wager. (+${expGain} exp, +${goldGain} gold)` };
     }
     listenToBard(player, today) {
         if (player.bard_listens_used_today >= config.sethMaxListensPerDay) {
-            return { ok: false, message: 'Seth Able has no encore for you today.' };
+            return { ok: false, message: 'Seth Able lowers his lute. "No second rite tonight. Let the first one haunt you."' };
         }
         const roll = this.rng();
         const bonus = roll < 0.65 ? 1 : roll < 0.9 ? 2 : 3;
@@ -64,11 +64,11 @@ export class InnService {
     }
     rentRoom(player, today) {
         if (player.in_inn_room) {
-            return { ok: false, message: 'You already rented a room for tonight.' };
+            return { ok: false, message: 'Your room key is already warm in your pocket.' };
         }
         const cost = Math.max(1, config.innRoomCost);
         if (player.gold_on_hand < cost) {
-            return { ok: false, message: `Room cost is ${cost} gold. You only have ${player.gold_on_hand}.` };
+            return { ok: false, message: `A room costs ${cost} gold. The innkeeper eyes your purse: you only carry ${player.gold_on_hand}.` };
         }
         this.playerRepo.updatePlayerStats(player.id, {
             gold_on_hand: player.gold_on_hand - cost,
@@ -76,7 +76,7 @@ export class InnService {
             inn_room_expires_day_key: today
         });
         this.newsService.addNews(today, `${player.display_name} rented a room at the Inn.`, { severity: 'info' });
-        return { ok: true, message: 'You rent a room. You sleep behind a locked door...' };
+        return { ok: true, message: 'You pay for a room and a lock stout enough to make thieves curse.' };
     }
     buyElixir(player) {
         if (player.gold_on_hand < config.innElixirGoldCost) {
@@ -100,20 +100,20 @@ export class InnService {
     }
     bribeBartender(player) {
         if (player.level <= 1) {
-            return { ok: false, message: 'The bartender snorts: level 1 pups are not invited upstairs.' };
+            return { ok: false, message: 'The bartender snorts: "Pups sleep in straw, not private rooms. Come back tougher."' };
         }
         if (player.inn_breakin_used_today) {
             return { ok: true, message: 'The bartender nods. You already paid for tonight\'s access.' };
         }
         if (player.gold_on_hand < config.innBribeCost) {
-            return { ok: false, message: `Bribe costs ${config.innBribeCost} gold.` };
+            return { ok: false, message: `He doesn't blink. "Room keys cost ${config.innBribeCost} gold. Silence costs extra."` };
         }
         this.playerRepo.updatePlayerStats(player.id, {
             gold_on_hand: player.gold_on_hand - config.innBribeCost,
             inn_breakin_used_today: 1,
             inn_bribe_count_today: player.inn_bribe_count_today + 1
         });
-        return { ok: true, message: 'You slide coins over. The bartender whispers: "quiet doors, third hall."' };
+        return { ok: true, message: 'You palm over the coin. He slides you a ring of stolen keys: "Third hall. No screaming."' };
     }
     getBreakInTargets(attacker) {
         if (attacker.level <= 1 || !attacker.inn_breakin_used_today || attacker.turns_pvp_left <= 0) {
@@ -124,22 +124,22 @@ export class InnService {
     }
     breakInAttack(attacker, victimId, today) {
         if (attacker.level <= 1) {
-            return { ok: false, message: 'Level 1 adventurers cannot break into rooms.' };
+            return { ok: false, message: "You're too green for upstairs work. Come back when your hands stop shaking." };
         }
         if (!attacker.inn_breakin_used_today) {
-            return { ok: false, message: 'You need to bribe the bartender first.' };
+            return { ok: false, message: 'No key, no hallway. The bartender gets paid first.' };
         }
         if (attacker.turns_pvp_left <= 0) {
             return { ok: false, message: 'You already used your PvP attempt today.' };
         }
         const victim = this.playerRepo.findById(victimId);
         if (!victim || victim.id === attacker.id || !victim.in_inn_room || !victim.is_alive) {
-            return { ok: false, message: 'That room is unavailable.' };
+            return { ok: false, message: 'That door is dark, empty, or already guarded.' };
         }
         if (victim.level > attacker.level + 1) {
-            return { ok: false, message: 'That target is too high level for your break-in.' };
+            return { ok: false, message: 'That sleeper is far above your weight. Pick a door you can survive.' };
         }
-        const rounds = [`You force ${victim.display_name}'s lock.`];
+        const rounds = [`You kneel at ${victim.display_name}'s lock and feel the tumblers give.`];
         let attackerHp = attacker.hp;
         let victimHp = victim.hp;
         while (attackerHp > 0 && victimHp > 0) {
@@ -169,7 +169,7 @@ export class InnService {
             this.recordBreakIn(attacker.id, victim.id, 'killed');
             this.newsService.addNews(today, `${attacker.display_name} broke into ${victim.display_name}'s room and won.`, { severity: 'pvp' });
             this.newsService.pvpKill(attacker.id, victim.id, { dayKey: today, killerName: attacker.display_name, victimName: victim.display_name });
-            return { ok: true, message: `${rounds.join(' ')} You win. +${xpGain} exp, ${stealAmount} gold stolen.` };
+            return { ok: true, message: `${rounds.join(' ')} You leave the room breathing and richer. +${xpGain} exp, ${stealAmount} gold stolen.` };
         }
         this.playerRepo.updatePlayerStats(attacker.id, {
             hp: 0,
@@ -182,7 +182,7 @@ export class InnService {
         this.recordBreakIn(attacker.id, victim.id, 'killed');
         this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });
         this.newsService.addDailyNews({ day: getDayIndexFromDayKey(today), type: 'PVP_DEFEND', actorId: attacker.id, targetId: victim.id, message: `${attacker.display_name} has attacked ${victim.display_name} and has been killed in self-defense.` });
-        return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
+        return { ok: true, message: `${rounds.join(' ')} You are hurled into the street bleeding. Your day is over.` };
     }
     recordBreakIn(attackerPlayerId, targetPlayerId, result) {
         getDb()
@@ -209,9 +209,9 @@ export class InnService {
     }
     getLyrics() {
         const lines = [
-            'Seth Able sings: "Raise your blade, then raise your tab; heroes pay both debts."',
-            'Seth Able hums: "Moon over rooftops, steel under cloaks, courage in short supply."',
-            'Seth Able grins: "If dawn finds you breathing, call that a ballad ending well."'
+            'Seth Able chants: "By ale and ash, by blood and dawn, may your blade wake hungry and your heart wake whole."',
+            'Seth Able whispers: "Name your dead, count your sins, then step back into the dark like you mean it."',
+            'Seth Able thunders: "Tonight we drink to the living; by sunrise we sing for whoever remains."'
         ];
         return lines[randInt(0, lines.length - 1, this.rng)] ?? lines[0];
     }

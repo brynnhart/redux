@@ -6,9 +6,9 @@
     "hp": 30,
     "atk": 6,
     "def": 1,
-    "flavor_intro": "Halder looks at you with mild disappointment.",
-    "flavor_win": "You have earned your next lesson.",
-    "flavor_loss": "Come back when your bruises stop whining."
+    "flavor_intro": "Halder chalks a circle on the stone and motions you inside.",
+    "flavor_win": "Halder nods. \"You may climb.\"",
+    "flavor_loss": "Halder steps back. \"Heal up. Earn your next breath.\""
   },
   {
     "level": 2,
@@ -17,9 +17,9 @@
     "hp": 40,
     "atk": 8,
     "def": 2,
-    "flavor_intro": "Barak cracks his knuckles and asks if your will has insurance.",
-    "flavor_win": "Good. Now stop smiling and keep training.",
-    "flavor_loss": "You call that footwork? Even my lunch fights better."
+    "flavor_intro": "Barak rolls his shoulders. \"No cheering in this hall. Only steel.\"",
+    "flavor_win": "Barak spits blood and grins. \"Good. You're less soft now.\"",
+    "flavor_loss": "Barak shakes his head. \"You came loud and left broken.\""
   },
   {
     "level": 3,
@@ -28,9 +28,9 @@
     "hp": 54,
     "atk": 10,
     "def": 2,
-    "flavor_intro": "Aladdin twirls a curved blade and waits for an apology.",
-    "flavor_win": "A clean strike. You move to harder lessons.",
-    "flavor_loss": "The sand itself judged you and found you lacking."
+    "flavor_intro": "Aladdin's curved blade flashes once. \"Show me footwork worth teaching.\"",
+    "flavor_win": "Aladdin salutes. \"You have balance. Advance.\"",
+    "flavor_loss": "Aladdin lowers his blade. \"You chased speed and forgot control.\""
   },
   {
     "level": 4,
@@ -39,9 +39,9 @@
     "hp": 70,
     "atk": 12,
     "def": 3,
-    "flavor_intro": "Candle lights a torch and says your excuses burn first.",
-    "flavor_win": "The flame respects your discipline.",
-    "flavor_loss": "You got smoked. Literally and spiritually."
+    "flavor_intro": "Candle snuffs the torches until only one ember burns between you.",
+    "flavor_win": "Candle relights the hall. \"Your discipline held.\"",
+    "flavor_loss": "Candle turns away. \"You burned hot, then died cold.\""
   },
   {
     "level": 5,
@@ -50,9 +50,9 @@
     "hp": 90,
     "atk": 14,
     "def": 3,
-    "flavor_intro": "Prince Caspian salutes, then tries to remove your optimism.",
-    "flavor_win": "You carry yourself like a warrior now.",
-    "flavor_loss": "Nobility is earned, not announced."
+    "flavor_intro": "Prince Caspian draws and salutes. \"By honor and edge, begin.\"",
+    "flavor_win": "Caspian's blade lowers. \"You carried the banner well.\"",
+    "flavor_loss": "Caspian bows once. \"Title means nothing without resolve.\""
   },
   {
     "level": 6,
@@ -61,9 +61,9 @@
     "hp": 114,
     "atk": 17,
     "def": 4,
-    "flavor_intro": "Sparhawk sighs. Another hopeful. Another lesson.",
-    "flavor_win": "Fine work. You may stand among veterans.",
-    "flavor_loss": "War would eat you alive right now."
+    "flavor_intro": "Sparhawk studies your eyes, not your weapon. \"War starts there.\"",
+    "flavor_win": "Sparhawk clasps your shoulder. \"You've seen enough pain to learn from it.\"",
+    "flavor_loss": "Sparhawk sighs. \"Battle would swallow you whole right now.\""
   },
   {
     "level": 7,
@@ -72,9 +72,9 @@
     "hp": 142,
     "atk": 20,
     "def": 4,
-    "flavor_intro": "Atsuko bows once. The room gets very quiet.",
-    "flavor_win": "Calm hands. Sharp mind. You advance.",
-    "flavor_loss": "Your spirit rushed. Your body paid."
+    "flavor_intro": "Atsuko bows and the gallery falls silent.",
+    "flavor_win": "Atsuko returns your bow. \"Calm mind. Killing edge. Advance.\"",
+    "flavor_loss": "Atsuko closes her eyes. \"You fought the storm instead of becoming it.\""
   },
   {
     "level": 8,
@@ -83,9 +83,9 @@
     "hp": 174,
     "atk": 23,
     "def": 5,
-    "flavor_intro": "Aragorn studies your stance like a battlefield map.",
-    "flavor_win": "Rise. You are ready for harsher roads.",
-    "flavor_loss": "Not all who wander are lost. You definitely were."
+    "flavor_intro": "Aragorn circles once. \"Stand like the last wall before darkness.\"",
+    "flavor_win": "Aragorn nods. \"You are fit for harsher roads.\"",
+    "flavor_loss": "Aragorn points at your stance. \"One gap is enough to bury a kingdom.\""
   },
   {
     "level": 9,
@@ -94,9 +94,9 @@
     "hp": 212,
     "atk": 27,
     "def": 6,
-    "flavor_intro": "Borin grins like an avalanche with a beard.",
-    "flavor_win": "Strong spine. Stronger resolve. Move up.",
-    "flavor_loss": "You rang the anvil. It rang back harder."
+    "flavor_intro": "Borin slams his hammer haft on stone. \"Let's hear your spine ring true.\"",
+    "flavor_win": "Borin laughs like thunder. \"Aye. That's iron in your bones.\"",
+    "flavor_loss": "Borin spits. \"The anvil outlasted you. Again.\""
   },
   {
     "level": 10,
@@ -105,9 +105,9 @@
     "hp": 258,
     "atk": 31,
     "def": 7,
-    "flavor_intro": "Eldria's blade hums; your courage does a little hiccup.",
-    "flavor_win": "You bear the mark of a true champion.",
-    "flavor_loss": "Pretty attempt. Deadly gaps."
+    "flavor_intro": "Eldria's moonsteel hums. \"Try not to blink at your own ending.\"",
+    "flavor_win": "Eldria sheaths her blade. \"You have earned champion's rank.\"",
+    "flavor_loss": "Eldria's gaze is cold. \"Pretty effort. Fatal openings.\""
   },
   {
     "level": 11,
@@ -116,8 +116,8 @@
     "hp": 312,
     "atk": 36,
     "def": 8,
-    "flavor_intro": "Turgon folds his arms and squints at you like you owe him money.",
-    "flavor_win": "Go. The Dragon waits for no one.",
-    "flavor_loss": "You are not dragon-ready. Not today."
+    "flavor_intro": "Turgon enters the ring barehanded, then nods for you to strike first.",
+    "flavor_win": "Turgon salutes. \"Go. The Dragon is your master now.\"",
+    "flavor_loss": "Turgon turns from the ring. \"Not dragon-ready. Not yet.\""
   }
 ]
