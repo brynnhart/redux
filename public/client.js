@@ -2,8 +2,105 @@ const screenEl = document.getElementById('screen');
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
 
+const COLOR_TOKENS = new Set(['green', 'red', 'yellow', 'cyan', 'magenta', 'white']);
+const STYLE_TOKENS = new Set(['dim', 'b']);
+const TOKEN_REGEX = /\[(c:(?:green|red|yellow|cyan|magenta|white)|dim|b)\]/g;
+
+function parseLineTokens(line) {
+  TOKEN_REGEX.lastIndex = 0;
+  const segments = [];
+  const rawLine = String(line);
+  let cursor = 0;
+  const activeStyles = new Set();
+  let match;
+
+  while ((match = TOKEN_REGEX.exec(rawLine)) !== null) {
+    if (match.index > cursor) {
+      segments.push({
+        text: rawLine.slice(cursor, match.index),
+        styles: new Set(activeStyles)
+      });
+    }
+
+    const token = match[1];
+
+    if (token.startsWith('c:')) {
+      for (const style of Array.from(activeStyles)) {
+        if (style.startsWith('c:')) {
+          activeStyles.delete(style);
+        }
+      }
+
+      const color = token.slice(2);
+      if (COLOR_TOKENS.has(color)) {
+        activeStyles.add(`c:${color}`);
+      }
+    } else if (STYLE_TOKENS.has(token)) {
+      if (activeStyles.has(token)) {
+        activeStyles.delete(token);
+      } else {
+        activeStyles.add(token);
+      }
+    }
+
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < rawLine.length) {
+    segments.push({
+      text: rawLine.slice(cursor),
+      styles: new Set(activeStyles)
+    });
+  }
+
+  return segments;
+}
+
+function createSegmentNode(segment) {
+  if (segment.styles.size === 0) {
+    return document.createTextNode(segment.text);
+  }
+
+  const span = document.createElement('span');
+  span.textContent = segment.text;
+
+  for (const style of segment.styles) {
+    if (style.startsWith('c:')) {
+      span.classList.add(`tok-color-${style.slice(2)}`);
+    }
+
+    if (style === 'dim') {
+      span.classList.add('tok-dim');
+    }
+
+    if (style === 'b') {
+      span.classList.add('tok-bold');
+    }
+  }
+
+  return span;
+}
+
 function renderFrame(frame) {
-  screenEl.textContent = frame.lines.join('\n');
+  const fragment = document.createDocumentFragment();
+
+  for (const [lineIndex, line] of frame.lines.entries()) {
+    const segments = parseLineTokens(line);
+
+    if (segments.length === 0) {
+      fragment.appendChild(document.createTextNode(''));
+    } else {
+      for (const segment of segments) {
+        fragment.appendChild(createSegmentNode(segment));
+      }
+    }
+
+    if (lineIndex < frame.lines.length - 1) {
+      fragment.appendChild(document.createElement('br'));
+    }
+  }
+
+  screenEl.replaceChildren(fragment);
 }
 
 function sendResize() {
