@@ -876,19 +876,19 @@ function handleMenuKey(session, message, close) {
             returnToTown(session, 'No player loaded.');
             return;
         }
-        if (key === 'Q') {
+        if (key === 'Q' || key === 'R') {
             returnToTown(session);
             return;
         }
-        if (key === '1') {
+        if (key === '1' || key === 'D') {
             session.pendingBankAction = 'DEPOSIT';
-            session.notice = 'Deposit how much?';
+            session.notice = 'How much are you shoving into the vault?';
             startPrompt(session, 'bank_amount');
             return;
         }
-        if (key === '2') {
+        if (key === '2' || key === 'W') {
             session.pendingBankAction = 'WITHDRAW';
-            session.notice = 'Withdraw how much?';
+            session.notice = 'How much are you pulling from the vault?';
             startPrompt(session, 'bank_amount');
             return;
         }
@@ -901,7 +901,7 @@ function handleMenuKey(session, message, close) {
             session.notice = `Balances — Pocket: ${session.player.gold_on_hand}, Bank: ${session.player.gold_in_bank}.`;
             return;
         }
-        session.notice = 'Bank keys: 1 deposit, 2 withdraw, 3 deposit all, 4 balance, Q town.';
+        session.notice = 'Wrong ledger key. Use 1/D deposit, 2/W withdraw, 3 all, 4 balance, Q/R town.';
         return;
     }
     if (session.state === 'HEALER') {
@@ -990,7 +990,7 @@ function handleMenuKey(session, message, close) {
             return;
         }
         if (key === 'L') {
-            session.notice = forestService.look(session.player, todayDayKey);
+            session.notice = `[LOOK] ${forestService.look(session.player, todayDayKey)}`;
             return;
         }
         const forestEncounter = forestService.getEncounter(session.player.id);
@@ -1005,7 +1005,7 @@ function handleMenuKey(session, message, close) {
             return;
         }
         if (key === 'A' && forestEncounter.encounterType !== 'EVENT') {
-            session.notice = forestService.attack(session.player, todayDayKey);
+            session.notice = `[ATTACK] ${forestService.attack(session.player, todayDayKey)}`;
             refreshPlayer(session);
             if ((session.player?.turns_forest_left ?? 0) <= 0) {
                 returnToTown(session, 'You are too tired. Come back tomorrow.');
@@ -1050,14 +1050,14 @@ function handleMenuKey(session, message, close) {
             return;
         }
         if (key === 'R' && forestEncounter.encounterType !== 'EVENT') {
-            session.notice = forestService.run(session.player);
+            session.notice = `[RUN] ${forestService.run(session.player)}`;
             return;
         }
         if (['1', '2', '3', '4', '5', 'Y', 'N', 'C', 'A', 'L', 'G', 'T', 'Q'].includes(key)) {
             handleForestChoiceEvent(session, key);
             return;
         }
-        session.notice = 'Forest keys: L look, A attack, K skill, S search dragon, R run, T town, B bank.';
+        session.notice = 'That is not a forest rhythm key. Use L look, A attack, R run, T town, B bank.';
     }
 }
 function processBankCommit(session, value) {
@@ -1067,7 +1067,7 @@ function processBankCommit(session, value) {
     }
     const amount = Number(value);
     if (!Number.isInteger(amount) || amount <= 0) {
-        session.notice = 'That amount is nonsense. Use a positive integer.';
+        session.notice = 'That number is garbage. Enter a whole positive amount.';
         startPrompt(session, 'bank_amount');
         return;
     }
