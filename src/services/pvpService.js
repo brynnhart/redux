@@ -50,6 +50,19 @@ export class PvpService {
         }
         if (action === 'RUN') {
             this.consumeAttempt(attacker);
+            if (this.rng() < config.pvpFleeFailChance) {
+                const punish = this.pvpRetaliationDamage(target, attacker);
+                const attackerHpAfter = Math.max(0, attacker.hp - punish);
+                if (attackerHpAfter <= 0) {
+                    const resultText = this.resolveDefenderWin(attacker, target, todayDayKey);
+                    return { ok: true, over: true, message: `You try to flee, but ${target.display_name} catches you for ${punish} damage. ${resultText}` };
+                }
+                this.playerRepo.updatePlayerStats(attacker.id, { hp: attackerHpAfter, turns_pvp_left: 0 });
+                const msg = `${attacker.display_name} failed to flee from ${target.display_name} and barely escaped.`;
+                this.newsService.addNews(todayDayKey, msg, { severity: 'pvp' });
+                this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE_FAIL', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} was cut while trying to flee from ${target.display_name}.` });
+                return { ok: true, over: true, message: `You turn to run, but ${target.display_name} carves you for ${punish} damage before you escape.` };
+            }
             const msg = `${attacker.display_name} has attacked ${target.display_name} and has run away.`;
             this.newsService.addNews(todayDayKey, msg, { severity: 'pvp' });
             this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_FLEE', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has run away like a scared rat.` });
@@ -62,7 +75,7 @@ export class PvpService {
         targetHp = Math.max(0, targetHp - opening);
         rounds.push(`You strike ${target.display_name} for ${opening} damage.`);
         if (targetHp <= 0) {
-            const resultText = this.resolveAttackerWin(attacker, target, todayDayKey);
+            const resultText = this.resolveAttackerWin(attacker, target, todayDayKey, attackerHp);
             return {
                 ok: true,
                 over: true,
@@ -92,16 +105,17 @@ export class PvpService {
             }
         };
     }
-    resolveAttackerWin(attacker, target, todayDayKey) {
+    resolveAttackerWin(attacker, target, todayDayKey, attackerHpAfter) {
         const expGain = Math.max(200, Math.min(250000, Math.round(target.level * 2000 + target.exp * 0.05)));
-        const stealPct = this.rng() * 0.25;
+        const stealSpan = Math.max(0, config.pvpStealMaxPct - config.pvpStealMinPct);
+        const stealPct = config.pvpStealMinPct + this.rng() * stealSpan;
         const stolen = Math.max(0, Math.floor(target.gold_on_hand * stealPct));
         this.playerRepo.updatePlayerStats(attacker.id, {
             exp: attacker.exp + expGain,
             gold_on_hand: attacker.gold_on_hand + stolen,
             turns_pvp_left: 0,
             player_kills: attacker.player_kills + 1,
-            hp: Math.max(1, attacker.hp)
+            hp: Math.max(1, attackerHpAfter)
         });
         this.playerRepo.updatePlayerStats(target.id, {
             hp: 0,
@@ -128,6 +142,14 @@ export class PvpService {
         this.newsService.addDailyNews({ day: getDayIndexFromDayKey(todayDayKey), type: 'PVP_DEFEND', actorId: attacker.id, targetId: target.id, message: `${attacker.display_name} has attacked ${target.display_name} and has been killed in self-defense.` });
         return `${target.display_name} kills you in self-defense.`;
     }
+    pvpRetaliationDamage(attacker, defender) {
+        const base = this.playerDamage(attacker, defender);
+        const minMult = Math.min(config.pvpFleePunishMultMin, config.pvpFleePunishMultMax);
+        const maxMult = Math.max(config.pvpFleePunishMultMin, config.pvpFleePunishMultMax);
+        const mult = minMult + this.rng() * (maxMult - minMult);
+        return Math.max(1, Math.floor(base * mult));
+    }
+
     consumeAttempt(attacker) {
         this.playerRepo.updatePlayerStats(attacker.id, {
             turns_pvp_left: 0
