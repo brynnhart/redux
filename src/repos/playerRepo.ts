@@ -69,6 +69,16 @@ export interface PlayerRecord {
   skill_mastery_mystic: number;
   skill_mastery_thief: number;
   daily_skill_training_used: number;
+  training_challenge_used_today: number;
+  heroic_deeds: number;
+  mastery_title: string | null;
+}
+
+export interface HallOfHonorRecord {
+  id: string;
+  display_name: string;
+  level: number;
+  heroic_deeds: number;
 }
 
 export interface InnTargetRecord {
@@ -147,6 +157,9 @@ type MutablePlayerStats = Pick<
   | 'skill_mastery_mystic'
   | 'skill_mastery_thief'
   | 'daily_skill_training_used'
+  | 'training_challenge_used_today'
+  | 'heroic_deeds'
+  | 'mastery_title'
 >;
 
 export class PlayerRepo {
@@ -249,5 +262,17 @@ export class PlayerRepo {
          LIMIT 50`
       )
       .all(excludePlayerId) as InnTargetRecord[];
+  }
+
+  listHallOfHonor(limit = 20): HallOfHonorRecord[] {
+    const db = getDb();
+    return db
+      .prepare(
+        `SELECT id, display_name, level, heroic_deeds
+         FROM players
+         ORDER BY heroic_deeds DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
+         LIMIT ?`
+      )
+      .all(limit) as HallOfHonorRecord[];
   }
 }

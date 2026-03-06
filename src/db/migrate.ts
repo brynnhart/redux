@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 export function runMigrations() {
   const db = getDb();
@@ -335,6 +335,22 @@ export function runMigrations() {
         END;
     `);
   }
+
+  if (currentVersion < 12) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN training_challenge_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN heroic_deeds INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN mastery_title TEXT;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        training_challenge_used_today = COALESCE(training_challenge_used_today, 0),
+        heroic_deeds = COALESCE(heroic_deeds, 0);
+    `);
+  }
+
 
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
