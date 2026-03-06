@@ -8,7 +8,7 @@ import fastifyStatic from '@fastify/static';
 import { parseClientMessage, type KeyMessage, type ScreenMessage } from './protocol.js';
 import { getDbPath } from './db/db.js';
 import { runMigrations } from './db/migrate.js';
-import { PlayerRepo, type PlayerClass, type PlayerSex } from './repos/playerRepo.js';
+import { PlayerRepo, type OldManCategory, type PlayerClass, type PlayerSex } from './repos/playerRepo.js';
 import { AuthService } from './services/authService.js';
 import { DayService } from './services/dayService.js';
 import { NewsService } from './services/newsService.js';
@@ -35,6 +35,7 @@ import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
 import { challengeMaster, getMasterForLevel, isEligibleForMasterChallenge, levelUpHpGain } from './services/trainingService.js';
 import { renderHallOfHonor } from './screens/hallOfHonor.js';
+import { renderHeroicDeedsRankings, renderOldManMenu, renderOldManTopList, renderPlayerRankings } from './screens/leaderboard.js';
 import { config } from './config.js';
 import { PvpService } from './services/pvpService.js';
 
@@ -65,6 +66,27 @@ await app.register(fastifyStatic, {
 
 app.get('/', (_request, reply) => {
   reply.sendFile('index.html');
+});
+
+app.get('/api/leaderboard/players', (request, reply) => {
+  const limit = Math.min(200, Math.max(1, Number((request.query as { limit?: string }).limit ?? '50') || 50));
+  reply.send({ rows: playerRepo.listPlayerRankings(limit) });
+});
+
+app.get('/api/leaderboard/deeds', (request, reply) => {
+  const limit = Math.min(200, Math.max(1, Number((request.query as { limit?: string }).limit ?? '50') || 50));
+  reply.send({ rows: playerRepo.listHeroicDeedsRankings(limit) });
+});
+
+app.get('/api/leaderboard/oldman', (request, reply) => {
+  const query = request.query as { category?: string; limit?: string };
+  const category = (query.category ?? 'kills') as OldManCategory;
+  if (!['kills', 'laid', 'dragons', 'bank', 'strongest'].includes(category)) {
+    reply.code(400).send({ error: 'Invalid category' });
+    return;
+  }
+  const limit = Math.min(100, Math.max(1, Number(query.limit ?? '10') || 10));
+  reply.send({ rows: playerRepo.listOldManTop(category, limit) });
 });
 
 function refreshPlayer(session: Session) {
@@ -133,6 +155,16 @@ function enterForest(session: Session) {
 function returnToTown(session: Session, message = 'You return to town.') {
   setScreen(session, 'TOWN_SQUARE');
   session.notice = message;
+}
+
+
+function oldManCategoryFromInput(input: string): OldManCategory | null {
+  if (input === '1') return 'kills';
+  if (input === '2') return 'laid';
+  if (input === '3') return 'dragons';
+  if (input === '4') return 'bank';
+  if (input === '5') return 'strongest';
+  return null;
 }
 
 function shouldUseLineInput(session: Session) {
@@ -585,6 +617,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.playerId && key === 'L' && session.state === 'TOWN_SQUARE') {
+    setScreen(session, 'PLAYER_RANKINGS');
+    session.notice = 'The rankings board creaks as you scan the names.';
+    return;
+  }
+
   if (session.state === 'TOWN_SQUARE') {
     if (key === 'Q') {
       close();
@@ -723,6 +761,57 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.state === 'PLAYER_RANKINGS') {
+    if (key === '' || key === 'Q' || key === 'R' || key === 'T') {
+      returnToTown(session, 'You step away from the rankings board.');
+      return;
+    }
+    if (key === 'H') {
+      setScreen(session, 'HEROIC_DEEDS_RANKINGS');
+      session.notice = 'Heroic deeds tell the real story.';
+      return;
+    }
+    session.notice = 'Ranking keys: H heroic deeds, Enter/Q/R/T return.';
+    return;
+  }
+
+  if (session.state === 'HEROIC_DEEDS_RANKINGS') {
+    if (key === '' || key === 'Q' || key === 'R' || key === 'T') {
+      setScreen(session, 'PLAYER_RANKINGS');
+      session.notice = 'Back to player rankings.';
+      return;
+    }
+    session.notice = 'Heroic Deeds keys: Enter/Q/R/T return.';
+    return;
+  }
+
+  if (session.state === 'OLD_MAN_MENU') {
+    if (key === 'Q' || key === 'R') {
+      setScreen(session, 'INN');
+      session.notice = 'You leave the old man to his muttering.';
+      return;
+    }
+    const category = oldManCategoryFromInput(key);
+    if (category) {
+      session.oldManCategory = category;
+      setScreen(session, 'OLD_MAN_TOP_LIST');
+      session.notice = 'The old man cackles and points at the board.';
+      return;
+    }
+    session.notice = 'Old man keys: 1-5 category, R/Q return.';
+    return;
+  }
+
+  if (session.state === 'OLD_MAN_TOP_LIST') {
+    if (key === '' || key === 'Q' || key === 'R') {
+      setScreen(session, 'OLD_MAN_MENU');
+      session.notice = 'Pick another tale from the old man.';
+      return;
+    }
+    session.notice = 'Top list keys: Enter/Q/R return.';
+    return;
+  }
+
 
   if (session.state === 'INN') {
     if (!session.player || !session.playerId) {
@@ -769,7 +858,12 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       session.notice = 'You listen for scandal.';
       return;
     }
-    session.notice = 'Inn keys: G room, T bartender, S Seth, F flirt, C converse, R town.';
+    if (key === 'O') {
+      setScreen(session, 'OLD_MAN_MENU');
+      session.notice = 'In the corner, the old man waves you over.';
+      return;
+    }
+    session.notice = 'Inn keys: G room, T bartender, S Seth, F flirt, C converse, O old man, R town.';
     return;
   }
 
@@ -1257,6 +1351,23 @@ function renderSession(session: Session) {
   }
   if (session.state === 'HALL_OF_HONOR') {
     return renderHallOfHonor(session, { cols: session.cols, rows: session.rows }, playerRepo.listHallOfHonor());
+  }
+  if (session.state === 'PLAYER_RANKINGS') {
+    return renderPlayerRankings(session, { cols: session.cols, rows: session.rows }, playerRepo.listPlayerRankings());
+  }
+  if (session.state === 'HEROIC_DEEDS_RANKINGS') {
+    return renderHeroicDeedsRankings(session, { cols: session.cols, rows: session.rows }, playerRepo.listHeroicDeedsRankings());
+  }
+  if (session.state === 'OLD_MAN_MENU') {
+    return renderOldManMenu(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'OLD_MAN_TOP_LIST') {
+    return renderOldManTopList(
+      session,
+      { cols: session.cols, rows: session.rows },
+      session.oldManCategory,
+      playerRepo.listOldManTop(session.oldManCategory ?? 'kills')
+    );
   }
   if (session.state === 'INN_BARTENDER') {
     return renderInnBartender(session, { cols: session.cols, rows: session.rows });

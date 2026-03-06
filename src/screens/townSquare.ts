@@ -25,7 +25,8 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 9, 'I) Inn');
   drawText(buffer, 3, 10, 'T) Training');
   drawText(buffer, 3, 11, 'S) Slaughter other players');
-  drawText(buffer, 3, 12, 'Q) Quit');
+  drawText(buffer, 3, 12, 'L) List Warriors (Rankings)');
+  drawText(buffer, 3, 13, 'Q) Quit');
 
   drawText(buffer, 38, 4, 'Stats');
   if (player) {
