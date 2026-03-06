@@ -776,7 +776,7 @@ function handleMenuKey(session, message, close) {
             loadDailyNews(session, todayDayKey);
             return;
         }
-        if (key === 'S') {
+        if (key === 'H') {
             session.notice = innService.listenToBard(freshPlayer, todayDayKey).message;
             refreshPlayer(session);
             loadDailyNews(session, todayDayKey);
@@ -786,6 +786,17 @@ function handleMenuKey(session, message, close) {
             session.notice = innService.rentRoom(freshPlayer, todayDayKey).message;
             refreshPlayer(session);
             loadDailyNews(session, todayDayKey);
+            return;
+        }
+        if (key === 'D') {
+            session.dailyNewsOffset = 0;
+            loadDailyNews(session, todayDayKey, 0);
+            setScreen(session, 'DAILY_HAPPENINGS');
+            session.notice = 'Reading the realm news...';
+            return;
+        }
+        if (key === 'M') {
+            session.notice = 'You stand on a chair and shout. The room answers with cheers, boos, and one thrown peanut.';
             return;
         }
         if (key === 'C') {
@@ -798,7 +809,7 @@ function handleMenuKey(session, message, close) {
             session.notice = 'In the corner, the old man waves you over.';
             return;
         }
-        session.notice = 'Inn keys: G room, T bartender, S Seth rite, F Violet, C rumors, O old man, R town.';
+        session.notice = 'Inn keys: C converse, F flirt, G room, H hear Seth, D news, T bartender, V stats, M announce, R town.';
         return;
     }
     if (session.state === 'INN_CONVERSE') {

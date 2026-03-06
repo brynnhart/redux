@@ -9,17 +9,16 @@ export function renderInn(session, dims) {
     drawText(buffer, 3, 1, '[b][c:yellow]The Sleeping Dragon Inn[b][c:white]');
     drawText(buffer, 3, 2, '[dim]Ale steams, dice click, and every laugh sounds one coin short of trouble.[dim]');
     drawText(buffer, 3, 4, '[b][c:cyan]Common Room (after dusk)[b][c:white]');
-    drawText(buffer, 3, 5, '[c:green]G[c:white]) Get a room          [c:green]C[c:white]) Converse with patrons');
-    drawText(buffer, 3, 6, '[c:green]S[c:white]) Listen to [c:yellow]Seth Able[c:white]   [c:green]F[c:white]) Flirt with [c:magenta]Violet[c:white]');
-    drawText(buffer, 3, 7, '[c:green]T[c:white]) Talk to bartender   [c:green]O[c:white]) Old man in the corner');
-    drawText(buffer, 3, 8, '[c:green]R[c:white]) Return to Town');
+    drawText(buffer, 3, 5, '[c:green]C[c:white]) Converse with patrons   [c:green]F[c:white]) Flirt with [c:magenta]Violet[c:white]   [c:green]G[c:white]) Get a Room');
+    drawText(buffer, 3, 6, '[c:green]H[c:white]) Hear [c:yellow]Seth Able the Bard[c:white]   [c:green]D[c:white]) Daily News   [c:green]T[c:white]) Talk to bartender');
+    drawText(buffer, 3, 7, '[c:green]V[c:white]) View your stats   [c:green]M[c:white]) Make announcement   [c:green]R[c:white]) Return to town');
     if (session.player) {
         drawText(buffer, 44, 4, '[b][c:magenta]Your Table[b][c:white]');
         drawText(buffer, 44, 5, `Gold ${session.player.gold_on_hand} | Charm ${session.player.charm}`);
         drawText(buffer, 44, 6, `Room ${session.player.in_inn_room ? '[c:green]YES[c:white]' : '[c:red]NO[c:white]'} | Flirt ${session.player.flirt_used_today ? 'used' : 'ready'}`);
         drawText(buffer, 44, 7, `Seth listens ${session.player.bard_listens_used_today} | Forest ${session.player.turns_forest_left}/${session.player.turns_forest_max}`);
     }
-    drawText(buffer, 3, rows - 5, '[dim]Rule of the house: pay in gold, gossip, or bruises.[dim]');
+    drawText(buffer, 3, rows - 5, '[dim]Tankards slam, cards flip, and half the room swears they saw a dragon tonight.[dim]');
     drawText(buffer, 3, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:green]A toast rises in one corner while a deal dies in another.[c:white]');
     return { cols, rows, cells: toCells(buffer) };
 }
