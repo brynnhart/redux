@@ -1,8 +1,7 @@
 import { config } from '../config.js';
-import { getArmorById, getWeaponById } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
-import { classLabel } from '../services/skillService.js';
+import { buildStatsView } from '../services/statsViewService.js';
 import type { Session, ScreenState } from '../session.js';
 import { renderBank } from './bank.js';
 
@@ -269,35 +268,36 @@ const statsScreen: Screen = {
   id: 'VIEW_STATS',
   render: ({ session }, dims) => {
     const cols = Math.max(80, dims.cols);
-    const rows = Math.max(25, dims.rows);
+    const rows = Math.max(32, dims.rows);
     const buffer = createBuffer(cols, rows);
     drawBox(buffer, 0, 0, cols, rows);
-    renderHeader(buffer, 'Character Sheet');
 
     const player = session.player;
     if (player) {
-      const weapon = getWeaponById(player.weapon_id);
-      const armor = getArmorById(player.armor_id);
-      const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
-      const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
-      drawText(buffer, 3, 7, `Name: ${player.display_name}`);
-      drawText(buffer, 3, 8, `Sex: ${player.sex}  Class: ${classLabel(player.class)}  Level: ${player.level}`);
-      drawText(buffer, 3, 9, `Exp: ${player.exp} / ???`);
-      drawText(buffer, 3, 10, `HP: ${player.hp}/${player.hp_max}   Charm: ${player.charm}`);
-      drawText(buffer, 3, 11, `Weapon: ${weapon.name || 'None'}`);
-      drawText(buffer, 3, 12, `Armor: ${armor.name || 'None'}`);
-      drawText(buffer, 3, 13, `Gold: ${onHand}   Bank: ${inBank}   Gems: ${player.spirits}`);
-      drawText(buffer, 3, 14, `Skill uses - DK: ${player.skill_uses_death}, Mystic: ${player.skill_uses_mystic}, Thief: ${player.skill_uses_thief}`);
+      const view = buildStatsView(player);
+      renderHeader(buffer, view.title);
+      let y = 6;
+      for (const line of view.lines) {
+        drawText(buffer, 3, y++, line);
+      }
+    } else {
+      renderHeader(buffer, 'Your Character Stats');
+      drawText(buffer, 3, 7, 'No player loaded.');
     }
 
-    drawText(buffer, 3, rows - 4, session.notice || 'Press Enter or R to return to town.');
+    drawText(buffer, 3, rows - 4, session.notice || 'Press [Enter], [R], or [Q] to return.');
     drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
     return { cols, rows, lines: toLines(buffer) };
   },
-  handleInput: (_ctx, input) => {
-    if (input === '' || input === 'R') return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'Back to town.' };
-    if (input === '?') return { type: 'goto', screenId: 'HELP_MENU' };
-    if (input === 'Q' || input === 'X') return { type: 'logout' };
+  handleInput: ({ session }, input) => {
+    const previous = session.previousScreenId && session.previousScreenId !== 'VIEW_STATS' ? session.previousScreenId : 'TOWN_SQUARE';
+    if (input === '' || input === 'R' || input === 'Q') {
+      return { type: 'goto', screenId: previous, notice: 'You close your stat sheet.' };
+    }
+    if (input === '?') {
+      return { type: 'stay', notice: 'Stats: [Enter]/[R]/[Q] return.' };
+    }
+    if (input === 'X') return { type: 'logout' };
     return { type: 'error', message: 'Huh?' };
   }
 };
@@ -341,14 +341,19 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
     return { type: 'goto', screenId: 'HELP_MENU' };
   }
 
-  if ((command === 'Q' || command === 'X') && session.playerId) {
+  if ((command === 'Q' || command === 'X') && session.playerId && session.state !== 'VIEW_STATS') {
     return { type: 'logout' };
+  }
+
+  if (command === 'V' && session.state !== 'VIEW_STATS') {
+    return { type: 'goto', screenId: 'VIEW_STATS' };
   }
 
   if (
     command === 'R' &&
     session.state !== 'TOWN_SQUARE' &&
     session.state !== 'BANK' &&
+    session.state !== 'VIEW_STATS' &&
     !(session.state === 'HEALER' && session.healerState === 'HEAL_AMOUNT_PROMPT')
   ) {
     return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };

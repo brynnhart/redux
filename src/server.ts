@@ -592,6 +592,13 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+
+  if (session.playerId && key === 'V' && session.state !== 'DAILY_HAPPENINGS' && session.state !== 'VIEW_STATS') {
+    setScreen(session, 'VIEW_STATS');
+    session.notice = 'You review your current character sheet.';
+    return;
+  }
+
   if (session.state === 'DAILY_HAPPENINGS') {
     if (key === 'N' && session.dailyNewsHasMore && session.todayDate) {
       const nextOffset = session.dailyNewsOffset + 30;
