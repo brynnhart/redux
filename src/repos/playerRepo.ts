@@ -19,6 +19,8 @@ export interface PlayerRecord {
   hp_max: number;
   gold: number;
   bank_gold: number;
+  gold_pocket: number;
+  gold_bank: number;
   gems: number;
   charm: number;
   last_daily_reset_date: string | null;
@@ -28,6 +30,7 @@ export interface PlayerRecord {
   turns_pvp_max: number;
   turns_pvp_left: number;
   today_money_doubler_used: number;
+  money_doubler_used_today: number;
   today_bard_listens: number;
   today_flirts: number;
   has_room: number;
@@ -80,6 +83,8 @@ type MutablePlayerStats = Pick<
   | 'hp_max'
   | 'gold'
   | 'bank_gold'
+  | 'gold_pocket'
+  | 'gold_bank'
   | 'gems'
   | 'charm'
   | 'last_daily_reset_date'
@@ -89,6 +94,7 @@ type MutablePlayerStats = Pick<
   | 'turns_pvp_max'
   | 'turns_pvp_left'
   | 'today_money_doubler_used'
+  | 'money_doubler_used_today'
   | 'today_bard_listens'
   | 'today_flirts'
   | 'has_room'
@@ -161,14 +167,35 @@ export class PlayerRepo {
   }
 
   updatePlayerStats(id: string, patch: Partial<MutablePlayerStats>) {
-    const entries = Object.entries(patch);
+    const syncedPatch: Partial<MutablePlayerStats> = { ...patch };
+
+    if (patch.gold !== undefined && patch.gold_pocket === undefined) {
+      syncedPatch.gold_pocket = patch.gold;
+    }
+    if (patch.gold_pocket !== undefined && patch.gold === undefined) {
+      syncedPatch.gold = patch.gold_pocket;
+    }
+    if (patch.bank_gold !== undefined && patch.gold_bank === undefined) {
+      syncedPatch.gold_bank = patch.bank_gold;
+    }
+    if (patch.gold_bank !== undefined && patch.bank_gold === undefined) {
+      syncedPatch.bank_gold = patch.gold_bank;
+    }
+    if (patch.today_money_doubler_used !== undefined && patch.money_doubler_used_today === undefined) {
+      syncedPatch.money_doubler_used_today = patch.today_money_doubler_used;
+    }
+    if (patch.money_doubler_used_today !== undefined && patch.today_money_doubler_used === undefined) {
+      syncedPatch.today_money_doubler_used = patch.money_doubler_used_today;
+    }
+
+    const entries = Object.entries(syncedPatch);
     if (entries.length === 0) {
       return;
     }
 
     const setSql = entries.map(([key]) => `${key} = @${key}`).join(', ');
     const db = getDb();
-    db.prepare(`UPDATE players SET ${setSql} WHERE id = @id`).run({ id, ...patch });
+    db.prepare(`UPDATE players SET ${setSql} WHERE id = @id`).run({ id, ...syncedPatch });
   }
 
   listInnTargets(excludePlayerId: string): InnTargetRecord[] {

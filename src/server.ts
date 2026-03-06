@@ -630,33 +630,33 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === '1') {
-      session.notice = bankService.deposit(session.player, session.player.gold).message;
-      refreshPlayer(session);
+    if (key === 'Q') {
+      returnToTown(session);
       return;
     }
-    if (key === '2') {
+
+    if (key === '1') {
       session.pendingBankAction = 'DEPOSIT';
       session.notice = 'Deposit how much?';
       startPrompt(session, 'bank_amount');
       return;
     }
-    if (key === '3') {
-      session.notice = bankService.withdraw(session.player, session.player.bank_gold).message;
-      refreshPlayer(session);
-      return;
-    }
-    if (key === '4') {
+    if (key === '2') {
       session.pendingBankAction = 'WITHDRAW';
       session.notice = 'Withdraw how much?';
       startPrompt(session, 'bank_amount');
       return;
     }
-    if (key === 'V') {
-      session.notice = `Balances — Carried: ${session.player.gold}, Bank: ${session.player.bank_gold}.`;
+    if (key === '3') {
+      session.notice = bankService.depositAll(session.player).message;
+      refreshPlayer(session);
       return;
     }
-    session.notice = 'Bank keys: 1/2 deposit, 3/4 withdraw, V to view, R/T to town.';
+    if (key === '4') {
+      session.notice = `Balances — Pocket: ${session.player.gold}, Bank: ${session.player.bank_gold}.`;
+      return;
+    }
+    session.notice = 'Bank keys: 1 deposit, 2 withdraw, 3 deposit all, 4 balance, Q town.';
     return;
   }
 
@@ -745,6 +745,13 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
 
     if (key === 'T') {
       returnToTown(session, 'You return to town with twigs in your hair.');
+      return;
+    }
+
+    if (key === 'B') {
+      const depositResult = bankService.depositAll(session.player);
+      refreshPlayer(session);
+      session.notice = `${depositResult.message} A vulture banker swoops in, snatches your coins, and vanishes toward town.`;
       return;
     }
 

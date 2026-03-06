@@ -77,12 +77,28 @@ export class InnService {
     }
 
     const bonus = config.innBardBonusFights;
-    this.playerRepo.updatePlayerStats(player.id, {
+    const patch: Partial<PlayerRecord> = {
       turns_forest_left: player.turns_forest_left + bonus,
       bonus_forest_fights: player.bonus_forest_fights + bonus,
       has_listened_bard_today: 1,
       daily_bard_used: 1
-    });
+    };
+
+    let doublerText = '';
+    if (!player.today_money_doubler_used && this.rng() < config.moneyDoublerChance) {
+      const doubled = this.safeDouble(player.bank_gold);
+      patch.bank_gold = doubled.value;
+      patch.today_money_doubler_used = 1;
+      doublerText = ` Somewhere magic has happened! Bank gold doubled from ${player.bank_gold} to ${doubled.value}${doubled.clamped ? ' (vault cap reached)' : ''}.`;
+      this.newsService.addNews({
+        date: today,
+        type: 'GENERIC',
+        message: 'Somewhere magic has happened!',
+        playerId: player.id
+      });
+    }
+
+    this.playerRepo.updatePlayerStats(player.id, patch);
 
     this.newsService.addNews({
       date: today,
@@ -90,7 +106,7 @@ export class InnService {
       message: `${player.display_name} listened to Seth Able and gained extra Forest courage.`
     });
 
-    return { ok: true, message: `${this.getLyrics()} (+${bonus} bonus forest fights)` };
+    return { ok: true, message: `${this.getLyrics()} (+${bonus} bonus forest fights)${doublerText}` };
   }
 
   rentRoom(player: PlayerRecord, today: string): ActionResult {
@@ -221,6 +237,16 @@ export class InnService {
     this.recordBreakIn(attacker.id, victim.id, 'killed');
     this.newsService.addNews({ date: today, type: 'GENERIC', message: `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.` });
     return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
+  }
+
+
+  private safeDouble(value: number) {
+    const BIGINT_MAX = 9_223_372_036_854_775_807;
+    const doubled = value * 2;
+    if (doubled > BIGINT_MAX) {
+      return { value: BIGINT_MAX, clamped: true };
+    }
+    return { value: doubled, clamped: false };
   }
 
   private recordBreakIn(attackerPlayerId: string, targetPlayerId: string, result: string) {
