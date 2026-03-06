@@ -46,6 +46,7 @@ export interface PlayerRecord {
   pvp_used_today: number;
   killed_by_player_id: string | null;
   player_kills: number;
+  times_laid: number;
   spirits: Spirits;
   turns_forest_max: number;
   turns_forest_left: number;
@@ -96,6 +97,32 @@ export interface HallOfHonorRecord {
   display_name: string;
   level: number;
   heroic_deeds_done: number;
+}
+
+export interface RankingRecord {
+  id: string;
+  display_name: string;
+  class: PlayerClass;
+  level: number;
+  exp: number;
+  heroic_deeds_done: number;
+  current_lap: number;
+  is_alive: number;
+  last_login_at: string | null;
+}
+
+export type OldManCategory = 'kills' | 'laid' | 'dragons' | 'bank' | 'strongest';
+
+export interface OldManTopRecord {
+  id: string;
+  display_name: string;
+  level: number;
+  heroic_deeds_done: number;
+  exp: number;
+  player_kills: number;
+  times_laid: number;
+  gold_in_bank: number;
+  score: number;
 }
 
 export interface InnTargetRecord {
@@ -162,6 +189,7 @@ type MutablePlayerStats = Pick<
   | 'pvp_used_today'
   | 'killed_by_player_id'
   | 'player_kills'
+  | 'times_laid'
   | 'spirits'
   | 'turns_forest_max'
   | 'turns_forest_left'
@@ -336,5 +364,57 @@ export class PlayerRepo {
          LIMIT ?`
       )
       .all(limit) as HallOfHonorRecord[];
+  }
+
+  listPlayerRankings(limit = 50): RankingRecord[] {
+    const db = getDb();
+    return db
+      .prepare(
+        `SELECT id, display_name, class, level, exp, heroic_deeds_done, current_lap, is_alive, last_login_at
+         FROM players
+         ORDER BY heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
+         LIMIT ?`
+      )
+      .all(limit) as RankingRecord[];
+  }
+
+  listHeroicDeedsRankings(limit = 50): RankingRecord[] {
+    const db = getDb();
+    return db
+      .prepare(
+        `SELECT id, display_name, class, level, exp, heroic_deeds_done, current_lap, is_alive, last_login_at
+         FROM players
+         ORDER BY heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
+         LIMIT ?`
+      )
+      .all(limit) as RankingRecord[];
+  }
+
+  listOldManTop(category: OldManCategory, limit = 10): OldManTopRecord[] {
+    const db = getDb();
+    const orderBy: Record<OldManCategory, string> = {
+      kills: 'player_kills DESC, heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC',
+      laid: 'times_laid DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC',
+      dragons: 'heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC',
+      bank: 'gold_in_bank DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC',
+      strongest: 'score DESC, display_name COLLATE NOCASE ASC'
+    };
+    return db
+      .prepare(
+        `SELECT
+          id,
+          display_name,
+          level,
+          heroic_deeds_done,
+          exp,
+          player_kills,
+          times_laid,
+          gold_in_bank,
+          ((heroic_deeds_done * 1000000) + (level * 10000) + exp) AS score
+         FROM players
+         ORDER BY ${orderBy[category]}
+         LIMIT ?`
+      )
+      .all(limit) as OldManTopRecord[];
   }
 }

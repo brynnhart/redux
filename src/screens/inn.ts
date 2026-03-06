@@ -21,7 +21,8 @@ export function renderInn(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 6, '(S) Sit and listen to Seth Able');
   drawText(buffer, 3, 7, '(F) Flirt with Violet');
   drawText(buffer, 3, 8, '(C) Converse with patrons');
-  drawText(buffer, 3, 9, '(R) Return to Town');
+  drawText(buffer, 3, 9, '(O) The Old Man in the Corner');
+  drawText(buffer, 3, 10, '(R) Return to Town');
 
   if (session.player) {
     drawText(buffer, 44, 4, `Gold: ${session.player.gold_on_hand}`);

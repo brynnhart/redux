@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 export function runMigrations() {
   const db = getDb();
@@ -537,6 +537,20 @@ export function runMigrations() {
       ON player_history (player_id, day_key, created_at);
     `);
   }
+
+
+  if (currentVersion < 17) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN times_laid INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        times_laid = COALESCE(times_laid, 0);
+    `);
+  }
+
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`

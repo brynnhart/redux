@@ -24,6 +24,10 @@ export type ScreenState =
   | 'INN_BREAK_IN'
   | 'TRAINING'
   | 'HALL_OF_HONOR'
+  | 'PLAYER_RANKINGS'
+  | 'HEROIC_DEEDS_RANKINGS'
+  | 'OLD_MAN_MENU'
+  | 'OLD_MAN_TOP_LIST'
   | 'SLAUGHTER_FIELDS'
   | 'OTHER_PLACES';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
@@ -57,6 +61,7 @@ export interface Session {
   pvpTargetSelection?: string;
   pvpEncounter?: PvpEncounterState;
   pvpFieldsTargets?: FieldsTargetRecord[];
+  oldManCategory?: 'kills' | 'laid' | 'dragons' | 'bank' | 'strongest';
   draft: {
     loginUsername?: string;
     username?: string;
