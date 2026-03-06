@@ -312,7 +312,6 @@ const screens: Partial<Record<ScreenState, Screen>> = {
   HEALER: healerScreen,
   WEAPONS_SHOP: makeStubScreen('WEAPONS_SHOP', "King Arthur's Weapons", 'Steel racks line the walls... (coming soon)'),
   ARMOR_SHOP: makeStubScreen('ARMOR_SHOP', "Abdul's Armor", 'Abdul grunts from behind a helm... (coming soon)'),
-  SLAUGHTER_FIELDS: makeStubScreen('SLAUGHTER_FIELDS', 'Slaughter Other Players / Fields', 'The fields are not yet open... (coming soon)'),
   OTHER_PLACES: makeStubScreen('OTHER_PLACES', 'Other Places / IGMs', 'Mysterious portals flicker... (coming soon)')
 };
 

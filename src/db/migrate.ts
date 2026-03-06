@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 export function runMigrations() {
   const db = getDb();
@@ -348,6 +348,65 @@ export function runMigrations() {
       SET
         training_challenge_used_today = COALESCE(training_challenge_used_today, 0),
         heroic_deeds = COALESCE(heroic_deeds, 0);
+    `);
+  }
+
+  if (currentVersion < 13) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN is_alive INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN last_killed_at TEXT;
+      ALTER TABLE players ADD COLUMN in_inn_room INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN inn_room_expires_at TEXT;
+      ALTER TABLE players ADD COLUMN pvp_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN killed_by_player_id TEXT;
+      ALTER TABLE players ADD COLUMN player_kills INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        is_alive = CASE WHEN COALESCE(is_dead, 0) = 1 THEN 0 ELSE 1 END,
+        in_inn_room = COALESCE(in_room, has_room, 0),
+        inn_room_expires_at = COALESCE(inn_room_expires_at, room_expires_at),
+        pvp_used_today = COALESCE(player_fight_used_today, CASE WHEN turns_pvp_left <= 0 THEN 1 ELSE 0 END, 0),
+        player_kills = COALESCE(player_kills, 0);
+    `);
+
+    const dailyNewsExists = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'daily_news'")
+      .get() as { name?: string } | undefined;
+
+    if (!dailyNewsExists) {
+      db.exec(`
+        CREATE TABLE daily_news (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          day_key TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          message TEXT NOT NULL,
+          type TEXT NOT NULL
+        );
+      `);
+    }
+
+    const dailyNewsColumns = db
+      .prepare('PRAGMA table_info(daily_news)')
+      .all() as Array<{ name: string }>;
+    const columnNames = new Set(dailyNewsColumns.map((column) => column.name));
+
+    if (!columnNames.has('day_key')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN day_key TEXT;');
+      db.exec("UPDATE daily_news SET day_key = COALESCE(day_key, date, substr(created_at, 1, 10));");
+    }
+    if (!columnNames.has('created_at')) {
+      db.exec('ALTER TABLE daily_news ADD COLUMN created_at TEXT;');
+      db.exec("UPDATE daily_news SET created_at = COALESCE(created_at, day_key || 'T00:00:00');");
+    }
+    if (!columnNames.has('type')) {
+      db.exec("ALTER TABLE daily_news ADD COLUMN type TEXT NOT NULL DEFAULT 'GENERAL';");
+    }
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_daily_news_day_key ON daily_news (day_key);
     `);
   }
 

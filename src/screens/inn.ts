@@ -24,7 +24,7 @@ export function renderInn(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 9, '(Q) Quit to Town');
 
   if (session.player) {
-    drawText(buffer, 42, 4, `Gold: ${session.player.gold}`);
+    drawText(buffer, 42, 4, `Gold: ${session.player.gold_on_hand}`);
     drawText(buffer, 42, 5, `Gems: ${session.player.gems}`);
     drawText(buffer, 42, 6, `Elixirs: ${session.player.elixirs}`);
     drawText(buffer, 42, 7, `Charm: ${session.player.charm}`);
@@ -69,7 +69,7 @@ export function renderInnBartender(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 10, 'Q) Back');
 
   if (session.player) {
-    drawText(buffer, 46, 4, `Gold: ${session.player.gold}`);
+    drawText(buffer, 46, 4, `Gold: ${session.player.gold_on_hand}`);
     drawText(buffer, 46, 5, `Gems: ${session.player.gems}`);
     drawText(buffer, 46, 6, `Elixirs: ${session.player.elixirs}`);
     drawText(buffer, 46, 7, `Bribed today: ${session.player.inn_breakin_used_today ? 'YES' : 'NO'}`);

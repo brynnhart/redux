@@ -35,6 +35,13 @@ export interface PlayerRecord {
   in_room: number;
   room_paid_until_day_key: string | null;
   is_dead: number;
+  is_alive: number;
+  last_killed_at: string | null;
+  in_inn_room: number;
+  inn_room_expires_at: string | null;
+  pvp_used_today: number;
+  killed_by_player_id: string | null;
+  player_kills: number;
   spirits: Spirits;
   turns_forest_max: number;
   turns_forest_left: number;
@@ -86,7 +93,18 @@ export interface InnTargetRecord {
   display_name: string;
   level: number;
   has_room: number;
+  is_alive: number;
+  in_inn_room: number;
   weapon_tier: number;
+  weapon_id: string;
+}
+
+export interface FieldsTargetRecord {
+  id: string;
+  display_name: string;
+  level: number;
+  is_alive: number;
+  in_inn_room: number;
   weapon_id: string;
 }
 
@@ -123,6 +141,13 @@ type MutablePlayerStats = Pick<
   | 'in_room'
   | 'room_paid_until_day_key'
   | 'is_dead'
+  | 'is_alive'
+  | 'last_killed_at'
+  | 'in_inn_room'
+  | 'inn_room_expires_at'
+  | 'pvp_used_today'
+  | 'killed_by_player_id'
+  | 'player_kills'
   | 'spirits'
   | 'turns_forest_max'
   | 'turns_forest_left'
@@ -254,14 +279,31 @@ export class PlayerRepo {
     const db = getDb();
     return db
       .prepare(
-        `SELECT id, display_name, level, has_room, weapon_tier, weapon_id
+        `SELECT id, display_name, level, has_room, is_alive, in_inn_room, weapon_tier, weapon_id
          FROM players
          WHERE id != ?
            AND has_room = 1
+           AND is_alive = 1
+           AND in_inn_room = 1
          ORDER BY level DESC, display_name COLLATE NOCASE ASC
          LIMIT 50`
       )
       .all(excludePlayerId) as InnTargetRecord[];
+  }
+
+  listFieldsTargets(excludePlayerId: string): FieldsTargetRecord[] {
+    const db = getDb();
+    return db
+      .prepare(
+        `SELECT id, display_name, level, is_alive, in_inn_room, weapon_id
+         FROM players
+         WHERE id != ?
+           AND is_alive = 1
+           AND in_inn_room = 0
+         ORDER BY level DESC, display_name COLLATE NOCASE ASC
+         LIMIT 50`
+      )
+      .all(excludePlayerId) as FieldsTargetRecord[];
   }
 
   listHallOfHonor(limit = 20): HallOfHonorRecord[] {
