@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 export function runMigrations() {
   const db = getDb();
@@ -256,6 +256,35 @@ export function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_pending_events_target_player ON pending_events (target_player_id, created_at);
     `);
   }
+
+  if (currentVersion < 10) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN gold_on_hand INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN gold_in_bank INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        gold_on_hand = COALESCE(gold_on_hand, gold_pocket, gold, 0),
+        gold_in_bank = COALESCE(gold_in_bank, gold_bank, bank_gold, 0);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS bank_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        player_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('deposit', 'withdraw', 'interest')),
+        amount INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_bank_transactions_player_created
+      ON bank_transactions (player_id, created_at);
+    `);
+  }
+
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`

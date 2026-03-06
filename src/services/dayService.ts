@@ -51,8 +51,10 @@ export class DayService {
 
     const spirits = this.rollSpirits();
     const forestMax = config.forestFightsPerDay;
-    const interest = Math.floor(player.bank_gold * config.bankDailyInterestRate);
-    const bankAfterInterest = this.safeAdd(player.bank_gold, interest).value;
+    const bankBeforeInterest = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+    const rawInterest = Math.floor(bankBeforeInterest * config.bankInterestRate);
+    const interest = config.bankInterestCap === null ? rawInterest : Math.min(rawInterest, config.bankInterestCap);
+    const bankAfterInterest = this.safeAdd(bankBeforeInterest, interest).value;
 
     const pendingEvents = this.newsService.consumePendingEventsForPlayer(playerId);
     const pendingEventNews = this.mapPendingEventsToNews(pendingEvents);
@@ -87,8 +89,7 @@ export class DayService {
         has_room: shouldExpireRoom ? 0 : player.has_room,
         in_room: shouldExpireRoom ? 0 : player.in_room,
         room_expires_at: shouldExpireRoom ? null : player.room_expires_at,
-        bank_gold: bankAfterInterest,
-        gold_bank: bankAfterInterest,
+        gold_in_bank: bankAfterInterest,
         inn_bribe_count_today: 0,
         inn_breakin_used_today: 0,
         has_flirted_today: 0,
@@ -103,10 +104,11 @@ export class DayService {
       });
 
       if (interest > 0) {
-        this.newsService.addNews(todayDayKey, `The bank paid you ${bankAfterInterest - player.bank_gold} gold in interest.`, {
+        this.newsService.addNews(todayDayKey, `The bank paid you ${interest} gold in interest.`, {
           severity: 'info',
           playerId: player.id
         });
+        db.prepare('INSERT INTO bank_transactions (player_id, type, amount, created_at) VALUES (?, ?, ?, ?)').run([player.id, 'interest', interest, new Date().toISOString()]);
       }
 
       for (const event of pendingEventNews) {
