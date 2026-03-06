@@ -231,16 +231,14 @@ function applyNavigationHelperTransition(session: Session, transition: ReturnTyp
   }
 
   const patch = transition.patch ?? {};
-  const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
-  const nextGold = Math.max(0, onHand + (patch.gold_on_hand ?? patch.gold_pocket ?? patch.gold ?? 0));
+  const onHand = session.player.gold_on_hand;
+  const nextGold = Math.max(0, onHand + (patch.gold_on_hand ?? 0));
   const nextGems = Math.max(0, (session.player.gems ?? 0) + (patch.gems ?? 0));
   const nextCharm = Math.max(0, (session.player.charm ?? 0) + (patch.charm ?? 0));
   const nextHp = Math.max(1, Math.min(session.player.hp_max, session.player.hp + (patch.hp ?? 0)));
 
   playerRepo.updatePlayerStats(session.player.id, {
-    gold: nextGold,
     gold_on_hand: nextGold,
-    gold_pocket: nextGold,
     gems: nextGems,
     charm: nextCharm,
     hp: nextHp
@@ -709,7 +707,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     }
 
     if (key === 'C') {
-      if (session.player.daily_skill_training_used) {
+      if (session.player.training_challenge_used_today) {
         session.notice = 'You already trained class skills today.';
         return;
       }
@@ -1017,7 +1015,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
     if (key === '4') {
-      session.notice = `Balances — Pocket: ${session.player.gold}, Bank: ${session.player.bank_gold}.`;
+      session.notice = `Balances — Pocket: ${session.player.gold_on_hand}, Bank: ${session.player.gold_in_bank}.`;
       return;
     }
     session.notice = 'Bank keys: 1 deposit, 2 withdraw, 3 deposit all, 4 balance, Q town.';

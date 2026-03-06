@@ -31,7 +31,7 @@ export function renderTraining(session: Session, dims: Dimensions) {
     drawText(buffer, 3, 12, `Class: ${classLabel(player.class)} | Level: ${player.level} | EXP: ${player.exp}`);
     drawText(buffer, 3, 13, `Current master: ${master ? `${master.name}, ${master.title}` : 'None (Dragon-ready)'}`);
     drawText(buffer, 3, 14, `Master challenge used today: ${player.training_challenge_used_today ? 'Yes' : 'No'}`);
-    drawText(buffer, 3, 15, `Class training used today: ${player.daily_skill_training_used ? 'Yes' : 'No'}`);
+    drawText(buffer, 3, 15, `Class training used today: ${player.training_challenge_used_today ? 'Yes' : 'No'}`);
     if (master && eligibility.requiredExp !== null) {
       drawText(
         buffer,

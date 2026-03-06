@@ -11,7 +11,7 @@ export class HealerService {
   constructor(private readonly playerRepo: PlayerRepo) {}
 
   private getGoldOnHand(player: PlayerRecord) {
-    return player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+    return player.gold_on_hand;
   }
 
   private getMissingHp(player: PlayerRecord) {

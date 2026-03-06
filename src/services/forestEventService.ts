@@ -17,7 +17,7 @@ export interface ForestEventEncounter {
 
 export interface ForestEventOutcome {
   text: string;
-  patch: Partial<Pick<PlayerRecord, 'hp' | 'hp_max' | 'gold' | 'exp' | 'gems' | 'charm' | 'turns_forest_left' | 'turns_pvp_left' | 'skill_level_death' | 'skill_level_mystic' | 'skill_level_thief' | 'skill_mastery_death' | 'skill_mastery_mystic' | 'skill_mastery_thief' | 'daily_skill_training_used' | 'has_fairy'>>;
+  patch: Partial<Pick<PlayerRecord, 'hp' | 'hp_max' | 'gold_on_hand' | 'exp' | 'gems' | 'charm' | 'turns_forest_left' | 'turns_pvp_left' | 'skill_level_death' | 'skill_level_mystic' | 'skill_level_thief' | 'skill_mastery_death' | 'skill_mastery_mystic' | 'skill_mastery_thief' | 'training_challenge_used_today' | 'has_fairy'>>;
   globalNews?: string;
   personalNews?: string;
   keepOpen?: boolean;

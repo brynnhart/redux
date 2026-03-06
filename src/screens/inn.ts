@@ -28,7 +28,7 @@ export function renderInn(session: Session, dims: Dimensions) {
     drawText(buffer, 44, 4, `Gold: ${session.player.gold_on_hand}`);
     drawText(buffer, 44, 5, `Charm: ${session.player.charm}`);
     drawText(buffer, 44, 6, `Roomed: ${session.player.in_inn_room ? 'YES' : 'NO'}`);
-    drawText(buffer, 44, 7, `Flirt used: ${session.player.inn_flirt_used_today ? 'YES' : 'NO'}`);
+    drawText(buffer, 44, 7, `Flirt used: ${session.player.flirt_used_today ? 'YES' : 'NO'}`);
     drawText(buffer, 44, 8, `Seth listens: ${session.player.bard_listens_used_today}`);
     drawText(buffer, 44, 9, `Forest fights: ${session.player.turns_forest_left}/${session.player.turns_forest_max}`);
   }

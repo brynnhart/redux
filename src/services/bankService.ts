@@ -70,11 +70,11 @@ export class BankService {
   }
 
   private getOnHandGold(player: PlayerRecord): number {
-    return player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+    return player.gold_on_hand;
   }
 
   private getBankGold(player: PlayerRecord): number {
-    return player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+    return player.gold_in_bank;
   }
 
   private recordTransaction(playerId: string, type: 'deposit' | 'withdraw' | 'interest' | 'money_doubler', amount: number) {

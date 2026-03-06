@@ -19,7 +19,7 @@ export function renderHealer(session: Session, dims: Dimensions) {
   if (player) {
     const missing = Math.max(0, player.hp_max - player.hp);
     const costPerHp = 2;
-    drawText(buffer, 3, 4, `HP: ${player.hp}/${player.hp_max}  Gold: ${player.gold}`);
+    drawText(buffer, 3, 4, `HP: ${player.hp}/${player.hp_max}  Gold: ${player.gold_on_hand}`);
     drawText(buffer, 3, 5, `Missing HP: ${missing}  Cost per HP: ${costPerHp}`);
     drawText(buffer, 3, 6, `Heal ALL cost: ${missing * costPerHp}`);
   }

@@ -40,7 +40,7 @@ export const jennieEvent: ForestEvent = {
       case 'SEXY':
         return { text: ['She blows a kiss and battlelust rises. (+1 PvP fight)'], effects: { turns_pvp_left: player.turns_pvp_left + 1 }, globalNews: `${player.display_name} charmed Jennie and gained a PvP fight.` };
       case 'LADY':
-        return { text: [`She nods like a queen. (+${player.level * 1000} gold)`], effects: { gold: player.gold + player.level * 1000 }, globalNews: `${player.display_name} earned Jennie\'s rich reward.` };
+        return { text: [`She nods like a queen. (+${player.level * 1000} gold)`], effects: { gold_on_hand: player.gold_on_hand + player.level * 1000 }, globalNews: `${player.display_name} earned Jennie\'s rich reward.` };
       case 'HOTT':
         return {
           text: ['Jennie traces a rune over your heart. (+15% max HP)'],
