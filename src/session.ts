@@ -43,6 +43,7 @@ export interface Session {
   rows: number;
   lastKey?: string;
   state: ScreenState;
+  previousScreenId?: ScreenState;
   mode: InputMode;
   inputBuffer: string;
   prompt: PromptState | null;
@@ -96,6 +97,9 @@ export function createSession(): Session {
 }
 
 export function setScreen(session: Session, state: ScreenState) {
+  if (session.state !== state) {
+    session.previousScreenId = session.state;
+  }
   session.state = state;
   session.mode = 'MENU';
   session.inputBuffer = '';
