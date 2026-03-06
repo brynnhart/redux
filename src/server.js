@@ -979,8 +979,13 @@ function handleMenuKey(session, message, close) {
             returnToTown(session, 'You are too tired. Come back tomorrow.');
             return;
         }
-        if (key === 'T') {
+        if (key === 'R' || key === 'T') {
             returnToTown(session, 'You return to town with twigs in your hair.');
+            return;
+        }
+        if (key === 'H') {
+            session.state = 'HEALER';
+            session.notice = "You leave the forest and head to the healer's hut.";
             return;
         }
         if (key === 'B') {
@@ -1049,15 +1054,11 @@ function handleMenuKey(session, message, close) {
             refreshPlayer(session);
             return;
         }
-        if (key === 'R' && forestEncounter.encounterType !== 'EVENT') {
-            session.notice = `[RUN] ${forestService.run(session.player)}`;
-            return;
-        }
         if (['1', '2', '3', '4', '5', 'Y', 'N', 'C', 'A', 'L', 'G', 'T', 'Q'].includes(key)) {
             handleForestChoiceEvent(session, key);
             return;
         }
-        session.notice = 'That is not a forest rhythm key. Use L look, A attack, R run, T town, B bank.';
+        session.notice = 'That is not a forest key. Use L look, H healer, R return to town.';
     }
 }
 function processBankCommit(session, value) {
