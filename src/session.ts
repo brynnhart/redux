@@ -65,6 +65,7 @@ export interface Session {
   pvpEncounter?: PvpEncounterState;
   pvpFieldsTargets?: FieldsTargetRecord[];
   oldManCategory?: 'kills' | 'laid' | 'dragons' | 'bank' | 'strongest';
+  pendingNewDaySpirits?: 'LOW' | 'NORMAL' | 'HIGH';
   draft: {
     loginUsername?: string;
     username?: string;

@@ -3,6 +3,7 @@ export const config = {
   forestTurnsBase: Number(process.env.LORD_FOREST_TURNS_BASE ?? '30'),
   forestTurnsMin: Number(process.env.LORD_FOREST_TURNS_MIN ?? '5'),
   forestFightsPerDay: Number(process.env.LORD_FOREST_FIGHTS_PER_DAY ?? '30'),
+  pvpAttacksPerDay: Number(process.env.LORD_PVP_ATTACKS_PER_DAY ?? '1'),
   bardMaxListensPerDay: Number(process.env.LORD_BARD_MAX_LISTENS_PER_DAY ?? '1'),
   enableDailyNewsAutoShow: (process.env.LORD_ENABLE_DAILY_NEWS_AUTO_SHOW ?? 'true') === 'true',
   innElixirGoldCost: Number(process.env.LORD_INN_ELIXIR_GOLD_COST ?? '1000'),
@@ -37,8 +38,9 @@ export const config = {
   dragonResetKeepSkillMastery: (process.env.LORD_DRAGON_RESET_KEEP_SKILL_MASTERY ?? 'true') === 'true',
   dragonResetGoldOnHand: Number(process.env.LORD_DRAGON_RESET_GOLD_ON_HAND ?? '0'),
   baseHp: Number(process.env.LORD_BASE_HP ?? '20'),
+  roomExpiresDaily: (process.env.LORD_ROOM_EXPIRES_DAILY ?? 'true') === 'true',
   spiritsChances: {
-    high: Number(process.env.LORD_SPIRITS_HIGH_CHANCE ?? '0.2'),
-    low: Number(process.env.LORD_SPIRITS_LOW_CHANCE ?? '0.2')
+    high: Number(process.env.LORD_SPIRITS_HIGH_CHANCE ?? '0.25'),
+    low: Number(process.env.LORD_SPIRITS_LOW_CHANCE ?? '0.25')
   }
 } as const;

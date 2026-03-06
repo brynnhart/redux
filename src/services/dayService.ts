@@ -19,7 +19,7 @@ export class DayService {
     private readonly rng: () => number = Math.random
   ) {}
 
-  ensureDailyReset(playerId: string): { didReset: boolean; todayDayKey: string } {
+  ensureDailyReset(playerId: string): { didReset: boolean; todayDayKey: string; spirits?: 'LOW' | 'NORMAL' | 'HIGH' } {
     const player = this.playerRepo.findById(playerId);
     if (!player) {
       throw new Error('Player not found');
@@ -30,11 +30,11 @@ export class DayService {
       return { didReset: false, todayDayKey };
     }
 
-    this.rolloverPlayerToNewDay(playerId, todayDayKey);
-    return { didReset: true, todayDayKey };
+    const spirits = this.rolloverPlayerToNewDay(playerId, todayDayKey);
+    return { didReset: true, todayDayKey, spirits };
   }
 
-  private rolloverPlayerToNewDay(playerId: string, todayDayKey: string) {
+  private rolloverPlayerToNewDay(playerId: string, todayDayKey: string): 'LOW' | 'NORMAL' | 'HIGH' {
     const db = getDb();
     const player = this.playerRepo.findById(playerId);
     if (!player) {
@@ -49,6 +49,7 @@ export class DayService {
     const bankAfterInterest = this.safeAdd(bankBeforeInterest, interest).value;
 
     const pendingEvents = this.newsService.consumePendingEventsForPlayer(playerId);
+    const shouldExpireRoom = config.roomExpiresDaily || isDayKeyBefore(player.inn_room_expires_day_key, todayDayKey);
     const pendingEventNews = this.mapPendingEventsToNews(pendingEvents);
 
     db.exec('BEGIN');
@@ -60,11 +61,10 @@ export class DayService {
         forest_fights_used_today: 0,
         forest_fights_max_today: forestMax,
         turns_forest_max: forestMax,
-        turns_forest_left: forestMax,
         player_fight_used_today: 0,
         pvp_used_today: 0,
-        turns_pvp_max: 1,
-        turns_pvp_left: 1,
+        turns_pvp_max: config.pvpAttacksPerDay,
+        turns_pvp_left: config.pvpAttacksPerDay,
         inn_flirt_used_today: 0,
         flirt_used_today: 0,
         bard_listens_used_today: 0,
@@ -80,14 +80,14 @@ export class DayService {
         skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
         skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
         skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
-        has_room: 0,
-        in_room: 0,
-        in_inn_room: 0,
-        room_paid_until_day_key: null,
-        inn_room_day_key: null,
-        inn_room_expires_day_key: null,
-        room_expires_at: null,
-        inn_room_expires_at: null,
+        has_room: shouldExpireRoom ? 0 : player.has_room,
+        in_room: shouldExpireRoom ? 0 : player.in_room,
+        in_inn_room: shouldExpireRoom ? 0 : player.in_inn_room,
+        room_paid_until_day_key: shouldExpireRoom ? null : player.room_paid_until_day_key,
+        inn_room_day_key: shouldExpireRoom ? null : player.inn_room_day_key,
+        inn_room_expires_day_key: shouldExpireRoom ? null : player.inn_room_expires_day_key,
+        room_expires_at: shouldExpireRoom ? null : player.room_expires_at,
+        inn_room_expires_at: shouldExpireRoom ? null : player.inn_room_expires_at,
         is_dead: 0,
         is_alive: 1,
         hp: player.hp_max,
@@ -99,14 +99,22 @@ export class DayService {
         has_listened_bard_today: 0,
         bonus_forest_fights: 0,
         extra_forest_fights_today: 0,
+        turns_forest_left: forestMax + (spirits === 'HIGH' ? 1 : 0),
         dragon_fought_today: 0
       });
 
       this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
-      this.newsService.addNews(todayDayKey, 'You awaken feeling refreshed.', {
+      this.newsService.addNews(todayDayKey, 'You wake up early, strap your weapon to your back, and head for the Town Square...', {
         severity: 'highlight',
         playerId: player.id
       });
+      this.newsService.addNews(todayDayKey, `You are in ${spirits} spirits today.`, {
+        severity: 'highlight',
+        playerId: player.id
+      });
+      if (player.is_dead || !player.is_alive) {
+        this.newsService.addNews(todayDayKey, 'You wake up sore, but alive.', { severity: 'highlight', playerId: player.id });
+      }
 
       if (interest > 0) {
         this.newsService.addNews(todayDayKey, `The bank paid you ${interest} gold in interest.`, {
@@ -124,6 +132,7 @@ export class DayService {
         });
       }
       db.exec('COMMIT');
+      return spirits;
     } catch (error) {
       db.exec('ROLLBACK');
       throw error;
