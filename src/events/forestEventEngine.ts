@@ -21,6 +21,7 @@ export interface GameEffects {
   skill_mastery_mystic?: number;
   skill_mastery_thief?: number;
   daily_skill_training_used?: number;
+  has_fairy?: number;
 }
 
 export interface EventResult {

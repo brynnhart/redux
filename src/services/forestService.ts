@@ -1,4 +1,6 @@
 import { ENEMY_TABLE } from '../content/enemies.js';
+import { config } from '../config.js';
+import { getDb } from '../db/db.js';
 import type { PlayerRecord } from '../repos/playerRepo.js';
 import { ForestStateRepo, type ForestEncounterState } from '../repos/forestStateRepo.js';
 import type { PlayerRepo } from '../repos/playerRepo.js';
@@ -10,6 +12,12 @@ import { consumeClassSkillUsePatch } from './skillService.js';
 export interface ForestEventResolution {
   text: string;
   promptField?: string;
+}
+
+
+interface DragonBattleResult {
+  text: string;
+  playerWon: boolean;
 }
 
 function randInt(min: number, max: number, rng: () => number) {
@@ -168,6 +176,167 @@ export class ForestService {
     }
 
     return `${result.rounds.join(' ')} ${enemy.name} remains at ${result.enemyHpAfter} HP.`;
+  }
+
+  searchDragon(player: PlayerRecord, today: string): DragonBattleResult {
+    if (player.level < 12) {
+      return {
+        text: 'Only Ultimate Warriors may challenge the Red Dragon.',
+        playerWon: false
+      };
+    }
+
+    if (player.dragon_fought_today) {
+      return {
+        text: 'You have already challenged the Red Dragon today. Return tomorrow if you still crave doom.',
+        playerWon: false
+      };
+    }
+
+    const current = this.stateRepo.findByPlayerId(player.id);
+    if (current.encounterType !== 'NONE') {
+      return {
+        text: 'You are already in an encounter. Resolve it before chasing dragons.',
+        playerWon: false
+      };
+    }
+
+    const rounds: string[] = ['You track scorched footprints and sulfur to a cavern of bones.'];
+    let playerHp = Math.max(0, player.hp);
+    let dragonHp = config.dragonHp;
+    let fairyUsed = false;
+
+    while (playerHp > 0 && dragonHp > 0) {
+      if (this.rng() >= config.playerMissChance) {
+        const hit = this.combatService.playerAttackDamage(player, config.dragonAttackMin);
+        dragonHp = Math.max(0, dragonHp - hit);
+        rounds.push(`You strike the Red Dragon for ${hit} damage!`);
+      } else {
+        rounds.push('Your blow whistles past a wall of crimson scales.');
+      }
+
+      if (dragonHp <= 0) {
+        break;
+      }
+
+      if (this.rng() < config.dragonMissChance) {
+        rounds.push('The Red Dragon snaps at air and misses you!');
+        continue;
+      }
+
+      let retaliate = this.combatService.enemyAttackDamage(player, {
+        key: 'red_dragon',
+        name: 'Red Dragon',
+        maxHp: config.dragonHp,
+        hp: dragonHp,
+        attackMin: config.dragonAttackMin,
+        attackMax: config.dragonAttackMax,
+        goldReward: 0,
+        expReward: 0,
+        gemChance: 0
+      });
+
+      if (this.rng() < config.dragonCritChance) {
+        retaliate = Math.max(1, Math.floor(retaliate * config.dragonCritMult));
+        rounds.push("CRITICAL! The dragon's claws rip through your guard!");
+      }
+
+      playerHp = Math.max(0, playerHp - retaliate);
+      rounds.push(`The Red Dragon mauls you for ${retaliate} damage!`);
+
+      if (playerHp <= 0 && player.has_fairy && !fairyUsed) {
+        fairyUsed = true;
+        playerHp = Math.max(1, Math.ceil(player.hp_max * config.dragonFairyReviveHpRatio));
+        rounds.push("A fairy's tiny hands pull you back from death!");
+      }
+    }
+
+    const db = getDb();
+    db.exec('BEGIN');
+    try {
+      if (dragonHp <= 0) {
+        const lapBefore = player.current_lap || 1;
+        const lapAfter = lapBefore + 1;
+        const patch: Partial<PlayerRecord> = {
+          heroic_deeds_done: (player.heroic_deeds_done ?? player.heroic_deeds ?? 0) + 1,
+          heroic_deeds: (player.heroic_deeds_done ?? player.heroic_deeds ?? 0) + 1,
+          dragon_kills_total: (player.dragon_kills_total ?? 0) + 1,
+          current_lap: lapAfter,
+          dragon_fought_today: 1,
+          level: 1,
+          exp: 0,
+          hp_max: config.baseHp,
+          hp: config.baseHp,
+          gold_on_hand: config.dragonResetGoldOnHand,
+          gold: config.dragonResetGoldOnHand,
+          gold_pocket: config.dragonResetGoldOnHand
+        };
+
+        if (!config.dragonResetKeepBankGold) {
+          patch.gold_in_bank = 0;
+          patch.bank_gold = 0;
+          patch.gold_bank = 0;
+        }
+
+        if (!config.dragonResetKeepEquipment) {
+          patch.weapon_id = 'stick';
+          patch.armor_id = 'rags';
+          patch.weapon_tier = 1;
+          patch.armor_tier = 1;
+        }
+
+        if (!config.dragonResetKeepElixirs) {
+          patch.elixirs = 0;
+        }
+
+        if (!config.dragonResetKeepCharm) {
+          patch.charm = 0;
+        }
+
+        if (!config.dragonResetKeepSkillMastery) {
+          patch.skill_mastery_death = 0;
+          patch.skill_mastery_mystic = 0;
+          patch.skill_mastery_thief = 0;
+        }
+
+        if (fairyUsed) {
+          patch.has_fairy = 0;
+        }
+
+        this.playerRepo.updatePlayerStats(player.id, patch);
+        this.newsService.addNews(today, `${player.display_name} has defeated the Red Dragon!`, { severity: 'dragon' });
+        this.newsService.addDailyNews(today, `${player.display_name} has defeated the Red Dragon!`, 'DRAGON_KILL');
+        db.prepare(
+          `INSERT INTO player_history (player_id, day_key, event_type, lap_before, lap_after, created_at)
+           VALUES (?, ?, 'dragon_kill', ?, ?, ?)`
+        ).run([player.id, today, lapBefore, lapAfter, new Date().toISOString()]);
+
+        db.exec('COMMIT');
+        return {
+          text: `${rounds.join(' ')} You have slain the Red Dragon! You return to Level 1 to begin your next heroic deed...`,
+          playerWon: true
+        };
+      }
+
+      const deathPatch: Partial<PlayerRecord> = {
+        hp: 1,
+        turns_forest_left: 0,
+        dragon_fought_today: 1,
+        has_fairy: fairyUsed ? 0 : player.has_fairy
+      };
+      this.playerRepo.updatePlayerStats(player.id, deathPatch);
+      this.newsService.addNews(today, `The Red Dragon has killed ${player.display_name}!`, { severity: 'dragon' });
+      this.newsService.addDailyNews(today, `The Red Dragon has killed ${player.display_name}!`, 'DRAGON_KILLED');
+      db.exec('COMMIT');
+
+      return {
+        text: `${rounds.join(' ')} The Red Dragon leaves you broken. Your forest day is over.`,
+        playerWon: false
+      };
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
   }
 
   resolveEventChoice(player: PlayerRecord, today: string, choice: string, textInput?: string): ForestEventResolution {

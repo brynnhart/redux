@@ -1002,6 +1002,17 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
 
     const forestEncounter = forestService.getEncounter(session.player.id);
 
+    if (key === 'S' && forestEncounter.encounterType === 'NONE') {
+      const result = forestService.searchDragon(session.player, todayDayKey);
+      session.notice = result.text;
+      refreshPlayer(session);
+      loadDailyNews(session, todayDayKey);
+      if (!result.playerWon && (session.player?.turns_forest_left ?? 0) <= 0) {
+        returnToTown(session, 'You stagger back toward town after the dragon fight.');
+      }
+      return;
+    }
+
     if (key === 'A' && forestEncounter.encounterType !== 'EVENT') {
       session.notice = forestService.attack(session.player, todayDayKey);
       refreshPlayer(session);
@@ -1011,7 +1022,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'S' && forestEncounter.encounterType === 'ENEMY') {
+    if ((key === 'K' || key === 'S') && forestEncounter.encounterType === 'ENEMY') {
       if (session.player.class === 'DEATH_KNIGHT') {
         session.notice = `Death Knight skill: (D)eath Knight Attack [uses left: ${session.player.skill_uses_death}]`;
       } else if (session.player.class === 'MYSTICAL') {
@@ -1062,7 +1073,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Forest keys: L look, A attack, S skill, R run, T town, B bank, H healer, W weapons.';
+    session.notice = 'Forest keys: L look, A attack, K skill, S search dragon, R run, T town, B bank.';
   }
 }
 

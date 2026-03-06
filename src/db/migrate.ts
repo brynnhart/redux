@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 16;
 
 export function runMigrations() {
   const db = getDb();
@@ -500,6 +500,43 @@ export function runMigrations() {
     }
   }
 
+
+
+  if (currentVersion < 16) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN heroic_deeds_done INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN dragon_kills_total INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN current_lap INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN has_fairy INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN dragon_fought_today INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        heroic_deeds_done = COALESCE(heroic_deeds_done, heroic_deeds, 0),
+        dragon_kills_total = COALESCE(dragon_kills_total, heroic_deeds_done, heroic_deeds, 0),
+        current_lap = COALESCE(current_lap, 1),
+        has_fairy = COALESCE(has_fairy, 0),
+        dragon_fought_today = COALESCE(dragon_fought_today, 0);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS player_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        player_id TEXT NOT NULL,
+        day_key TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        lap_before INTEGER NOT NULL,
+        lap_after INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_player_history_player_day
+      ON player_history (player_id, day_key, created_at);
+    `);
+  }
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`

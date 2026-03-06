@@ -47,19 +47,19 @@ export class CombatService {
 
     while (playerHp > 0 && enemyHp > 0) {
       if (playerStarts) {
-        const hit = this.playerDamage(player, enemy.attackMin);
+        const hit = this.playerAttackDamage(player, enemy.attackMin);
         enemyHp -= hit;
         rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
         if (enemyHp <= 0) break;
 
-        const retaliate = this.enemyDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
+        const retaliate = this.enemyAttackDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
         playerHp -= retaliate;
         rounds.push(`${enemy.name} hits you for ${retaliate} damage!`);
         if (enemy.weakenedTurns && enemy.weakenedTurns > 0) {
           enemy.weakenedTurns -= 1;
         }
       } else {
-        const retaliate = this.enemyDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
+        const retaliate = this.enemyAttackDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
         playerHp -= retaliate;
         rounds.push(`${enemy.name} hits you for ${retaliate} damage!`);
         if (enemy.weakenedTurns && enemy.weakenedTurns > 0) {
@@ -67,7 +67,7 @@ export class CombatService {
         }
         if (playerHp <= 0) break;
 
-        const hit = this.playerDamage(player, enemy.attackMin);
+        const hit = this.playerAttackDamage(player, enemy.attackMin);
         enemyHp -= hit;
         rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
       }
@@ -93,7 +93,7 @@ export class CombatService {
     let playerHp = player.hp;
     let enemyWeakenedTurns = enemy.weakenedTurns ?? 0;
 
-    const baseDamage = this.playerDamage(player, enemy.attackMin);
+    const baseDamage = this.playerAttackDamage(player, enemy.attackMin);
 
     if (skillKey === 'DEATH_ATTACK') {
       const damage = Math.floor(baseDamage * (2 + this.rng()));
@@ -121,7 +121,7 @@ export class CombatService {
     }
 
     if (enemyHp > 0) {
-      const retaliate = this.enemyDamage(player, enemy, enemyWeakenedTurns > 0);
+      const retaliate = this.enemyAttackDamage(player, enemy, enemyWeakenedTurns > 0);
       playerHp = Math.max(0, playerHp - retaliate);
       if (enemyWeakenedTurns > 0) {
         enemyWeakenedTurns -= 1;
@@ -137,7 +137,7 @@ export class CombatService {
     };
   }
 
-  private playerDamage(player: PlayerRecord, monsterDef: number) {
+  playerAttackDamage(player: PlayerRecord, monsterDef: number) {
     const weapon = getWeaponById(player.weapon_id);
     const playerAtk = config.baseAtk + weapon.atk_bonus;
     const rawMin = Math.max(1, Math.floor(playerAtk * 0.8));
@@ -146,7 +146,7 @@ export class CombatService {
     return Math.max(1, raw - monsterDef);
   }
 
-  private enemyDamage(player: PlayerRecord, enemy: ActiveEnemy, weakened = false) {
+  enemyAttackDamage(player: PlayerRecord, enemy: ActiveEnemy, weakened = false) {
     const armor = getArmorById(player.armor_id);
     const playerDef = config.baseDef + armor.def_bonus;
     const rawMin = Math.max(1, Math.floor(enemy.attackMin * 0.8));
