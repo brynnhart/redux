@@ -1,9 +1,6 @@
-import { getArmorTier, getWeaponTier } from '../data/equipment.js';
+import { config } from '../config.js';
+import { getArmorById, getWeaponById } from '../data/equipment.js';
 import type { PlayerRecord } from '../repos/playerRepo.js';
-
-const WEAPON_LEVEL_SCALE_BASE = 0.35;
-const WEAPON_LEVEL_SCALE_STEP = 0.05;
-const ARMOR_MITIGATION_FACTOR = 0.15;
 
 export interface ActiveEnemy {
   key: string;
@@ -50,19 +47,29 @@ export class CombatService {
 
     while (playerHp > 0 && enemyHp > 0) {
       if (playerStarts) {
-        enemyHp -= this.playerDamage(player, rounds);
+        const hit = this.playerDamage(player, enemy.attackMin);
+        enemyHp -= hit;
+        rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
         if (enemyHp <= 0) break;
-        playerHp -= this.enemyDamage(player.level, player.armor_tier, (enemy.weakenedTurns ?? 0) > 0);
+
+        const retaliate = this.enemyDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
+        playerHp -= retaliate;
+        rounds.push(`${enemy.name} hits you for ${retaliate} damage!`);
         if (enemy.weakenedTurns && enemy.weakenedTurns > 0) {
           enemy.weakenedTurns -= 1;
         }
       } else {
-        playerHp -= this.enemyDamage(player.level, player.armor_tier, (enemy.weakenedTurns ?? 0) > 0);
+        const retaliate = this.enemyDamage(player, enemy, (enemy.weakenedTurns ?? 0) > 0);
+        playerHp -= retaliate;
+        rounds.push(`${enemy.name} hits you for ${retaliate} damage!`);
         if (enemy.weakenedTurns && enemy.weakenedTurns > 0) {
           enemy.weakenedTurns -= 1;
         }
         if (playerHp <= 0) break;
-        enemyHp -= this.playerDamage(player, rounds);
+
+        const hit = this.playerDamage(player, enemy.attackMin);
+        enemyHp -= hit;
+        rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
       }
     }
 
@@ -86,18 +93,18 @@ export class CombatService {
     let playerHp = player.hp;
     let enemyWeakenedTurns = enemy.weakenedTurns ?? 0;
 
-    const baseDamage = this.rollBasePlayerDamage(player);
+    const baseDamage = this.playerDamage(player, enemy.attackMin);
 
     if (skillKey === 'DEATH_ATTACK') {
       const damage = Math.floor(baseDamage * (2 + this.rng()));
       enemyHp -= damage;
       rounds.push('In a scream of rage you unleash a terrifying blow...');
-      rounds.push(`You carve into ${enemy.name} for ${damage} damage.`);
+      rounds.push(`You hit ${enemy.name} for ${damage} damage!`);
     } else if (skillKey === 'MYSTIC_PINCH') {
       const damage = Math.floor(baseDamage * (2.2 + this.rng() * 0.6));
       enemyHp -= damage;
       rounds.push('You pinch reality real hard. The air squeals.');
-      rounds.push(`${enemy.name} takes ${damage} mystic damage.`);
+      rounds.push(`You hit ${enemy.name} for ${damage} damage!`);
     } else if (skillKey === 'MYSTIC_HEAL') {
       const heal = Math.max(1, Math.floor(player.hp_max * (0.15 + this.rng() * 0.2)));
       playerHp = Math.min(player.hp_max, player.hp + heal);
@@ -106,7 +113,7 @@ export class CombatService {
       const damage = Math.floor(baseDamage * (2 + this.rng() * 1.2));
       enemyHp -= damage;
       rounds.push('Ultra Sneaky Move! You strike from a ridiculous angle.');
-      rounds.push(`${enemy.name} reels for ${damage} damage.`);
+      rounds.push(`You hit ${enemy.name} for ${damage} damage!`);
     } else if (skillKey === 'THIEF_PASS_MARK') {
       enemyWeakenedTurns = 2;
       rounds.push('Pass Mark! You tag a weak point in your foe.');
@@ -114,12 +121,12 @@ export class CombatService {
     }
 
     if (enemyHp > 0) {
-      const retaliate = this.enemyDamage(player.level, player.armor_tier, enemyWeakenedTurns > 0);
+      const retaliate = this.enemyDamage(player, enemy, enemyWeakenedTurns > 0);
       playerHp = Math.max(0, playerHp - retaliate);
       if (enemyWeakenedTurns > 0) {
         enemyWeakenedTurns -= 1;
       }
-      rounds.push(`${enemy.name} retaliates for ${retaliate} damage.`);
+      rounds.push(`${enemy.name} hits you for ${retaliate} damage!`);
     }
 
     return {
@@ -130,32 +137,22 @@ export class CombatService {
     };
   }
 
-  private playerDamage(player: PlayerRecord, rounds: string[]) {
-    const damage = this.rollBasePlayerDamage(player);
-
-    if (this.rng() < 0.08) {
-      rounds.push('POWER MOVE! You explode with righteous nonsense!');
-      return damage * 3;
-    }
-    return damage;
+  private playerDamage(player: PlayerRecord, monsterDef: number) {
+    const weapon = getWeaponById(player.weapon_id);
+    const playerAtk = config.baseAtk + weapon.atk_bonus;
+    const rawMin = Math.max(1, Math.floor(playerAtk * 0.8));
+    const rawMax = Math.max(rawMin, Math.floor(playerAtk * 1.2));
+    const raw = randInt(rawMin, rawMax, this.rng);
+    return Math.max(1, raw - monsterDef);
   }
 
-  private rollBasePlayerDamage(player: PlayerRecord) {
-    const min = Math.max(1, Math.floor(player.level * 2));
-    const max = Math.max(min, Math.floor(player.level * 4));
-    const base = randInt(min, max, this.rng);
-    const weapon = getWeaponTier(player.weapon_tier);
-    const scaledBonus = Math.floor(weapon.bonus * (WEAPON_LEVEL_SCALE_BASE + player.level * WEAPON_LEVEL_SCALE_STEP));
-    return base + scaledBonus;
-  }
-
-  private enemyDamage(level: number, armorTier: number, weakened = false) {
-    const min = Math.max(1, Math.floor(level * 1));
-    const max = Math.max(min, Math.floor(level * 3));
-    const raw = randInt(min, max, this.rng);
-    const armor = getArmorTier(armorTier);
-    const mitigated = raw - Math.floor(armor.bonus * ARMOR_MITIGATION_FACTOR);
-    const weakenedAdjusted = weakened ? Math.floor(mitigated * 0.75) : mitigated;
-    return Math.max(1, weakenedAdjusted);
+  private enemyDamage(player: PlayerRecord, enemy: ActiveEnemy, weakened = false) {
+    const armor = getArmorById(player.armor_id);
+    const playerDef = config.baseDef + armor.def_bonus;
+    const rawMin = Math.max(1, Math.floor(enemy.attackMin * 0.8));
+    const rawMax = Math.max(rawMin, Math.floor(enemy.attackMax * 1.2));
+    const raw = randInt(rawMin, rawMax, this.rng);
+    const reduced = Math.max(1, raw - playerDef);
+    return weakened ? Math.max(1, Math.floor(reduced * 0.75)) : reduced;
   }
 }

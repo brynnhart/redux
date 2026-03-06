@@ -18,6 +18,8 @@ export const config = {
   healerCostPerHp: Number(process.env.LORD_HEAL_COST_PER_HP ?? '10'),
   healerMinPurchase: Number(process.env.LORD_HEALER_MIN_PURCHASE ?? '1'),
   healerAllowOverheal: (process.env.LORD_HEALER_ALLOW_OVERHEAL ?? 'false') === 'true',
+  baseAtk: Number(process.env.LORD_BASE_ATK ?? '5'),
+  baseDef: Number(process.env.LORD_BASE_DEF ?? '0'),
   spiritsChances: {
     high: Number(process.env.LORD_SPIRITS_HIGH_CHANCE ?? '0.2'),
     low: Number(process.env.LORD_SPIRITS_LOW_CHANCE ?? '0.2')

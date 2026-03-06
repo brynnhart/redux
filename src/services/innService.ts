@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { config } from '../config.js';
 import { getDb } from '../db/db.js';
-import { getWeaponTier } from '../data/equipment.js';
+import { getWeaponById } from '../data/equipment.js';
 import type { PlayerRecord, PlayerRepo } from '../repos/playerRepo.js';
 import type { NewsService } from './newsService.js';
 
@@ -11,7 +11,7 @@ export interface InnTarget {
   display_name: string;
   level: number;
   has_room: number;
-  weapon_tier: number;
+  weapon_id: string;
 }
 
 interface ActionResult {
@@ -253,8 +253,8 @@ export class InnService {
 
   private playerDamage(attacker: PlayerRecord, defender: PlayerRecord, rounds: string[]) {
     const base = randInt(Math.max(1, attacker.level * 2), Math.max(2, attacker.level * 4), this.rng);
-    const weapon = getWeaponTier(attacker.weapon_tier);
-    const damage = Math.max(1, base + Math.floor(weapon.bonus * 0.35));
+    const weapon = getWeaponById(attacker.weapon_id);
+    const damage = Math.max(1, base + Math.floor(weapon.atk_bonus * 0.35));
     if (this.rng() < 0.08) {
       rounds.push(`${attacker.display_name} lands a savage hit!`);
       return damage * 2;

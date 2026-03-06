@@ -1,76 +1,79 @@
-export interface EquipmentTier {
-  tier: number;
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
+export interface WeaponDefinition {
+  id: string;
   name: string;
-  price: number;
-  bonus: number;
+  cost: number;
+  tier: number;
+  atk_bonus: number;
 }
 
-const WEAPON_NAMES = [
-  'Stick',
-  'Dagger',
-  'Short Sword',
-  'Long Sword',
-  'Huge Axe',
-  'Bone Cruncher',
-  'Twin Swords',
-  'Power Axe',
-  "Able's Sword",
-  "Wan's Weapon",
-  'Spear of Gold',
-  'Crystal Shard',
-  "Nira's Teeth",
-  'Blood Sword',
-  'Death Sword'
-] as const;
-
-const ARMOR_NAMES = [
-  'Rags',
-  'Leather Jerkin',
-  'Studded Leather',
-  'Chain Shirt',
-  'Chain Hauberk',
-  'Plate Mail',
-  'Dragon Scale Vest',
-  'Armor of Death',
-  "Able's Armor",
-  "Wan's Ward",
-  'Golden Aegis',
-  'Magic Protection',
-  "Nira's Carapace",
-  'Blood Plate',
-  'Death Plate'
-] as const;
-
-const EQUIPMENT_PRICES = [200, 1000, 3000, 10000, 30000, 100000, 150000, 200000, 400000, 1000000, 4000000, 10000000, 40000000, 100000000, 400000000] as const;
-const WEAPON_BONUSES = [0, 5, 12, 25, 40, 70, 95, 120, 180, 260, 380, 500, 650, 800, 1000] as const;
-const ARMOR_BONUSES = [0, 3, 8, 15, 25, 45, 60, 75, 100, 140, 200, 300, 420, 600, 900] as const;
-
-export const WEAPON_TIERS: EquipmentTier[] = WEAPON_NAMES.map((name, index) => ({
-  tier: index + 1,
-  name,
-  price: EQUIPMENT_PRICES[index],
-  bonus: WEAPON_BONUSES[index]
-}));
-
-export const ARMOR_TIERS: EquipmentTier[] = ARMOR_NAMES.map((name, index) => ({
-  tier: index + 1,
-  name,
-  price: EQUIPMENT_PRICES[index],
-  bonus: ARMOR_BONUSES[index]
-}));
-
-function byTier(tiers: EquipmentTier[], tier: number) {
-  return tiers[Math.min(Math.max(1, tier), tiers.length) - 1];
+export interface ArmorDefinition {
+  id: string;
+  name: string;
+  cost: number;
+  tier: number;
+  def_bonus: number;
 }
 
-export function getWeaponTier(tier: number) {
-  return byTier(WEAPON_TIERS, tier);
+function loadDefinitions<T>(fileName: string): T[] {
+  const filePath = path.resolve(process.cwd(), 'data', fileName);
+  const raw = readFileSync(filePath, 'utf-8');
+  return JSON.parse(raw) as T[];
 }
 
-export function getArmorTier(tier: number) {
-  return byTier(ARMOR_TIERS, tier);
+export const WEAPONS = loadDefinitions<WeaponDefinition>('equipment.weapons.json');
+export const ARMOR = loadDefinitions<ArmorDefinition>('equipment.armor.json');
+
+export const STARTER_WEAPON_ID = 'bare_hands';
+export const STARTER_ARMOR_ID = 'rags';
+
+const weaponById = new Map(WEAPONS.map((weapon) => [weapon.id, weapon]));
+const weaponByTier = new Map(WEAPONS.map((weapon) => [weapon.tier, weapon]));
+const armorById = new Map(ARMOR.map((piece) => [piece.id, piece]));
+const armorByTier = new Map(ARMOR.map((piece) => [piece.tier, piece]));
+
+export function listBuyableWeapons() {
+  return WEAPONS.filter((weapon) => weapon.tier >= 1);
 }
 
-export function getSellPrice(price: number) {
-  return Math.floor(price * 0.5);
+export function listBuyableArmor() {
+  return ARMOR.filter((piece) => piece.tier >= 1);
+}
+
+export function getWeaponById(id: string) {
+  return weaponById.get(id) ?? getStarterWeapon();
+}
+
+export function getArmorById(id: string) {
+  return armorById.get(id) ?? getStarterArmor();
+}
+
+export function getWeaponByTier(tier: number) {
+  return weaponByTier.get(tier) ?? getStarterWeapon();
+}
+
+export function getArmorByTier(tier: number) {
+  return armorByTier.get(tier) ?? getStarterArmor();
+}
+
+export function getStarterWeapon() {
+  const starter = weaponById.get(STARTER_WEAPON_ID);
+  if (!starter) {
+    throw new Error('Starter weapon is missing from equipment.weapons.json');
+  }
+  return starter;
+}
+
+export function getStarterArmor() {
+  const starter = armorById.get(STARTER_ARMOR_ID);
+  if (!starter) {
+    throw new Error('Starter armor is missing from equipment.armor.json');
+  }
+  return starter;
+}
+
+export function getSellPrice(cost: number) {
+  return Math.floor(cost * 0.5);
 }
