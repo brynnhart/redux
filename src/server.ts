@@ -201,7 +201,7 @@ function shouldUseLineInput(session: Session) {
   return session.state === 'DAILY_HAPPENINGS' || isCoreNavigationScreen(session.state);
 }
 
-function applyCoreNavigationTransition(session: Session, transition: { type: string; screenId?: Session['state']; notice?: string; message?: string; amount?: number }, close: () => void) {
+function applyCoreNavigationTransition(session: Session, transition: ReturnType<typeof handleCoreNavigationInput>, close: () => void) {
   if (transition.type === 'logout') {
     close();
     return;
@@ -268,6 +268,26 @@ function applyCoreNavigationTransition(session: Session, transition: { type: str
     const result = healerService.heal(session.player, transition.amount ?? 0);
     refreshPlayer(session);
     session.notice = result.message;
+    return;
+  }
+  if (transition.type === 'other_places_module_update') {
+    const patch = transition.patch ?? {};
+    const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
+    const nextGold = Math.max(0, onHand + (patch.gold_on_hand ?? patch.gold_pocket ?? patch.gold ?? 0));
+    const nextGems = Math.max(0, (session.player.gems ?? 0) + (patch.gems ?? 0));
+    const nextCharm = Math.max(0, (session.player.charm ?? 0) + (patch.charm ?? 0));
+    const nextHp = Math.max(1, Math.min(session.player.hp_max, session.player.hp + (patch.hp ?? 0)));
+
+    playerRepo.updatePlayerStats(session.player.id, {
+      gold: nextGold,
+      gold_on_hand: nextGold,
+      gold_pocket: nextGold,
+      gems: nextGems,
+      charm: nextCharm,
+      hp: nextHp
+    });
+    refreshPlayer(session);
+    session.notice = transition.notice;
     return;
   }
   if (transition.type === 'error') {
