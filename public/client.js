@@ -5,6 +5,33 @@ const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
 const RESPONSE_DELAY_MS = 90;
 const BLOCK_CURSOR = '█';
 
+
+const visualConfig = {
+  enableCrtEffects: true,
+  crtStorageKey: 'web-lord-crt-effects'
+};
+
+function loadCrtPreference() {
+  const stored = localStorage.getItem(visualConfig.crtStorageKey);
+  if (stored === 'off') {
+    visualConfig.enableCrtEffects = false;
+  } else if (stored === 'on') {
+    visualConfig.enableCrtEffects = true;
+  }
+}
+
+function applyCrtClass() {
+  document.body.classList.toggle('crt-effects-enabled', visualConfig.enableCrtEffects);
+}
+
+function toggleCrtEffects() {
+  visualConfig.enableCrtEffects = !visualConfig.enableCrtEffects;
+  localStorage.setItem(visualConfig.crtStorageKey, visualConfig.enableCrtEffects ? 'on' : 'off');
+  applyCrtClass();
+}
+
+loadCrtPreference();
+applyCrtClass();
 const clientConfig = {
   defaultSlowPrintMsPerChar: 16,
   defaultPauseAfterLineMs: 300,
@@ -402,6 +429,12 @@ ws.addEventListener('message', (event) => {
 });
 
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'F2') {
+    event.preventDefault();
+    toggleCrtEffects();
+    return;
+  }
+
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
     event.preventDefault();
   }
