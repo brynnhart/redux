@@ -16,6 +16,7 @@ export type ScreenState =
   | 'ARMOR_SHOP'
   | 'INN'
   | 'INN_BARTENDER'
+  | 'INN_FLIRT'
   | 'INN_BREAK_IN'
   | 'TRAINING';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';

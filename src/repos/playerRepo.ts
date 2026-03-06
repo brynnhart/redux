@@ -35,6 +35,12 @@ export interface PlayerRecord {
   daily_bard_used: number;
   daily_room_rented: number;
   inn_bribe_count_today: number;
+  elixirs: number;
+  room_expires_at: string | null;
+  inn_breakin_used_today: number;
+  has_flirted_today: number;
+  has_listened_bard_today: number;
+  bonus_forest_fights: number;
   weapon_tier: number;
   armor_tier: number;
   skill_level_death: number;
@@ -54,6 +60,7 @@ export interface InnTargetRecord {
   display_name: string;
   level: number;
   has_room: number;
+  weapon_tier: number;
 }
 
 export interface NewPlayerInput {
@@ -89,6 +96,12 @@ type MutablePlayerStats = Pick<
   | 'daily_bard_used'
   | 'daily_room_rented'
   | 'inn_bribe_count_today'
+  | 'elixirs'
+  | 'room_expires_at'
+  | 'inn_breakin_used_today'
+  | 'has_flirted_today'
+  | 'has_listened_bard_today'
+  | 'bonus_forest_fights'
   | 'weapon_tier'
   | 'armor_tier'
   | 'skill_level_death'
@@ -162,9 +175,10 @@ export class PlayerRepo {
     const db = getDb();
     return db
       .prepare(
-        `SELECT id, display_name, level, has_room
+        `SELECT id, display_name, level, has_room, weapon_tier
          FROM players
          WHERE id != ?
+           AND has_room = 1
          ORDER BY level DESC, display_name COLLATE NOCASE ASC
          LIMIT 50`
       )

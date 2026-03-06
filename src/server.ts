@@ -27,7 +27,7 @@ import { renderBank } from './screens/bank.js';
 import { renderHealer } from './screens/healer.js';
 import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
-import { renderInn, renderInnBartender, renderInnBreakIn } from './screens/inn.js';
+import { renderInn, renderInnBartender, renderInnBreakIn, renderInnFlirt } from './screens/inn.js';
 import { renderTraining } from './screens/training.js';
 import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
@@ -375,37 +375,37 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
-  if (session.playerId && key === 'F') {
+  if (session.playerId && key === 'F' && session.state === 'TOWN_SQUARE') {
     enterForest(session);
     return;
   }
 
-  if (session.playerId && key === 'W') {
+  if (session.playerId && key === 'W' && session.state === 'TOWN_SQUARE') {
     setScreen(session, 'WEAPONS_SHOP');
     session.notice = "Arthur says: pick steel or stop breathing on my wares.";
     return;
   }
 
-  if (session.playerId && key === 'A' && session.state !== 'FOREST') {
+  if (session.playerId && key === 'A' && session.state === 'TOWN_SQUARE') {
     setScreen(session, 'ARMOR_SHOP');
     session.notice = "Abdul grunts: armor first, whining later.";
     return;
   }
 
 
-  if (session.playerId && key === 'B' && !['WEAPONS_SHOP', 'ARMOR_SHOP'].includes(session.state)) {
+  if (session.playerId && key === 'B' && session.state === 'TOWN_SQUARE') {
     setScreen(session, 'BANK');
     session.notice = 'Welcome to the bank. Mind the ledgers.';
     return;
   }
 
-  if (session.playerId && key === 'H') {
+  if (session.playerId && key === 'H' && session.state === 'TOWN_SQUARE') {
     setScreen(session, 'HEALER');
     session.notice = 'The healer eyes your wounds and your wallet.';
     return;
   }
 
-  if (session.playerId && key === 'I') {
+  if (session.playerId && key === 'I' && session.state === 'TOWN_SQUARE') {
     enterInn(session);
     return;
   }
@@ -475,15 +475,14 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       returnToTown(session, 'You leave the Inn.');
       return;
     }
-    if (key === 'T') {
+    if (key === 'B') {
       setScreen(session, 'INN_BARTENDER');
-      session.notice = 'Bartender squints at you.';
+      session.notice = 'The bartender leans in: coin first, questions later.';
       return;
     }
-    if (key === 'V') {
-      session.notice = innService.flirt(freshPlayer, today).message;
-      refreshPlayer(session);
-      loadDailyNews(session, today);
+    if (key === 'F') {
+      setScreen(session, 'INN_FLIRT');
+      session.notice = 'Violet raises an eyebrow.';
       return;
     }
     if (key === 'S') {
@@ -498,7 +497,42 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       loadDailyNews(session, today);
       return;
     }
-    session.notice = 'Inn keys: V flirt, S bard, R rent room, T bartender, Q town.';
+    if (key === 'L') {
+      session.notice = 'Rumor board: caravans late, blades sharp, trust nobody.';
+      return;
+    }
+    session.notice = 'Inn keys: B bartender, S bard, F flirt, R room, L rumors, Q town.';
+    return;
+  }
+
+  if (session.state === 'INN_FLIRT') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+    const today = dayService.ensureDailyReset(session.playerId).today;
+    refreshPlayer(session);
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q') {
+      setScreen(session, 'INN');
+      session.notice = 'You step away from Violet.';
+      return;
+    }
+
+    if (key === '1' || key === '2' || key === '3') {
+      const style = key === '1' ? 'SWEET' : key === '2' ? 'COCKY' : 'WEIRD';
+      session.notice = innService.flirt(session.player, today, style).message;
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      setScreen(session, 'INN');
+      return;
+    }
+
+    session.notice = 'Flirt keys: 1 sweet, 2 cocky, 3 weird, Q back.';
     return;
   }
 
@@ -514,22 +548,42 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'N') {
+    if (key === '1') {
+      session.notice = innService.buyElixir(session.player).message;
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === '2') {
+      session.notice = innService.tradeGemsForElixir(session.player).message;
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === '3') {
       session.notice = 'Name changes are coming soon.';
       return;
     }
 
-    if (key === 'B') {
+    if (key === '4') {
       const result = innService.bribeBartender(session.player);
       session.notice = result.message;
       refreshPlayer(session);
-      if (result.ok) {
-        setScreen(session, 'INN_BREAK_IN');
-      }
       return;
     }
 
-    session.notice = 'Bartender keys: B bribe, N name stub, Q back.';
+    if (key === 'A') {
+      refreshPlayer(session);
+      if (!session.player?.inn_breakin_used_today) {
+        session.notice = 'Bribe first if you want room keys and bad ideas.';
+        return;
+      }
+      setScreen(session, 'INN_BREAK_IN');
+      session.notice = 'Choose whose door you kick in.';
+      return;
+    }
+
+    session.notice = 'Bartender keys: 1 buy elixir, 2 trade gems, 3 name stub, 4 bribe, A attack, Q back.';
     return;
   }
 
@@ -912,6 +966,9 @@ function renderSession(session: Session) {
   }
   if (session.state === 'INN_BARTENDER') {
     return renderInnBartender(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'INN_FLIRT') {
+    return renderInnFlirt(session, { cols: session.cols, rows: session.rows });
   }
   if (session.state === 'INN_BREAK_IN') {
     return renderInnBreakIn(session, { cols: session.cols, rows: session.rows }, session.player ? innService.getBreakInTargets(session.player) : []);
