@@ -38,7 +38,8 @@ export const fairiesEvent: ForestEvent = {
       }
       if (roll < 0.9) {
         return {
-          text: ['You catch a fairy ribbon before she vanishes. It shimmers with strange power.']
+          text: ['You catch a fairy ribbon before she vanishes. It shimmers with strange power. A tiny fairy now owes you a life.'],
+          effects: { has_fairy: 1 }
         };
       }
       return {

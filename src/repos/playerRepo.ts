@@ -83,6 +83,11 @@ export interface PlayerRecord {
   daily_skill_training_used: number;
   training_challenge_used_today: number;
   heroic_deeds: number;
+  heroic_deeds_done: number;
+  dragon_kills_total: number;
+  current_lap: number;
+  has_fairy: number;
+  dragon_fought_today: number;
   mastery_title: string | null;
 }
 
@@ -90,7 +95,7 @@ export interface HallOfHonorRecord {
   id: string;
   display_name: string;
   level: number;
-  heroic_deeds: number;
+  heroic_deeds_done: number;
 }
 
 export interface InnTargetRecord {
@@ -194,6 +199,11 @@ type MutablePlayerStats = Pick<
   | 'daily_skill_training_used'
   | 'training_challenge_used_today'
   | 'heroic_deeds'
+  | 'heroic_deeds_done'
+  | 'dragon_kills_total'
+  | 'current_lap'
+  | 'has_fairy'
+  | 'dragon_fought_today'
   | 'mastery_title'
 >;
 
@@ -320,9 +330,9 @@ export class PlayerRepo {
     const db = getDb();
     return db
       .prepare(
-        `SELECT id, display_name, level, heroic_deeds
+        `SELECT id, display_name, level, heroic_deeds_done
          FROM players
-         ORDER BY heroic_deeds DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
+         ORDER BY heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
          LIMIT ?`
       )
       .all(limit) as HallOfHonorRecord[];

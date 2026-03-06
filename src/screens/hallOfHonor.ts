@@ -22,7 +22,7 @@ export function renderHallOfHonor(session: Session, dims: Dimensions, rowsData: 
     const entry = rowsData[i];
     const rank = `${i + 1}.`.padEnd(5);
     const name = entry.display_name.slice(0, 22).padEnd(22);
-    const line = `${rank}${name}  ${String(entry.level).padStart(5)}  ${String(entry.heroic_deeds).padStart(12)}`;
+    const line = `${rank}${name}  ${String(entry.level).padStart(5)}  ${String(entry.heroic_deeds_done).padStart(12)}`;
     drawText(buffer, 3, y++, line);
   }
 

@@ -17,12 +17,16 @@ export function renderForest(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 2, 'The Forest');
 
   if (player) {
-    drawText(buffer, 3, 4, `Name: ${player.display_name}  Level: ${player.level}`);
+    drawText(buffer, 3, 4, `Name: ${player.display_name}  Level: ${player.level}  Lap: ${player.current_lap}`);
     drawText(buffer, 3, 5, `HP: ${player.hp}/${player.hp_max}  Gold: ${player.gold}  Gems: ${player.gems}`);
-    drawText(buffer, 3, 6, `Forest fights left: ${player.turns_forest_left}`);
+    drawText(buffer, 3, 6, `Forest fights left: ${player.turns_forest_left}  Fairy: ${player.has_fairy ? 'Yes' : 'No'}`);
   }
 
-  drawText(buffer, 3, 8, '(L)ook  (A)ttack  (S)kill  (R)un  (T)own  (B)ank  (H)ealer  (W)eapons');
+  const dragonOption = player && player.level >= 12 ? '  (S)earch Red Dragon' : '';
+  drawText(buffer, 3, 8, `(L)ook  (A)ttack  S(k)ill  (R)un  (T)own  (B)ank${dragonOption}`);
+  if (player && player.level < 12) {
+    drawText(buffer, 3, 9, 'Only Ultimate Warriors may challenge the Red Dragon.');
+  }
   drawText(buffer, 3, rows - 5, 'Forest is loud, violent, and full of bad decision-making.');
   drawText(buffer, 3, rows - 4, session.notice || 'You stand among the trees.');
 

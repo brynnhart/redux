@@ -106,7 +106,8 @@ export class DayService {
         has_flirted_today: 0,
         has_listened_bard_today: 0,
         bonus_forest_fights: 0,
-        extra_forest_fights_today: 0
+        extra_forest_fights_today: 0,
+        dragon_fought_today: 0
       });
 
       this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
