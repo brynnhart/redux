@@ -9,11 +9,47 @@ function playerRowPrefix(session, id) {
     return session.playerId === id ? '[c:yellow]>[c:white]' : ' ';
 }
 
+function playerNameColor(klass) {
+    if (klass === 'DEATH_KNIGHT')
+        return 'red';
+    if (klass === 'MYSTICAL')
+        return 'magenta';
+    return 'cyan';
+}
+
+function classMarker(klass) {
+    if (klass === 'DEATH_KNIGHT')
+        return 'D';
+    if (klass === 'MYSTICAL')
+        return 'M';
+    return 'T';
+}
+
+function masteryMarker(player) {
+    if (player.class === 'DEATH_KNIGHT')
+        return player.skill_mastery_death ? 'Yes' : 'No';
+    if (player.class === 'MYSTICAL')
+        return player.skill_mastery_mystic ? 'Yes' : 'No';
+    return player.skill_mastery_thief ? 'Yes' : 'No';
+}
+
 function findRank(rows, playerId) {
     if (!playerId)
         return null;
     const idx = rows.findIndex((row) => row.id === playerId);
     return idx >= 0 ? idx + 1 : null;
+}
+
+function rankingsRowLine(session, index, player) {
+    const rank = `${playerRowPrefix(session, player.id)}${String(index + 1).padStart(3)}`;
+    const marker = classMarker(player.class);
+    const name = player.display_name.slice(0, 18).padEnd(18);
+    const color = playerNameColor(player.class);
+    const exp = fmt(player.exp).padStart(12);
+    const level = String(player.level).padStart(3);
+    const mastered = masteryMarker(player).padStart(3);
+    const status = player.is_alive ? '[c:green]Alive[c:white]' : '[c:red]Dead [c:white]';
+    return `${rank} [c:${color}]${marker}:${name}[c:white] ${exp} ${level} ${mastered} ${status}`;
 }
 
 export function renderPlayerRankings(session, dims, rowsData) {
@@ -24,13 +60,11 @@ export function renderPlayerRankings(session, dims, rowsData) {
     drawBox(buffer, 0, 0, cols, rows);
     drawText(buffer, 3, 1, '[b][c:yellow]Player Rankings[b][c:white]');
     drawText(buffer, 3, 2, '[dim]Who rules the realm today?[dim]');
-    drawText(buffer, 3, 4, '[b][c:cyan] Rk Name                 Deeds Lap Lvl Class         EXP          Status[b][c:white]');
+    drawText(buffer, 3, 4, '[b][c:cyan] Rk Name               Experience Level Mastered Status[b][c:white]');
 
     const maxRows = Math.min(rowsData.length, rows - 12);
     for (let i = 0; i < maxRows; i += 1) {
-        const p = rowsData[i];
-        const line = `${playerRowPrefix(session, p.id)}${String(i + 1).padStart(3)} ${p.display_name.slice(0, 20).padEnd(20)} ${String(p.heroic_deeds_done).padStart(5)} ${String(p.current_lap).padStart(3)} ${String(p.level).padStart(3)} ${p.class.slice(0, 12).padEnd(12)} ${fmt(p.exp).padStart(12)} ${p.is_alive ? 'Alive' : 'Dead '}`;
-        drawText(buffer, 3, 6 + i, line);
+        drawText(buffer, 3, 6 + i, rankingsRowLine(session, i, rowsData[i]));
     }
 
     if (rowsData.length === 0) {
@@ -39,8 +73,9 @@ export function renderPlayerRankings(session, dims, rowsData) {
 
     const yourRank = findRank(rowsData, session.playerId);
     drawText(buffer, 3, rows - 5, yourRank ? `[c:yellow]You are ranked #${yourRank}.[c:white]` : '[dim]You are currently unranked.[dim]');
-    drawText(buffer, 3, rows - 4, session.notice || '[dim]Legends rise one day at a time.[dim]');
-    drawText(buffer, 3, rows - 3, '[c:cyan][Enter]/Q[c:white] Return to town');
+    drawText(buffer, 3, rows - 4, '[dim]Class markers: D=Death Knight, M=Mystical, T=Thief.[dim]');
+    drawText(buffer, 3, rows - 3, session.notice || '[dim]Legends rise one day at a time.[dim]');
+    drawText(buffer, 3, rows - 2, '[c:cyan][H][c:white] Heroic Deeds  [c:cyan][Enter]/Q[c:white] Return to town');
 
     return { cols, rows, cells: toCells(buffer) };
 }
