@@ -24,8 +24,8 @@ export function renderDailyHappenings(session: Session, dims: Dimensions) {
     }
   }
 
-  drawText(buffer, 3, rows - 4, session.notice || 'Press any key to continue...');
-  drawText(buffer, 3, rows - 2, 'Any key) Continue to Town Square');
+  drawText(buffer, 3, rows - 4, session.notice || 'Press [Enter] to continue...');
+  drawText(buffer, 3, rows - 2, '[Enter] to continue to Town Square');
 
   return { cols, rows, lines: toLines(buffer) };
 }

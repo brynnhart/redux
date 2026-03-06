@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 export function runMigrations() {
   const db = getDb();
@@ -201,6 +201,59 @@ export function runMigrations() {
       UPDATE players SET gold_pocket = COALESCE(gold_pocket, gold, 0);
       UPDATE players SET gold_bank = COALESCE(gold_bank, bank_gold, 0);
       UPDATE players SET money_doubler_used_today = COALESCE(money_doubler_used_today, today_money_doubler_used, 0);
+    `);
+  }
+
+  if (currentVersion < 9) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN last_day_key TEXT;
+      ALTER TABLE players ADD COLUMN forest_fights_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN forest_fights_max_today INTEGER NOT NULL DEFAULT 30;
+      ALTER TABLE players ADD COLUMN player_fight_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN inn_flirt_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN bard_listens_used_today INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN in_room INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN room_paid_until_day_key TEXT;
+      ALTER TABLE players ADD COLUMN is_dead INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players
+      SET
+        last_day_key = COALESCE(last_day_key, last_daily_reset_date),
+        forest_fights_used_today = COALESCE(forest_fights_used_today, 0),
+        forest_fights_max_today = COALESCE(forest_fights_max_today, turns_forest_max, 30),
+        player_fight_used_today = COALESCE(player_fight_used_today, CASE WHEN turns_pvp_left <= 0 THEN 1 ELSE 0 END),
+        inn_flirt_used_today = COALESCE(inn_flirt_used_today, has_flirted_today, daily_flirt_used, 0),
+        bard_listens_used_today = COALESCE(bard_listens_used_today, has_listened_bard_today, daily_bard_used, 0),
+        in_room = COALESCE(in_room, has_room, 0),
+        is_dead = COALESCE(is_dead, 0);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS news_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day_key TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        message TEXT NOT NULL,
+        severity TEXT NOT NULL DEFAULT 'info',
+        player_id TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_news_events_day_key ON news_events (day_key);
+      CREATE INDEX IF NOT EXISTS idx_news_events_player_day_key ON news_events (player_id, day_key);
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pending_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_player_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pending_events_target_player ON pending_events (target_player_id, created_at);
     `);
   }
 db.prepare(
