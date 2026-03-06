@@ -185,6 +185,25 @@ function applyCoreNavigationTransition(session: Session, transition: { type: str
     refreshPlayer(session);
     return;
   }
+
+  if (transition.type === 'heal_all_possible') {
+    const result = healerService.healAllPossible(session.player);
+    refreshPlayer(session);
+    if (result.healed > 0) {
+      session.notice = `The old healer mutters and bandages your wounds. You healed ${result.healed} hit points for ${result.cost} gold.`;
+    } else if (result.message === 'You are already at full health.') {
+      session.notice = "The healer squints. 'You look fine to me.'";
+    } else {
+      session.notice = result.message;
+    }
+    return;
+  }
+  if (transition.type === 'heal_specific') {
+    const result = healerService.heal(session.player, transition.amount ?? 0);
+    refreshPlayer(session);
+    session.notice = result.message;
+    return;
+  }
   if (transition.type === 'error') {
     session.notice = transition.message ?? 'Huh?';
     return;
@@ -729,13 +748,13 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     }
 
     if (key === '1') {
-      session.notice = healerService.heal(session.player, session.player.hp_max - session.player.hp);
+      session.notice = healerService.healAllPossible(session.player).message;
       refreshPlayer(session);
       return;
     }
 
     if (key === '2') {
-      session.notice = healerService.heal(session.player, 5);
+      session.notice = healerService.heal(session.player, 5).message;
       refreshPlayer(session);
       return;
     }

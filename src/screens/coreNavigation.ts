@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { getArmorTier, getWeaponTier } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
@@ -20,6 +21,8 @@ type Transition =
   | { type: 'logout' }
   | { type: 'error'; message: string }
   | { type: 'auto_deposit' }
+  | { type: 'heal_all_possible' }
+  | { type: 'heal_specific'; amount: number }
   | { type: 'bank_deposit'; amount: number }
   | { type: 'bank_withdraw'; amount: number }
   | { type: 'bank_deposit_all' }
@@ -123,6 +126,68 @@ function makeStubScreen(id: ScreenState, title: string, message: string): Screen
   };
 }
 
+const healerScreen: Screen = {
+  id: 'HEALER',
+  render: ({ session }, dims) => {
+    const cols = Math.max(80, dims.cols);
+    const rows = Math.max(25, dims.rows);
+    const buffer = createBuffer(cols, rows);
+    const player = session.player;
+
+    drawBox(buffer, 0, 0, cols, rows);
+    renderHeader(buffer, "Healer's Hut");
+
+    if (player) {
+      const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+      drawText(buffer, 3, 7, `HP: ${player.hp}/${player.hp_max}`);
+      drawText(buffer, 3, 8, `Gold on hand: ${onHand}`);
+      drawText(buffer, 3, 9, `Cost: ${config.healerCostPerHp} gold per HP`);
+    }
+
+    if (session.healerState === 'HEAL_AMOUNT_PROMPT') {
+      drawText(buffer, 3, 11, 'Heal how many HP? (R=Return)');
+    } else {
+      drawText(buffer, 3, 11, '(1) Heal ALL possible');
+      drawText(buffer, 3, 12, '(2) Heal a specific amount');
+      drawText(buffer, 3, 13, '(R) Return to Town');
+    }
+
+    drawText(buffer, 3, rows - 4, session.notice || 'The old healer checks your pulse and your purse.');
+    drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
+    return { cols, rows, lines: toLines(buffer) };
+  },
+  handleInput: ({ session }, input) => {
+    const normalized = input.trim().toUpperCase();
+    if (session.healerState === 'HEAL_AMOUNT_PROMPT') {
+      if (normalized === 'R' || normalized === '') {
+        session.healerState = 'MENU';
+        return { type: 'stay', notice: 'Back to the healer menu.' };
+      }
+      const amount = Number(normalized);
+      if (!Number.isInteger(amount) || amount < 1) {
+        return { type: 'error', message: 'Heal amount must be a whole number >= 1, or R to return.' };
+      }
+      session.healerState = 'MENU';
+      return { type: 'heal_specific', amount };
+    }
+
+    if (normalized === '1') {
+      return { type: 'heal_all_possible' };
+    }
+
+    if (normalized === '2') {
+      session.healerState = 'HEAL_AMOUNT_PROMPT';
+      return { type: 'stay', notice: 'Heal how many HP? (R=Return)' };
+    }
+
+    if (normalized === 'R') {
+      return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
+    }
+
+    return { type: 'error', message: 'Healer keys: 1 heal all possible, 2 heal amount, R return.' };
+  }
+};
+
 const bankScreen: Screen = {
   id: 'BANK',
   render: ({ session }, dims) => renderBank(session, dims),
@@ -187,7 +252,7 @@ const helpScreen: Screen = {
     drawBox(buffer, 0, 0, cols, rows);
     renderHeader(buffer, 'Help / Menu Legend');
     drawText(buffer, 3, 7, 'Single-line input: type a command, then press Enter.');
-    drawText(buffer, 3, 8, '? = Help, R = Return to Town, Q/X = Quit, B = Auto-deposit');
+    drawText(buffer, 3, 8, '? = Help, R = Return to Town, Q/X = Quit, B = Auto-deposit, H = Heal all possible');
     drawText(buffer, 3, 11, '(R) Return to Town');
     drawText(buffer, 3, rows - 4, session.notice || '');
     drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
@@ -244,7 +309,7 @@ const screens: Partial<Record<ScreenState, Screen>> = {
   FOREST: makeStubScreen('FOREST', 'The Forest', 'The forest looms... (coming soon)'),
   INN: makeStubScreen('INN', 'The Inn', 'The barkeep polishes a glass... (coming soon)'),
   BANK: bankScreen,
-  HEALER: makeStubScreen('HEALER', "Healer's Hut", 'Herbs and pain await... (coming soon)'),
+  HEALER: healerScreen,
   WEAPONS_SHOP: makeStubScreen('WEAPONS_SHOP', "King Arthur's Weapons", 'Steel racks line the walls... (coming soon)'),
   ARMOR_SHOP: makeStubScreen('ARMOR_SHOP', "Abdul's Armor", 'Abdul grunts from behind a helm... (coming soon)'),
   TRAINING: makeStubScreen('TRAINING', "Turgon's Training", 'Sweat, splinters, and bruises... (coming soon)'),
@@ -266,6 +331,10 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
   const normalized = inputText.trim().toUpperCase();
   const command = normalized.length > 0 ? normalized[0] : '';
 
+  if (command === 'H' && session.playerId) {
+    return { type: 'heal_all_possible' };
+  }
+
   if (command === 'B' && session.state !== 'BANK') {
     return { type: 'auto_deposit' };
   }
@@ -278,7 +347,12 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
     return { type: 'logout' };
   }
 
-  if (command === 'R' && session.state !== 'TOWN_SQUARE' && session.state !== 'BANK') {
+  if (
+    command === 'R' &&
+    session.state !== 'TOWN_SQUARE' &&
+    session.state !== 'BANK' &&
+    !(session.state === 'HEALER' && session.healerState === 'HEAL_AMOUNT_PROMPT')
+  ) {
     return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
   }
 

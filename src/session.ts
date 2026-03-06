@@ -47,6 +47,7 @@ export interface Session {
   todayDate?: string;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
   bankState?: 'MENU' | 'DEPOSIT_PROMPT' | 'WITHDRAW_PROMPT';
+  healerState?: 'MENU' | 'HEAL_AMOUNT_PROMPT';
   pendingEquipmentAction?: 'BUY_WEAPON' | 'BUY_ARMOR';
   pendingForestSkill?: 'DEATH_ATTACK' | 'MYSTIC_PINCH' | 'MYSTIC_HEAL' | 'THIEF_SNEAKY' | 'THIEF_PASS_MARK';
   innTargetSelection?: string;
@@ -72,7 +73,8 @@ export function createSession(): Session {
     notice: '',
     draft: {},
     dailyNews: [],
-    bankState: 'MENU'
+    bankState: 'MENU',
+    healerState: 'MENU'
   };
 }
 
@@ -82,6 +84,7 @@ export function setScreen(session: Session, state: ScreenState) {
   session.inputBuffer = '';
   session.prompt = null;
   session.bankState = 'MENU';
+  session.healerState = 'MENU';
 }
 
 export function startPrompt(session: Session, field: string, hidden = false) {
@@ -96,6 +99,7 @@ export function commitPrompt(session: Session): string {
   session.mode = 'MENU';
   session.prompt = null;
   session.bankState = 'MENU';
+  session.healerState = 'MENU';
   return value;
 }
 
