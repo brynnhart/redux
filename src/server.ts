@@ -32,6 +32,8 @@ import { renderTraining } from './screens/training.js';
 import { handleCoreNavigationInput, isCoreNavigationScreen, renderCoreNavigationScreen } from './screens/coreNavigation.js';
 import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
+import { challengeMaster, getMasterForLevel, isEligibleForMasterChallenge, levelUpHpGain } from './services/trainingService.js';
+import { renderHallOfHonor } from './screens/hallOfHonor.js';
 import { config } from './config.js';
 
 const app = Fastify({ logger: true });
@@ -236,6 +238,70 @@ function enterTraining(session: Session) {
   loadDailyNews(session, todayDayKey);
   setScreen(session, 'TRAINING');
   session.notice = "Turgon cracks his knuckles. Train hard or go home.";
+}
+
+
+function trainingQuestionMessage(session: Session) {
+  if (!session.player) {
+    return 'No player loaded.';
+  }
+
+  const master = getMasterForLevel(session.player.level);
+  if (!master) {
+    return 'Turgon nods. No more masters remain. The Dragon awaits.';
+  }
+
+  const eligibility = isEligibleForMasterChallenge(session.player);
+  if (eligibility.eligible) {
+    return `${master.name} says: You are ready. Step forward and prove it.`;
+  }
+
+  if (eligibility.requiredExp === null) {
+    return `${master.name} shrugs: There is no higher lesson in this hall.`;
+  }
+
+  return `${master.name} says: You need about ${eligibility.expNeeded} more experience before you'll be as good as I am.`;
+}
+
+function resolveMasterChallenge(session: Session, todayDayKey: string) {
+  if (!session.player) {
+    return 'No player loaded.';
+  }
+
+  if (session.player.training_challenge_used_today) {
+    return 'Turgon points at the exit: one challenge attempt per day. Come back tomorrow.';
+  }
+
+  const master = getMasterForLevel(session.player.level);
+  if (!master) {
+    return 'No master remains here for your level. Go chase dragons.';
+  }
+
+  const eligibility = isEligibleForMasterChallenge(session.player);
+  if (!eligibility.eligible) {
+    return 'You are not ready.';
+  }
+
+  const result = challengeMaster(session.player, master);
+  const rounds = [master.flavor_intro, ...result.rounds];
+  const patch: Parameters<typeof playerRepo.updatePlayerStats>[1] = {
+    training_challenge_used_today: 1
+  };
+
+  if (result.playerWon) {
+    const nextLevel = session.player.level + 1;
+    const hpGain = levelUpHpGain(nextLevel);
+    patch.level = nextLevel;
+    patch.hp_max = session.player.hp_max + hpGain;
+    patch.hp = session.player.hp_max + hpGain;
+    playerRepo.updatePlayerStats(session.player.id, patch);
+    newsService.addNews(todayDayKey, `${session.player.display_name} defeated ${master.name} and reached level ${nextLevel}!`, { severity: 'highlight' });
+    return `${rounds.join(' ')} ${master.flavor_win} You gain ${hpGain} max HP and reach level ${nextLevel}.`;
+  }
+
+  patch.hp = 1;
+  playerRepo.updatePlayerStats(session.player.id, patch);
+  return `${rounds.join(' ')} ${master.flavor_loss} You limp away at 1 HP.`;
 }
 
 function handleWelcomeKey(session: Session, message: KeyMessage, close: () => void) {
@@ -518,8 +584,26 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'Q' || key === 'T') {
+    if (key === 'R' || key === 'T') {
       returnToTown(session, "You leave Turgon's hall with aching muscles.");
+      return;
+    }
+
+    if (key === 'Q') {
+      session.notice = trainingQuestionMessage(session);
+      return;
+    }
+
+    if (key === 'H') {
+      setScreen(session, 'HALL_OF_HONOR');
+      session.notice = 'Stone tablets remember what mortals forget.';
+      return;
+    }
+
+    if (key === 'A') {
+      session.notice = resolveMasterChallenge(session, todayDayKey);
+      refreshPlayer(session);
+      loadDailyNews(session, todayDayKey);
       return;
     }
 
@@ -535,9 +619,19 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Training keys: C class skill train, Q/T town.';
+    session.notice = 'Training keys: Q question, A attack, H hall, C class train, R/T town.';
     return;
   }
+  if (session.state === 'HALL_OF_HONOR') {
+    if (key === 'R' || key === 'T') {
+      setScreen(session, 'TRAINING');
+      session.notice = 'Back to the training floor.';
+      return;
+    }
+    session.notice = 'Hall keys: R/T return to training.';
+    return;
+  }
+
 
   if (session.state === 'INN') {
     if (!session.player || !session.playerId) {
@@ -1067,11 +1161,15 @@ function renderSession(session: Session) {
   if (session.state === 'ARMOR_SHOP') {
     return renderArmorShop(session, { cols: session.cols, rows: session.rows });
   }
+
   if (session.state === 'INN') {
     return renderInn(session, { cols: session.cols, rows: session.rows });
   }
   if (session.state === 'TRAINING') {
     return renderTraining(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'HALL_OF_HONOR') {
+    return renderHallOfHonor(session, { cols: session.cols, rows: session.rows }, playerRepo.listHallOfHonor());
   }
   if (session.state === 'INN_BARTENDER') {
     return renderInnBartender(session, { cols: session.cols, rows: session.rows });

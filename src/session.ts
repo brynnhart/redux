@@ -21,6 +21,7 @@ export type ScreenState =
   | 'INN_FLIRT'
   | 'INN_BREAK_IN'
   | 'TRAINING'
+  | 'HALL_OF_HONOR'
   | 'SLAUGHTER_FIELDS'
   | 'OTHER_PLACES';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';

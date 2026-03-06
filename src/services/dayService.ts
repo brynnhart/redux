@@ -83,6 +83,7 @@ export class DayService {
         money_doubler_used_today: 0,
         today_money_doubler_used: 0,
         daily_skill_training_used: 0,
+        training_challenge_used_today: 0,
         skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
         skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
         skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
