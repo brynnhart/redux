@@ -225,7 +225,7 @@ function enterInn(session) {
     session.dailyNewsOffset = 0;
     loadDailyNews(session, todayDayKey, 0);
     setScreen(session, 'INN');
-    session.notice = 'The Inn smells like ale, ambition, and bad decisions.';
+    session.notice = 'The Sleeping Dragon hums with wagers, whispers, and trouble-for-hire.';
 }
 function enterTraining(session) {
     if (!session.player || !session.playerId) {
@@ -237,7 +237,7 @@ function enterTraining(session) {
     session.dailyNewsOffset = 0;
     loadDailyNews(session, todayDayKey, 0);
     setScreen(session, 'TRAINING');
-    session.notice = "Turgon cracks his knuckles. Train hard or go home.";
+    session.notice = "Turgon's hall answers with steel on steel. Respect the floor or bleed on it.";
 }
 function enterSlaughterFields(session) {
     if (!session.player || !session.playerId) {
@@ -260,31 +260,31 @@ function trainingQuestionMessage(session) {
     }
     const master = getMasterForLevel(session.player.level);
     if (!master) {
-        return 'Turgon nods. No more masters remain. The Dragon awaits.';
+        return 'Turgon nods once. "No masters remain. Only the Dragon."';
     }
     const eligibility = isEligibleForMasterChallenge(session.player);
     if (eligibility.eligible) {
-        return `${master.name} says: You are ready. Step forward and prove it.`;
+        return `${master.name} says: You carry enough scars to be tested. Step into the circle and prove your rank.`;
     }
     if (eligibility.requiredExp === null) {
-        return `${master.name} shrugs: There is no higher lesson in this hall.`;
+        return `${master.name} says: This hall has taught you all it can. Seek your lesson in dragonfire.`;
     }
-    return `${master.name} says: You need about ${eligibility.expNeeded} more experience before you'll be as good as I am.`;
+    return `${master.name} says: Not yet. Earn ${eligibility.expNeeded} more experience, then ask me again with steadier hands.`;
 }
 function resolveMasterChallenge(session, todayDayKey) {
     if (!session.player) {
         return 'No player loaded.';
     }
     if (session.player.training_challenge_used_today) {
-        return 'Turgon points at the exit: one challenge attempt per day. Come back tomorrow.';
+        return 'Turgon points to the blood-slick ring: one master challenge per day. Return at dawn.';
     }
     const master = getMasterForLevel(session.player.level);
     if (!master) {
-        return 'No master remains here for your level. Go chase dragons.';
+        return 'No master remains at your rank. The next judge is the Dragon.';
     }
     const eligibility = isEligibleForMasterChallenge(session.player);
     if (!eligibility.eligible) {
-        return 'You are not ready.';
+        return 'The hall denies you. You have not earned the rite.';
     }
     const result = challengeMaster(session.player, master);
     const rounds = [master.flavor_intro, ...result.rounds];
@@ -300,11 +300,11 @@ function resolveMasterChallenge(session, todayDayKey) {
         playerRepo.updatePlayerStats(session.player.id, patch);
         newsService.addNews(todayDayKey, `${session.player.display_name} defeated ${master.name} and reached level ${nextLevel}!`, { severity: 'highlight' });
         newsService.masterBeaten(session.player.id, todayDayKey, master.name, nextLevel, session.player.display_name);
-        return `${rounds.join(' ')} ${master.flavor_win} You gain ${hpGain} max HP and reach level ${nextLevel}.`;
+        return `${rounds.join(' ')} ${master.flavor_win} The hall salutes your victory. You gain ${hpGain} max HP and reach level ${nextLevel}.`;
     }
     patch.hp = 1;
     playerRepo.updatePlayerStats(session.player.id, patch);
-    return `${rounds.join(' ')} ${master.flavor_loss} You limp away at 1 HP.`;
+    return `${rounds.join(' ')} ${master.flavor_loss} The bells toll once as you crawl away at 1 HP.`;
 }
 function handleWelcomeKey(session, message, close) {
     const key = message.key.toUpperCase();
@@ -696,10 +696,10 @@ function handleMenuKey(session, message, close) {
     if (session.state === 'HALL_OF_HONOR') {
         if (key === 'R' || key === 'T') {
             setScreen(session, 'TRAINING');
-            session.notice = 'Back to the training floor.';
+            session.notice = 'Back to the training floor. The hall falls quiet around you.';
             return;
         }
-        session.notice = 'Hall keys: R/T return to training.';
+        session.notice = 'Hall keys: R/T return to the training floor.';
         return;
     }
     if (session.state === 'PLAYER_RANKINGS') {
@@ -767,7 +767,7 @@ function handleMenuKey(session, message, close) {
         }
         if (key === 'T') {
             setScreen(session, 'INN_BARTENDER');
-            session.notice = 'The bartender leans in: coin first, questions later.';
+            session.notice = 'The bartender lifts one brow: "Coin first. Names never."';
             return;
         }
         if (key === 'F') {
@@ -798,13 +798,13 @@ function handleMenuKey(session, message, close) {
             session.notice = 'In the corner, the old man waves you over.';
             return;
         }
-        session.notice = 'Inn keys: G room, T bartender, S Seth, F flirt, C converse, O old man, R town.';
+        session.notice = 'Inn keys: G room, T bartender, S Seth rite, F Violet, C rumors, O old man, R town.';
         return;
     }
     if (session.state === 'INN_CONVERSE') {
         if (key === 'R' || key === 'Q') {
             setScreen(session, 'INN');
-            session.notice = 'You return to the common room.';
+            session.notice = 'You drift back into the common room and its smiling liars.';
             return;
         }
         session.notice = 'Converse keys: R/Q return.';
@@ -829,7 +829,7 @@ function handleMenuKey(session, message, close) {
         if (key === 'A') {
             refreshPlayer(session);
             if (!session.player?.inn_breakin_used_today) {
-                session.notice = 'Bribe first if you want room keys and bad ideas.';
+                session.notice = 'Pay the bartender first if you want keys and sins.';
                 return;
             }
             setScreen(session, 'INN_BREAK_IN');
@@ -852,7 +852,7 @@ function handleMenuKey(session, message, close) {
         }
         if (key === 'Q') {
             setScreen(session, 'INN_BARTENDER');
-            session.notice = 'You return to the bartender.';
+            session.notice = 'You step back to the bar. He was expecting you.';
             return;
         }
         const targets = innService.getBreakInTargets(session.player);
