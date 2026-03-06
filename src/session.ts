@@ -20,6 +20,7 @@ export type ScreenState =
   | 'INN'
   | 'INN_BARTENDER'
   | 'INN_FLIRT'
+  | 'INN_CONVERSE'
   | 'INN_BREAK_IN'
   | 'TRAINING'
   | 'HALL_OF_HONOR'

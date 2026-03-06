@@ -27,7 +27,7 @@ import { renderBank } from './screens/bank.js';
 import { renderHealer } from './screens/healer.js';
 import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
-import { renderInn, renderInnBartender, renderInnBreakIn, renderInnFlirt } from './screens/inn.js';
+import { renderInn, renderInnBartender, renderInnBreakIn, renderInnConverse } from './screens/inn.js';
 import { renderSlaughterFields } from './screens/slaughter.js';
 import { renderTraining } from './screens/training.js';
 import { handleCoreNavigationInput, isCoreNavigationScreen, renderCoreNavigationScreen } from './screens/coreNavigation.js';
@@ -737,18 +737,19 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'Q') {
+    if (key === 'R') {
       returnToTown(session, 'You leave the Inn.');
       return;
     }
-    if (key === 'B') {
+    if (key === 'T') {
       setScreen(session, 'INN_BARTENDER');
       session.notice = 'The bartender leans in: coin first, questions later.';
       return;
     }
     if (key === 'F') {
-      setScreen(session, 'INN_FLIRT');
-      session.notice = 'Violet raises an eyebrow.';
+      session.notice = innService.flirt(freshPlayer, todayDayKey).message;
+      refreshPlayer(session);
+      loadDailyNews(session, todayDayKey);
       return;
     }
     if (key === 'S') {
@@ -757,48 +758,28 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       loadDailyNews(session, todayDayKey);
       return;
     }
-    if (key === 'R') {
+    if (key === 'G') {
       session.notice = innService.rentRoom(freshPlayer, todayDayKey).message;
       refreshPlayer(session);
       loadDailyNews(session, todayDayKey);
       return;
     }
-    if (key === 'L') {
-      session.notice = 'Rumor board: caravans late, blades sharp, trust nobody.';
+    if (key === 'C') {
+      setScreen(session, 'INN_CONVERSE');
+      session.notice = 'You listen for scandal.';
       return;
     }
-    session.notice = 'Inn keys: B bartender, S bard, F flirt, R room, L rumors, Q town.';
+    session.notice = 'Inn keys: G room, T bartender, S Seth, F flirt, C converse, R town.';
     return;
   }
 
-  if (session.state === 'INN_FLIRT') {
-    if (!session.player || !session.playerId) {
-      returnToTown(session, 'No player loaded.');
-      return;
-    }
-    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
-    refreshPlayer(session);
-    if (!session.player) {
-      returnToTown(session, 'No player loaded.');
-      return;
-    }
-
-    if (key === 'Q') {
+  if (session.state === 'INN_CONVERSE') {
+    if (key === 'R' || key === 'Q') {
       setScreen(session, 'INN');
-      session.notice = 'You step away from Violet.';
+      session.notice = 'You return to the common room.';
       return;
     }
-
-    if (key === '1' || key === '2' || key === '3') {
-      const style = key === '1' ? 'SWEET' : key === '2' ? 'COCKY' : 'WEIRD';
-      session.notice = innService.flirt(session.player, todayDayKey, style).message;
-      refreshPlayer(session);
-      loadDailyNews(session, todayDayKey);
-      setScreen(session, 'INN');
-      return;
-    }
-
-    session.notice = 'Flirt keys: 1 sweet, 2 cocky, 3 weird, Q back.';
+    session.notice = 'Converse keys: R/Q return.';
     return;
   }
 
@@ -808,30 +789,13 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    if (key === 'Q') {
+    if (key === 'E' || key === 'Q') {
       setScreen(session, 'INN');
       session.notice = 'You step away from the bar.';
       return;
     }
 
-    if (key === '1') {
-      session.notice = innService.buyElixir(session.player).message;
-      refreshPlayer(session);
-      return;
-    }
-
-    if (key === '2') {
-      session.notice = innService.tradeGemsForElixir(session.player).message;
-      refreshPlayer(session);
-      return;
-    }
-
-    if (key === '3') {
-      session.notice = 'Name changes are coming soon.';
-      return;
-    }
-
-    if (key === '4') {
+    if (key === 'B') {
       const result = innService.bribeBartender(session.player);
       session.notice = result.message;
       refreshPlayer(session);
@@ -849,7 +813,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    session.notice = 'Bartender keys: 1 buy elixir, 2 trade gems, 3 name stub, 4 bribe, A attack, Q back.';
+    session.notice = 'Bartender keys: B bribe, A attack, E exit.';
     return;
   }
 
@@ -1286,8 +1250,8 @@ function renderSession(session: Session) {
   if (session.state === 'INN_BARTENDER') {
     return renderInnBartender(session, { cols: session.cols, rows: session.rows });
   }
-  if (session.state === 'INN_FLIRT') {
-    return renderInnFlirt(session, { cols: session.cols, rows: session.rows });
+  if (session.state === 'INN_CONVERSE') {
+    return renderInnConverse(session, { cols: session.cols, rows: session.rows });
   }
   if (session.state === 'INN_BREAK_IN') {
     return renderInnBreakIn(session, { cols: session.cols, rows: session.rows }, session.player ? innService.getBreakInTargets(session.player) : []);

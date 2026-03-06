@@ -30,72 +30,57 @@ export class InnService {
     private readonly rng: () => number = Math.random
   ) {}
 
-  flirt(player: PlayerRecord, today: string, style: 'SWEET' | 'COCKY' | 'WEIRD'): ActionResult {
-    if (player.inn_flirt_used_today || player.has_flirted_today) {
-      return { ok: false, message: 'Violet smiles politely. You already had your shot today.' };
+  flirt(player: PlayerRecord, today: string): ActionResult {
+    if (player.inn_flirt_used_today || player.flirt_used_today || player.has_flirted_today) {
+      return { ok: false, message: 'You already flirted today.' };
     }
 
-    const minExp = style === 'WEIRD' ? player.level * 20 : player.level * 30;
-    const maxExp = style === 'WEIRD' ? player.level * 40 : player.level * 60;
-    const expGain = randInt(minExp, Math.max(minExp, maxExp), this.rng);
+    const expGain = 150 + randInt(0, 150, this.rng);
+    const goldGain = randInt(0, 50, this.rng);
 
-    const patch: Partial<PlayerRecord> = {
+    this.playerRepo.updatePlayerStats(player.id, {
       exp: player.exp + expGain,
+      gold_on_hand: player.gold_on_hand + goldGain,
       has_flirted_today: 1,
       daily_flirt_used: 1,
-      inn_flirt_used_today: 1
-    };
+      inn_flirt_used_today: 1,
+      flirt_used_today: 1
+    });
 
-    const rewards: string[] = [`+${expGain} exp`];
-    if (this.rng() < 0.1) {
-      patch.charm = player.charm + 1;
-      rewards.push('+1 charm');
-    }
-    if (this.rng() < 0.05) {
-      patch.gems = player.gems + 1;
-      rewards.push('+1 gem');
-    }
+    this.newsService.addNews(today, `${player.display_name} flirted with Violet at the Inn.`, { severity: 'info' });
 
-    this.playerRepo.updatePlayerStats(player.id, patch);
-    this.newsService.addNews(today, `${player.display_name} spent time flirting with Violet at the Inn.`, { severity: 'info' });
-
-    const opener = style === 'SWEET'
-      ? 'You talk sweetly, and Violet laughs behind her hand.'
-      : style === 'COCKY'
-        ? 'You swagger and boast. Violet rolls her eyes... then grins.'
-        : 'You ramble about moonlit turnips. Violet cannot look away.';
-
-    return { ok: true, message: `${opener} Rewards: ${rewards.join(', ')}.` };
+    return { ok: true, message: `Violet laughs and plays along. (+${expGain} exp, +${goldGain} gold)` };
   }
 
   listenToBard(player: PlayerRecord, today: string): ActionResult {
-    if (player.bard_listens_used_today >= config.bardMaxListensPerDay || player.has_listened_bard_today) {
+    if (player.bard_listens_used_today >= config.sethMaxListensPerDay || player.seth_listens_used_today >= config.sethMaxListensPerDay || player.has_listened_bard_today) {
       return { ok: false, message: 'Seth Able has no encore for you today.' };
     }
 
-    const bonus = config.innBardBonusFights;
+    const roll = this.rng();
+    const bonus = roll < 0.65 ? 1 : roll < 0.9 ? 2 : 3;
+    const hpRestored = this.rng() < 0.08;
+
     const patch: Partial<PlayerRecord> = {
       turns_forest_left: player.turns_forest_left + bonus,
       bonus_forest_fights: player.bonus_forest_fights + bonus,
       has_listened_bard_today: 1,
       daily_bard_used: 1,
-      bard_listens_used_today: player.bard_listens_used_today + 1
+      bard_listens_used_today: player.bard_listens_used_today + 1,
+      seth_listens_used_today: player.seth_listens_used_today + 1,
+      extra_forest_fights_today: player.extra_forest_fights_today + bonus
     };
 
-    let doublerText = '';
-    if (!player.today_money_doubler_used && this.rng() < config.moneyDoublerChance) {
-      const doubled = this.safeDouble(player.bank_gold);
-      patch.bank_gold = doubled.value;
-      patch.today_money_doubler_used = 1;
-      doublerText = ` Somewhere magic has happened! Bank gold doubled from ${player.bank_gold} to ${doubled.value}${doubled.clamped ? ' (vault cap reached)' : ''}.`;
-      this.newsService.addNews(today, 'Somewhere magic has happened!', { severity: 'highlight', playerId: player.id });
+    if (hpRestored) {
+      patch.hp = player.hp_max;
     }
 
     this.playerRepo.updatePlayerStats(player.id, patch);
 
-    this.newsService.addNews(today, `${player.display_name} listened to Seth Able and gained extra Forest courage.`, { severity: 'info' });
+    this.newsService.addNews(today, `${player.display_name} listened to Seth Able and felt a strange wonder and awakening.`, { severity: 'info' });
 
-    return { ok: true, message: `${this.getLyrics()} (+${bonus} bonus forest fights)${doublerText}` };
+    const hpText = hpRestored ? ' Your health is fully restored.' : '';
+    return { ok: true, message: `${this.getLyrics()} (+${bonus} extra forest fights)${hpText}` };
   }
 
   rentRoom(player: PlayerRecord, today: string): ActionResult {
@@ -103,7 +88,7 @@ export class InnService {
       return { ok: false, message: 'You already rented a room for tonight.' };
     }
 
-    const cost = Math.max(1, config.innRoomCostPerLevel * player.level);
+    const cost = Math.max(1, config.innRoomCost);
     if (player.gold_on_hand < cost) {
       return { ok: false, message: `Room cost is ${cost} gold. You only have ${player.gold_on_hand}.` };
     }
@@ -115,8 +100,8 @@ export class InnService {
       in_inn_room: 1,
       daily_room_rented: 1,
       room_paid_until_day_key: today,
-      room_expires_at: `${today}T23:59:59`,
-      inn_room_expires_at: `${today}T23:59:59`
+      inn_room_day_key: today,
+      inn_room_expires_day_key: today
     });
 
     this.newsService.addNews(today, `${player.display_name} rented a room at the Inn.`, { severity: 'info' });
@@ -249,15 +234,6 @@ export class InnService {
     return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
   }
 
-
-  private safeDouble(value: number) {
-    const BIGINT_MAX = 9_223_372_036_854_775_807;
-    const doubled = value * 2;
-    if (doubled > BIGINT_MAX) {
-      return { value: BIGINT_MAX, clamped: true };
-    }
-    return { value: doubled, clamped: false };
-  }
 
   private recordBreakIn(attackerPlayerId: string, targetPlayerId: string, result: string) {
     getDb()
