@@ -30,7 +30,7 @@ import { renderArmorShop } from './screens/armorShop.js';
 import { renderInn, renderInnBartender, renderInnBreakIn, renderInnConverse } from './screens/inn.js';
 import { renderSlaughterFields } from './screens/slaughter.js';
 import { renderTraining } from './screens/training.js';
-import { handleCoreNavigationInput, isCoreNavigationScreen, renderCoreNavigationScreen } from './screens/coreNavigation.js';
+import { handleNavigationHelperInput, isNavigationHelperScreen, renderNavigationHelperScreen } from './screens/navigationHelpers.js';
 import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
 import { challengeMaster, getMasterForLevel, isEligibleForMasterChallenge, levelUpHpGain } from './services/trainingService.js';
@@ -198,106 +198,57 @@ function oldManCategoryFromInput(input: string): OldManCategory | null {
 
 function shouldUseLineInput(session: Session) {
   if (!session.playerId) return false;
-  return session.state === 'DAILY_HAPPENINGS' || isCoreNavigationScreen(session.state);
+  return session.state === 'DAILY_HAPPENINGS' || isNavigationHelperScreen(session.state);
 }
 
-function applyCoreNavigationTransition(session: Session, transition: ReturnType<typeof handleCoreNavigationInput>, close: () => void) {
+function applyNavigationHelperTransition(session: Session, transition: ReturnType<typeof handleNavigationHelperInput>, close: () => void) {
   if (transition.type === 'logout') {
     close();
     return;
   }
+
   if (transition.type === 'goto') {
-    if (!transition.screenId) {
-      session.notice = 'Huh?';
-      return;
-    }
     setScreen(session, transition.screenId);
     session.notice = transition.notice ?? '';
     return;
   }
-  if (!session.player) {
-    session.notice = 'No player loaded.';
-    return;
-  }
-  if (transition.type === 'auto_deposit') {
-    const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
-    if (onHand > 0) {
-      bankService.depositAll(session.player);
-      refreshPlayer(session);
-      session.notice = 'A vulture swoops down and whisks your gold into the bank.';
-    } else {
-      session.notice = 'You have no gold to deposit.';
+
+  if (transition.type === 'stay') {
+    if (transition.notice) {
+      session.notice = transition.notice;
     }
     return;
   }
-  if (transition.type === 'bank_deposit') {
-    session.notice = bankService.deposit(session.player, transition.amount ?? 0).message;
-    refreshPlayer(session);
-    return;
-  }
-  if (transition.type === 'bank_withdraw') {
-    session.notice = bankService.withdraw(session.player, transition.amount ?? 0).message;
-    refreshPlayer(session);
-    return;
-  }
-  if (transition.type === 'bank_deposit_all') {
-    session.notice = bankService.depositAll(session.player).message;
-    refreshPlayer(session);
-    return;
-  }
-  if (transition.type === 'bank_withdraw_all') {
-    const inBank = session.player.gold_in_bank ?? session.player.gold_bank ?? session.player.bank_gold;
-    session.notice = inBank > 0 ? bankService.withdraw(session.player, inBank).message : 'Your bank account is empty.';
-    refreshPlayer(session);
-    return;
-  }
 
-  if (transition.type === 'heal_all_possible') {
-    const result = healerService.healAllPossible(session.player);
-    refreshPlayer(session);
-    if (result.healed > 0) {
-      session.notice = `The old healer mutters and bandages your wounds. You healed ${result.healed} hit points for ${result.cost} gold.`;
-    } else if (result.message === 'You are already at full health.') {
-      session.notice = "The healer squints. 'You look fine to me.'";
-    } else {
-      session.notice = result.message;
-    }
-    return;
-  }
-  if (transition.type === 'heal_specific') {
-    const result = healerService.heal(session.player, transition.amount ?? 0);
-    refreshPlayer(session);
-    session.notice = result.message;
-    return;
-  }
-  if (transition.type === 'other_places_module_update') {
-    const patch = transition.patch ?? {};
-    const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
-    const nextGold = Math.max(0, onHand + (patch.gold_on_hand ?? patch.gold_pocket ?? patch.gold ?? 0));
-    const nextGems = Math.max(0, (session.player.gems ?? 0) + (patch.gems ?? 0));
-    const nextCharm = Math.max(0, (session.player.charm ?? 0) + (patch.charm ?? 0));
-    const nextHp = Math.max(1, Math.min(session.player.hp_max, session.player.hp + (patch.hp ?? 0)));
-
-    playerRepo.updatePlayerStats(session.player.id, {
-      gold: nextGold,
-      gold_on_hand: nextGold,
-      gold_pocket: nextGold,
-      gems: nextGems,
-      charm: nextCharm,
-      hp: nextHp
-    });
-    refreshPlayer(session);
-    session.notice = transition.notice;
-    return;
-  }
   if (transition.type === 'error') {
     session.notice = transition.message ?? 'Huh?';
     return;
   }
-  if (transition.notice) {
-    session.notice = transition.notice;
+
+  if (!session.player) {
+    session.notice = 'No player loaded.';
+    return;
   }
+
+  const patch = transition.patch ?? {};
+  const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
+  const nextGold = Math.max(0, onHand + (patch.gold_on_hand ?? patch.gold_pocket ?? patch.gold ?? 0));
+  const nextGems = Math.max(0, (session.player.gems ?? 0) + (patch.gems ?? 0));
+  const nextCharm = Math.max(0, (session.player.charm ?? 0) + (patch.charm ?? 0));
+  const nextHp = Math.max(1, Math.min(session.player.hp_max, session.player.hp + (patch.hp ?? 0)));
+
+  playerRepo.updatePlayerStats(session.player.id, {
+    gold: nextGold,
+    gold_on_hand: nextGold,
+    gold_pocket: nextGold,
+    gems: nextGems,
+    charm: nextCharm,
+    hp: nextHp
+  });
+  refreshPlayer(session);
+  session.notice = transition.notice;
 }
+
 
 function enterInn(session: Session) {
   if (!session.player || !session.playerId) {
@@ -1400,8 +1351,8 @@ function renderSession(session: Session) {
     refreshPlayer(session);
   }
 
-  if (isCoreNavigationScreen(session.state)) {
-    return renderCoreNavigationScreen(session, { cols: session.cols, rows: session.rows });
+  if (isNavigationHelperScreen(session.state)) {
+    return renderNavigationHelperScreen(session, { cols: session.cols, rows: session.rows });
   }
 
   if (session.state === 'WELCOME') {
@@ -1531,8 +1482,8 @@ app.get('/ws', { websocket: true }, (connection) => {
           session.pendingNewDaySpirits = undefined;
           returnToTown(session, wakeupNotice);
         } else {
-          const transition = handleCoreNavigationInput(session, session.inputBuffer);
-          applyCoreNavigationTransition(session, transition, () => socket.close());
+          const transition = handleNavigationHelperInput(session, session.inputBuffer);
+          applyNavigationHelperTransition(session, transition, () => socket.close());
         }
         session.inputBuffer = '';
         sendScreen();
