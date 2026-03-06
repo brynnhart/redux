@@ -5,6 +5,7 @@ import type { PlayerRepo } from '../repos/playerRepo.js';
 import type { NewsService } from './newsService.js';
 import { CombatService, type ActiveEnemy } from './combatService.js';
 import { ForestEventService, type ForestEventEncounter } from './forestEventService.js';
+import { consumeClassSkillUsePatch } from './skillService.js';
 
 export interface ForestEventResolution {
   text: string;
@@ -113,6 +114,60 @@ export class ForestService {
 
     this.stateRepo.clearEncounter(player.id);
     return 'You bolt between the trees and escape. No turn spent.';
+  }
+
+  useSkill(player: PlayerRecord, today: string, skillKey: string): string {
+    const current = this.stateRepo.findByPlayerId(player.id);
+    if (current.encounterType !== 'ENEMY') {
+      return 'There is nothing here worth using a skill on.';
+    }
+
+    if (player.turns_forest_left <= 0) {
+      return 'You are too tired to focus your class skill.';
+    }
+
+    const usesLeft = player.class === 'DEATH_KNIGHT' ? player.skill_uses_death : player.class === 'MYSTICAL' ? player.skill_uses_mystic : player.skill_uses_thief;
+    if (usesLeft <= 0) {
+      return 'Your class skills are spent for today.';
+    }
+
+    const enemy = current.encounterPayload as unknown as ActiveEnemy;
+    const result = this.combatService.useSkill(player, enemy, skillKey);
+
+    const patch: Partial<PlayerRecord> = {
+      hp: Math.max(0, result.playerHpAfter),
+      turns_forest_left: Math.max(0, player.turns_forest_left - 1),
+      ...consumeClassSkillUsePatch(player)
+    };
+
+    if (result.enemyHpAfter <= 0) {
+      let goldEarned = enemy.goldReward;
+      const expEarned = enemy.expReward;
+      let gemDrop = 0;
+      if (this.rng() < enemy.gemChance) {
+        gemDrop = 1;
+      }
+      patch.gold = player.gold + goldEarned;
+      patch.exp = player.exp + expEarned;
+      patch.gems = player.gems + gemDrop;
+      this.playerRepo.updatePlayerStats(player.id, patch);
+      this.stateRepo.clearEncounter(player.id);
+      return `${result.rounds.join(' ')} ${enemy.name} falls. Loot: +${goldEarned} gold, +${expEarned} exp${gemDrop ? `, +${gemDrop} gem` : ''}.`;
+    }
+
+    this.playerRepo.updatePlayerStats(player.id, patch);
+    enemy.hp = result.enemyHpAfter;
+    enemy.weakenedTurns = result.enemyWeakenedTurns;
+    this.stateRepo.upsertEncounter(player.id, 'ENEMY', enemy.key, enemy as unknown as Record<string, unknown>);
+
+    if (result.playerHpAfter <= 0) {
+      this.stateRepo.clearEncounter(player.id);
+      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} was killed in the forest.` });
+      this.playerRepo.updatePlayerStats(player.id, { hp: 1, turns_forest_left: 0 });
+      return `${result.rounds.join(' ')} You collapse after the technique backfires.`;
+    }
+
+    return `${result.rounds.join(' ')} ${enemy.name} remains at ${result.enemyHpAfter} HP.`;
   }
 
   resolveEventChoice(player: PlayerRecord, today: string, choice: string, textInput?: string): ForestEventResolution {

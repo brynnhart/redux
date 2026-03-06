@@ -28,7 +28,9 @@ import { renderHealer } from './screens/healer.js';
 import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
 import { renderInn, renderInnBartender, renderInnBreakIn } from './screens/inn.js';
+import { renderTraining } from './screens/training.js';
 import { InnService } from './services/innService.js';
+import { trainClassSkillPatch } from './services/skillService.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -140,6 +142,19 @@ function enterInn(session: Session) {
   loadDailyNews(session, today);
   setScreen(session, 'INN');
   session.notice = 'The Inn smells like ale, ambition, and bad decisions.';
+}
+
+
+function enterTraining(session: Session) {
+  if (!session.player || !session.playerId) {
+    session.notice = 'No player loaded.';
+    return;
+  }
+  const { today } = dayService.ensureDailyReset(session.playerId);
+  refreshPlayer(session);
+  loadDailyNews(session, today);
+  setScreen(session, 'TRAINING');
+  session.notice = "Turgon cracks his knuckles. Train hard or go home.";
 }
 
 function handleWelcomeKey(session: Session, message: KeyMessage, close: () => void) {
@@ -395,12 +410,51 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.playerId && key === 'T' && session.state === 'TOWN_SQUARE') {
+    enterTraining(session);
+    return;
+  }
+
   if (session.state === 'TOWN_SQUARE') {
     if (key === 'Q') {
       close();
       return;
     }
     session.notice = `${key} is not implemented yet.`;
+    return;
+  }
+
+  if (session.state === 'TRAINING') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    const today = dayService.ensureDailyReset(session.playerId).today;
+    refreshPlayer(session);
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q' || key === 'T') {
+      returnToTown(session, "You leave Turgon's hall with aching muscles.");
+      return;
+    }
+
+    if (key === 'C') {
+      if (session.player.daily_skill_training_used) {
+        session.notice = 'You already trained class skills today.';
+        return;
+      }
+      playerRepo.updatePlayerStats(session.player.id, trainClassSkillPatch(session.player));
+      refreshPlayer(session);
+      loadDailyNews(session, today);
+      session.notice = `${session.player?.display_name ?? 'You'} trained class skills.`;
+      return;
+    }
+
+    session.notice = 'Training keys: C class skill train, Q/T town.';
     return;
   }
 
@@ -656,17 +710,58 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
+    if (key === 'S' && forestEncounter.encounterType === 'ENEMY') {
+      if (session.player.class === 'DEATH_KNIGHT') {
+        session.notice = `Death Knight skill: (D)eath Knight Attack [uses left: ${session.player.skill_uses_death}]`;
+      } else if (session.player.class === 'MYSTICAL') {
+        session.notice = `Mystic skills: (P)inch Real Hard, (M)ind Heal [uses left: ${session.player.skill_uses_mystic}]`;
+      } else {
+        session.notice = `Thief skills: (U)ltra Sneaky Move, (P)ass Mark [uses left: ${session.player.skill_uses_thief}]`;
+      }
+      return;
+    }
+
+    if (key === 'D' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'DEATH_KNIGHT') {
+      session.notice = forestService.useSkill(session.player, today, 'DEATH_ATTACK');
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === 'P' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'MYSTICAL') {
+      session.notice = forestService.useSkill(session.player, today, 'MYSTIC_PINCH');
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === 'M' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'MYSTICAL') {
+      session.notice = forestService.useSkill(session.player, today, 'MYSTIC_HEAL');
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === 'U' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'THIEF') {
+      session.notice = forestService.useSkill(session.player, today, 'THIEF_SNEAKY');
+      refreshPlayer(session);
+      return;
+    }
+
+    if (key === 'P' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'THIEF') {
+      session.notice = forestService.useSkill(session.player, today, 'THIEF_PASS_MARK');
+      refreshPlayer(session);
+      return;
+    }
+
     if (key === 'R' && forestEncounter.encounterType !== 'EVENT') {
       session.notice = forestService.run(session.player);
       return;
     }
 
-    if (['1', '2', '3', '4', '5', 'Y', 'N', 'C', 'A', 'L', 'G', 'T'].includes(key)) {
+    if (['1', '2', '3', '4', '5', 'Y', 'N', 'C', 'A', 'L', 'G', 'T', 'Q'].includes(key)) {
       handleForestChoiceEvent(session, key);
       return;
     }
 
-    session.notice = 'Forest keys: L to look, A to attack, R to run, T for town, B bank, H healer, W weapons.';
+    session.notice = 'Forest keys: L look, A attack, S skill, R run, T town, B bank, H healer, W weapons.';
   }
 }
 
@@ -757,6 +852,12 @@ function handleTextEntry(session: Session, message: KeyMessage) {
         return;
       }
       handleForestChoiceEvent(session, 'T', value);
+    } else if (field === 'mystic_guess' && session.state === 'FOREST') {
+      if (!session.player || !session.playerId) {
+        session.notice = 'The mystic is gone.';
+        return;
+      }
+      handleForestChoiceEvent(session, 'T', value);
     }
     return;
   }
@@ -805,6 +906,9 @@ function renderSession(session: Session) {
   }
   if (session.state === 'INN') {
     return renderInn(session, { cols: session.cols, rows: session.rows });
+  }
+  if (session.state === 'TRAINING') {
+    return renderTraining(session, { cols: session.cols, rows: session.rows });
   }
   if (session.state === 'INN_BARTENDER') {
     return renderInnBartender(session, { cols: session.cols, rows: session.rows });

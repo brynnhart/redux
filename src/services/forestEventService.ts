@@ -4,6 +4,7 @@ import { fairiesEvent } from '../events/events/fairies.js';
 import { jennieEvent } from '../events/events/jennie.js';
 import { oldManEvent } from '../events/events/oldMan.js';
 import { oldWitchEvent } from '../events/events/oldWitch.js';
+import { mysticalGuessingEvent } from '../events/events/mysticalGuessing.js';
 import type { PlayerRecord } from '../repos/playerRepo.js';
 
 export interface ForestEventEncounter {
@@ -16,14 +17,14 @@ export interface ForestEventEncounter {
 
 export interface ForestEventOutcome {
   text: string;
-  patch: Partial<Pick<PlayerRecord, 'hp' | 'hp_max' | 'gold' | 'exp' | 'gems' | 'charm' | 'turns_forest_left' | 'turns_pvp_left'>>;
+  patch: Partial<Pick<PlayerRecord, 'hp' | 'hp_max' | 'gold' | 'exp' | 'gems' | 'charm' | 'turns_forest_left' | 'turns_pvp_left' | 'skill_level_death' | 'skill_level_mystic' | 'skill_level_thief' | 'skill_mastery_death' | 'skill_mastery_mystic' | 'skill_mastery_thief' | 'daily_skill_training_used'>>;
   globalNews?: string;
   personalNews?: string;
   keepOpen?: boolean;
   promptField?: string;
 }
 
-const engineEvents = [fairiesEvent, oldManEvent, oldWitchEvent, deadBirdRescueEvent, jennieEvent];
+const engineEvents = [fairiesEvent, oldManEvent, oldWitchEvent, deadBirdRescueEvent, jennieEvent, mysticalGuessingEvent];
 
 export class ForestEventService {
   private readonly engine: ForestEventEngine;

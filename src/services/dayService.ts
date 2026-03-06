@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { PlayerRepo, type PlayerRecord } from '../repos/playerRepo.js';
 import { NewsService } from './newsService.js';
+import { getDailySkillUses } from './skillService.js';
 
 export type Spirits = 'LOW' | 'NORMAL' | 'HIGH';
 
@@ -53,6 +54,10 @@ export class DayService {
       daily_bard_used: 0,
       daily_room_rented: 0,
       inn_bribe_count_today: 0,
+      daily_skill_training_used: 0,
+      skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
+      skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
+      skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
       last_daily_reset_date: today
     });
 

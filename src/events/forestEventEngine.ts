@@ -14,6 +14,13 @@ export interface GameEffects {
   charm?: number;
   turns_forest_left?: number;
   turns_pvp_left?: number;
+  skill_level_death?: number;
+  skill_level_mystic?: number;
+  skill_level_thief?: number;
+  skill_mastery_death?: number;
+  skill_mastery_mystic?: number;
+  skill_mastery_thief?: number;
+  daily_skill_training_used?: number;
 }
 
 export interface EventResult {
