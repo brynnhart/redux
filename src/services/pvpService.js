@@ -4,6 +4,24 @@ import { getDayIndexFromDayKey } from './dayKey.js';
 function randInt(min, max, rng) {
     return Math.floor(rng() * (max - min + 1)) + min;
 }
+const duelAcceptancePrompts = [
+    "He grins with too many teeth. 'Name the hour, coward.'",
+    "She rolls her shoulders. 'Steel talks. Do you?'",
+    "'A duel? Good. I was getting bored.'",
+    "'Say your prayer now. I'll wait.'"
+];
+const postKillQuotes = [
+    'Another boast buried under wet dirt.',
+    'The crows now know your name.',
+    'The grass drinks deep tonight.',
+    'Some lessons only a grave can keep.'
+];
+const selfDefenseQuotes = [
+    'You die with surprise still on your face.',
+    'Your gamble ends in the mud.',
+    'The hunter becomes the warning.',
+    'The Warfield keeps what it is owed.'
+];
 export class PvpService {
     playerRepo;
     newsService;
@@ -37,10 +55,16 @@ export class PvpService {
                 mode,
                 attackerHp: attacker.hp,
                 targetHp: target.hp,
+                attackerMaxHp: Math.max(1, attacker.hp),
+                targetMaxHp: Math.max(1, target.hp),
                 rounds: ['Steel flashes in the dark...'],
                 over: false
             }
         };
+    }
+    buildDuelAcceptancePrompt(target) {
+        const idx = randInt(0, duelAcceptancePrompts.length - 1, this.rng);
+        return `${target.display_name} eyes you. ${duelAcceptancePrompts[idx]} Accept duel? (Y/N)`;
     }
     takeAction(state, action, todayDayKey) {
         const attacker = this.playerRepo.findById(state.attackerId);
@@ -75,16 +99,23 @@ export class PvpService {
         targetHp = Math.max(0, targetHp - opening);
         rounds.push(`You strike ${target.display_name} for ${opening} damage.`);
         if (targetHp <= 0) {
-            const resultText = this.resolveAttackerWin(attacker, target, todayDayKey, attackerHp);
+            const result = this.resolveAttackerWin(attacker, target, todayDayKey, attackerHp);
             return {
                 ok: true,
                 over: true,
-                message: `${rounds.join(' ')} ${resultText}`
+                message: `${rounds.join(' ')} ${result.text}`,
+                promptField: 'pvp_press_quote',
+                promptMessage: `You killed ${target.display_name}. Say something to the press:`,
+                pressContext: result.pressContext
             };
         }
         const retaliation = this.playerDamage(target, attacker);
         attackerHp = Math.max(0, attackerHp - retaliation);
         rounds.push(`${target.display_name} hits back for ${retaliation} damage.`);
+        const emotionLine = this.buildEmotionLine(state, attackerHp, targetHp);
+        if (emotionLine) {
+            rounds.push(emotionLine);
+        }
         if (attackerHp <= 0) {
             const resultText = this.resolveDefenderWin(attacker, target, todayDayKey);
             return {
@@ -104,6 +135,20 @@ export class PvpService {
                 rounds
             }
         };
+    }
+    buildEmotionLine(state, attackerHp, targetHp) {
+        const attackerPct = attackerHp / Math.max(1, state.attackerMaxHp);
+        const targetPct = targetHp / Math.max(1, state.targetMaxHp);
+        if (attackerPct <= 0.2 && targetPct > 0.5) {
+            return 'Your breath rattles. Panic claws at your ribs.';
+        }
+        if (attackerPct <= 0.35 && targetPct <= 0.35) {
+            return 'You both sway on bloody feet, too stubborn to fall first.';
+        }
+        if (attackerPct > 0.6 && targetPct <= 0.25) {
+            return `${state.targetName} looks shaken, backing up one step at a time.`;
+        }
+        return '';
     }
     resolveAttackerWin(attacker, target, todayDayKey, attackerHpAfter) {
         const expGain = Math.max(200, Math.min(250000, Math.round(target.level * 2000 + target.exp * 0.05)));
@@ -133,7 +178,11 @@ export class PvpService {
             victimName: target.display_name,
             mode: 'FIELDS'
         });
-        return `You kill ${target.display_name}. +${expGain} exp.${goldText}`;
+        const quote = postKillQuotes[randInt(0, postKillQuotes.length - 1, this.rng)];
+        return {
+            text: `You kill ${target.display_name}. +${expGain} exp.${goldText} "${quote}"`,
+            pressContext: { defeatedName: target.display_name }
+        };
     }
     resolveDefenderWin(attacker, target, todayDayKey) {
         this.playerRepo.updatePlayerStats(attacker.id, {
@@ -150,7 +199,20 @@ export class PvpService {
             defenderName: target.display_name,
             mode: 'FIELDS'
         });
-        return `${target.display_name} kills you in self-defense.`;
+        const quote = selfDefenseQuotes[randInt(0, selfDefenseQuotes.length - 1, this.rng)];
+        return `${target.display_name} kills you in self-defense. "${quote}"`;
+    }
+    recordPressQuote(attacker, quote, todayDayKey, defeatedName) {
+        const cleaned = quote.trim().replace(/\s+/g, ' ').slice(0, 120);
+        const finalQuote = cleaned || 'No comment. Let the bodies speak.';
+        this.newsService.addNews(todayDayKey, `${attacker.display_name} told the press after defeating ${defeatedName}: "${finalQuote}"`, { severity: 'pvp' });
+        this.newsService.addDailyNews({
+            day: getDayIndexFromDayKey(todayDayKey),
+            type: 'PVP_PRESS',
+            actorId: attacker.id,
+            message: `${attacker.display_name} to the press: "${finalQuote}"`
+        });
+        return `You face the scribes and say: "${finalQuote}"`;
     }
     pvpRetaliationDamage(attacker, defender) {
         const base = this.playerDamage(attacker, defender);

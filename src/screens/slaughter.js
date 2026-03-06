@@ -28,6 +28,10 @@ export function renderSlaughterFields(session, dims) {
             }
         }
     }
+
+    if (session.mode === 'TEXT_ENTRY' && (session.prompt?.field === 'fields_confirm' || session.prompt?.field === 'pvp_press_quote')) {
+        drawText(buffer, 3, rows - 3, `${session.inputBuffer}_`);
+    }
     drawText(buffer, 3, rows - 4, session.notice || 'Blood in the grass, quiet in the trees.');
     return { cols, rows, cells: toCells(buffer) };
 }
