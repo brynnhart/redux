@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderHallOfHonor(session, dims, rowsData) {
     const cols = Math.max(80, dims.cols);
@@ -21,5 +21,5 @@ export function renderHallOfHonor(session, dims, rowsData) {
     }
     drawText(buffer, 3, rows - 4, session.notice || 'Each line is a promise: fight, fall, rise, be remembered.');
     drawText(buffer, 3, rows - 3, '(R/T) Return to training');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

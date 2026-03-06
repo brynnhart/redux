@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderSlaughterFields(session, dims) {
     const cols = Math.max(80, dims.cols);
@@ -29,5 +29,5 @@ export function renderSlaughterFields(session, dims) {
         }
     }
     drawText(buffer, 3, rows - 4, session.notice || 'Blood in the grass, quiet in the trees.');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

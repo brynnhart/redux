@@ -1,5 +1,5 @@
 import { getArmorById, getSellPrice, listBuyableArmor } from '../data/equipment.js';
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderArmorShop(session, dims) {
     const cols = Math.max(90, dims.cols);
@@ -27,5 +27,5 @@ export function renderArmorShop(session, dims) {
         drawText(buffer, 3, 22, `Buy which armor #? (R=Return) > ${masked}_`);
     }
     drawText(buffer, 3, rows - 4, session.notice || 'Abdul stares: no touching unless you pay.');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

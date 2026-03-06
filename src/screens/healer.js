@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 export function renderHealer(session, dims) {
     const cols = Math.max(72, dims.cols);
@@ -19,5 +19,5 @@ export function renderHealer(session, dims) {
     drawText(buffer, 3, 10, 'R/T) Return to Town');
     drawText(buffer, 3, 11, 'F) Forest  B) Bank  W) Weapons  A) Armor');
     drawText(buffer, 3, rows - 4, session.notice || 'The healer taps a jar labeled "donations".');
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }

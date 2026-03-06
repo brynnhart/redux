@@ -1,4 +1,4 @@
-import { createBuffer, toLines } from '../render/buffer.js';
+import { createBuffer, toCells } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 
 function fmt(value) {
@@ -42,7 +42,7 @@ export function renderPlayerRankings(session, dims, rowsData) {
     drawText(buffer, 3, rows - 4, session.notice || '[dim]Legends rise one day at a time.[dim]');
     drawText(buffer, 3, rows - 3, '[c:cyan][Enter]/Q[c:white] Return to town');
 
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 
 export function renderHeroicDeedsRankings(session, dims, rowsData) {
@@ -72,7 +72,7 @@ export function renderHeroicDeedsRankings(session, dims, rowsData) {
     drawText(buffer, 3, rows - 4, session.notice || '[dim]Great deeds echo longer than gold.[dim]');
     drawText(buffer, 3, rows - 3, '[c:cyan][Enter]/Q[c:white] Return to rankings');
 
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 
 export function renderOldManMenu(session, dims) {
@@ -91,7 +91,7 @@ export function renderOldManMenu(session, dims) {
     drawText(buffer, 3, 10, '[c:cyan](R/Q)[c:white] Return to Inn');
     drawText(buffer, 3, rows - 4, session.notice || '[dim]Pick a list and accept his judgment.[dim]');
 
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
 
 function oldManLabel(category) {
@@ -151,5 +151,5 @@ export function renderOldManTopList(session, dims, category, rowsData) {
     drawText(buffer, 3, rows - 4, session.notice || '[dim]Press Enter to stop listening to him gloat.[dim]');
     drawText(buffer, 3, rows - 3, '[c:cyan][Enter]/Q[c:white] Return to old man');
 
-    return { cols, rows, lines: toLines(buffer) };
+    return { cols, rows, cells: toCells(buffer) };
 }
