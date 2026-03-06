@@ -23,6 +23,8 @@ function randInt(min: number, max: number, rng: () => number) {
   return Math.floor(rng() * (max - min + 1)) + min;
 }
 
+const BIGINT_MAX = 9_223_372_036_854_775_807;
+
 export class InnService {
   constructor(
     private readonly playerRepo: PlayerRepo,
@@ -75,12 +77,27 @@ export class InnService {
       patch.hp = player.hp_max;
     }
 
+    let moneyDoublerText = '';
+    const doublerUsedToday = player.money_doubler_used_today || player.today_money_doubler_used;
+    if (!doublerUsedToday && this.rng() < config.moneyDoublerChance) {
+      const bankBefore = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+      const doubled = this.safeMultiply(bankBefore, 2);
+      patch.gold_in_bank = doubled.value;
+      patch.money_doubler_used_today = 1;
+      patch.today_money_doubler_used = 1;
+      this.newsService.addDailyNews(today, 'Somewhere magic has happened!', 'MONEY_DOUBLER');
+      this.recordBankTransaction(player.id, today, 'money_doubler', Math.max(0, doubled.value - bankBefore));
+      moneyDoublerText = doubled.clamped
+        ? ' Somewhere magic has happened! Your vault detonates with power, but the kingdom caps how much gold can exist.'
+        : ' Somewhere magic has happened! Your bank gold has been doubled!';
+    }
+
     this.playerRepo.updatePlayerStats(player.id, patch);
 
     this.newsService.addNews(today, `${player.display_name} listened to Seth Able and felt a strange wonder and awakening.`, { severity: 'info' });
 
     const hpText = hpRestored ? ' Your health is fully restored.' : '';
-    return { ok: true, message: `${this.getLyrics()} (+${bonus} extra forest fights)${hpText}` };
+    return { ok: true, message: `${this.getLyrics()} (+${bonus} extra forest fights)${hpText}${moneyDoublerText}` };
   }
 
   rentRoom(player: PlayerRecord, today: string): ActionResult {
@@ -239,6 +256,26 @@ export class InnService {
     getDb()
       .prepare('INSERT INTO inn_breakins (id, attacker_player_id, target_player_id, created_at, result) VALUES (@id, @attacker_player_id, @target_player_id, @created_at, @result)')
       .run({ id: randomUUID(), attacker_player_id: attackerPlayerId, target_player_id: targetPlayerId, created_at: new Date().toISOString(), result });
+  }
+
+  private recordBankTransaction(playerId: string, dayKey: string, type: 'money_doubler', amount: number) {
+    getDb()
+      .prepare('INSERT INTO bank_transactions (player_id, day_key, type, amount, created_at) VALUES (@player_id, @day_key, @type, @amount, @created_at)')
+      .run({
+        player_id: playerId,
+        day_key: dayKey,
+        type,
+        amount,
+        created_at: new Date().toISOString()
+      });
+  }
+
+  private safeMultiply(value: number, multiplier: number) {
+    const total = value * multiplier;
+    if (total > BIGINT_MAX) {
+      return { value: BIGINT_MAX, clamped: true };
+    }
+    return { value: total, clamped: false };
   }
 
   private getLyrics() {
