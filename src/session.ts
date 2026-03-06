@@ -29,7 +29,8 @@ export type ScreenState =
   | 'OLD_MAN_MENU'
   | 'OLD_MAN_TOP_LIST'
   | 'SLAUGHTER_FIELDS'
-  | 'OTHER_PLACES';
+  | 'OTHER_PLACES'
+  | 'OTHER_PLACES_MODULE';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -67,6 +68,7 @@ export interface Session {
   pvpFieldsTargets?: FieldsTargetRecord[];
   oldManCategory?: 'kills' | 'laid' | 'dragons' | 'bank' | 'strongest';
   pendingNewDaySpirits?: 'LOW' | 'NORMAL' | 'HIGH';
+  otherPlacesModuleId?: string;
   draft: {
     loginUsername?: string;
     username?: string;
@@ -101,6 +103,9 @@ export function setScreen(session: Session, state: ScreenState) {
     session.previousScreenId = session.state;
   }
   session.state = state;
+  if (state !== 'OTHER_PLACES_MODULE') {
+    session.otherPlacesModuleId = undefined;
+  }
   session.mode = 'MENU';
   session.inputBuffer = '';
   session.prompt = null;

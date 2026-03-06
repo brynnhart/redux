@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { buildStatsView } from '../services/statsViewService.js';
+import { getOtherPlaceModuleById, otherPlacesModules } from '../modules/otherPlacesRegistry.js';
 import type { Session, ScreenState } from '../session.js';
 import { renderBank } from './bank.js';
 
@@ -25,7 +26,8 @@ type Transition =
   | { type: 'bank_deposit'; amount: number }
   | { type: 'bank_withdraw'; amount: number }
   | { type: 'bank_deposit_all' }
-  | { type: 'bank_withdraw_all' };
+  | { type: 'bank_withdraw_all' }
+  | { type: 'other_places_module_update'; notice: string; patch: { gold?: number; gold_on_hand?: number; gold_pocket?: number; gems?: number; charm?: number; hp?: number } };
 
 interface Screen {
   id: ScreenState;
@@ -302,6 +304,81 @@ const statsScreen: Screen = {
   }
 };
 
+
+const otherPlacesScreen: Screen = {
+  id: 'OTHER_PLACES',
+  render: ({ session }, dims) => {
+    const cols = Math.max(80, dims.cols);
+    const rows = Math.max(25, dims.rows);
+    const buffer = createBuffer(cols, rows);
+    drawBox(buffer, 0, 0, cols, rows);
+    renderHeader(buffer, 'Other Places');
+
+    const player = session.player;
+    let y = 7;
+    otherPlacesModules.forEach((module, index) => {
+      const available = player ? module.isAvailable(player) : false;
+      const statusText = available ? module.description : 'Coming soon';
+      drawText(buffer, 3, y++, `${index + 1}) ${module.name.padEnd(18)} - ${statusText}`);
+    });
+
+    drawText(buffer, 3, y + 1, '(R) Return to Town');
+    drawText(buffer, 3, rows - 4, session.notice || 'A strange list of side places and bad ideas.');
+    drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
+    return { cols, rows, lines: toLines(buffer) };
+  },
+  handleInput: ({ session }, input) => {
+    if (input === 'R') return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
+
+    const selected = Number(input);
+    if (!Number.isInteger(selected) || selected < 1 || selected > otherPlacesModules.length) {
+      return { type: 'error', message: 'Choose a listed place number or R to return.' };
+    }
+
+    const module = otherPlacesModules[selected - 1];
+    if (!session.player) return { type: 'error', message: 'No player loaded.' };
+    if (!module.isAvailable(session.player)) {
+      return { type: 'stay', notice: `${module.name} is not open yet.` };
+    }
+
+    session.otherPlacesModuleId = module.id;
+    return { type: 'goto', screenId: 'OTHER_PLACES_MODULE', notice: `You head toward ${module.name}.` };
+  }
+};
+
+const otherPlacesModuleScreen: Screen = {
+  id: 'OTHER_PLACES_MODULE',
+  render: ({ session }, dims) => {
+    const module = getOtherPlaceModuleById(session.otherPlacesModuleId);
+    if (!module) {
+      const cols = Math.max(80, dims.cols);
+      const rows = Math.max(25, dims.rows);
+      const buffer = createBuffer(cols, rows);
+      drawBox(buffer, 0, 0, cols, rows);
+      renderHeader(buffer, 'Other Places');
+      drawText(buffer, 3, 7, 'This side area flickers out of existence.');
+      drawText(buffer, 3, 9, '(R) Return to Other Places');
+      drawText(buffer, 3, rows - 4, session.notice || 'No module selected.');
+      drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
+      return { cols, rows, lines: toLines(buffer) };
+    }
+
+    return module.render(session, dims);
+  },
+  handleInput: ({ session }, input) => {
+    const module = getOtherPlaceModuleById(session.otherPlacesModuleId);
+    if (!module) {
+      return { type: 'goto', screenId: 'OTHER_PLACES', notice: 'Back to Other Places.' };
+    }
+
+    const transition = module.handleInput(session, input);
+    if (transition.type === 'module_update') {
+      return { type: 'other_places_module_update', notice: transition.notice, patch: transition.patch };
+    }
+    return transition;
+  }
+};
+
 const screens: Partial<Record<ScreenState, Screen>> = {
   TOWN_SQUARE: townScreen,
   VIEW_STATS: statsScreen,
@@ -312,7 +389,8 @@ const screens: Partial<Record<ScreenState, Screen>> = {
   HEALER: healerScreen,
   WEAPONS_SHOP: makeStubScreen('WEAPONS_SHOP', "King Arthur's Weapons", 'Steel racks line the walls... (coming soon)'),
   ARMOR_SHOP: makeStubScreen('ARMOR_SHOP', "Abdul's Armor", 'Abdul grunts from behind a helm... (coming soon)'),
-  OTHER_PLACES: makeStubScreen('OTHER_PLACES', 'Other Places / IGMs', 'Mysterious portals flicker... (coming soon)')
+  OTHER_PLACES: otherPlacesScreen,
+  OTHER_PLACES_MODULE: otherPlacesModuleScreen
 };
 
 export function isCoreNavigationScreen(state: ScreenState): boolean {
@@ -354,6 +432,7 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
     session.state !== 'TOWN_SQUARE' &&
     session.state !== 'BANK' &&
     session.state !== 'VIEW_STATS' &&
+    session.state !== 'OTHER_PLACES_MODULE' &&
     !(session.state === 'HEALER' && session.healerState === 'HEAL_AMOUNT_PROMPT')
   ) {
     return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
