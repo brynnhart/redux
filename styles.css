@@ -89,3 +89,18 @@ body {
   background: #7a7a7a;
   color: #000;
 }
+
+.c-bright-green { color: #00ff00; font-weight: 700; }
+
+#terminal.town-fidelity {
+  width: min(900px, 100%);
+  text-shadow: none;
+}
+
+#terminal.town-fidelity::before {
+  display: none;
+}
+
+#terminal.town-fidelity .cursor {
+  display: none;
+}

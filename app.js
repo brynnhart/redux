@@ -42,7 +42,7 @@ const enemy = {
 };
 
 const state = {
-  screen: 'charName',
+  screen: 'town',
   commandEcho: '',
   awaitingTransition: false,
   transientMessage: '',
@@ -93,6 +93,10 @@ function townCommandColumns() {
 
 function promptLine() {
   return `<div class="prompt"><span class="c-green">Your command, ${player.name || 'Hero'}? : </span><span class="c-white">${state.commandEcho}</span><span class="cursor">█</span></div>`;
+}
+
+function townPromptLine() {
+  return '<div class="prompt"><span class="c-green">Your command, </span><span class="c-bright-green">Chester</span><span class="c-green">? </span><span class="c-white">[44:06]</span><span class="c-green"> :</span></div>';
 }
 
 function renderHeader() {
@@ -152,15 +156,73 @@ function renderDaily() {
 
 function renderTown() {
   return [
-    ansiLine([
-      { c: 'c-blue', t: 'Town Square' },
-      { c: 'c-dim', t: `   Level:${player.level}  HP:${player.hp}/${player.maxHp}  Gold:${player.gold}  Gems:${player.gems}` },
-    ]),
-    ansiLine([{ c: 'c-dim', t: '──────────────────────────────────────────────────────────────────────────' }]),
-    ansiLine([{ c: 'c-white', t: 'Citizens whisper, steel rings from the forge, and Violet laughs upstairs.' }]),
+    ansiLine([{ c: 'c-white', t: 'Legend Of The Red Dragon - ' }, { c: 'c-green', t: 'Town Square' }]),
+    ansiLine([{ c: 'c-green', t: '=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=' }]),
     '<div></div>',
-    townCommandColumns(),
-    state.transientMessage ? `<div class="c-magenta">${state.transientMessage}</div>` : '<div></div>',
+    ansiLine([{ c: 'c-green', t: 'The streets are crowded, it is difficult to' }]),
+    ansiLine([{ c: 'c-green', t: 'push your way through the mob....' }]),
+    '<div></div>',
+    ansiLine([
+      { c: 'c-magenta', t: '(F)' },
+      { c: 'c-green', t: pad('orest', 24) },
+      { c: 'c-magenta', t: '(S)' },
+      { c: 'c-green', t: 'laughter other players' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(K)' },
+      { c: 'c-green', t: pad('ing Arthurs Weapons', 24) },
+      { c: 'c-magenta', t: '(A)' },
+      { c: 'c-green', t: 'bduls Armour' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(H)' },
+      { c: 'c-green', t: pad('ealers Hut', 24) },
+      { c: 'c-magenta', t: '(V)' },
+      { c: 'c-green', t: 'iew your Stats' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(I)' },
+      { c: 'c-green', t: pad('nn', 24) },
+      { c: 'c-magenta', t: '(T)' },
+      { c: 'c-green', t: 'urgons Warrior Training' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(Y)' },
+      { c: 'c-green', t: pad('e Old Bank', 24) },
+      { c: 'c-magenta', t: '(L)' },
+      { c: 'c-green', t: 'ist Warriors' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(W)' },
+      { c: 'c-green', t: pad('rite Mail', 24) },
+      { c: 'c-magenta', t: '(D)' },
+      { c: 'c-green', t: 'aily News' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(C)' },
+      { c: 'c-green', t: pad('onjugality List', 24) },
+      { c: 'c-magenta', t: '(O)' },
+      { c: 'c-green', t: 'ther Places' },
+    ]),
+    ansiLine([
+      { c: 'c-white', t: '(X)' },
+      { c: 'c-green', t: pad('pert Mode', 24) },
+      { c: 'c-magenta', t: '(M)' },
+      { c: 'c-green', t: 'ake Announcement' },
+    ]),
+    ansiLine([
+      { c: 'c-magenta', t: '(P)' },
+      { c: 'c-green', t: pad('eople Online', 24) },
+      { c: 'c-white', t: '(Q)' },
+      { c: 'c-green', t: 'uit to Fields' },
+    ]),
+    '<div></div>',
+    ansiLine([
+      { c: 'c-magenta', t: 'The Town Square' },
+      { c: 'c-dim', t: '   (? for menu)' },
+    ]),
+    ansiLine([{ c: 'c-dim', t: '(F,S,K,A,H,V,I,T,Y,L,W,D,C,O,X,M,P,Q)' }]),
+    '<div></div>',
   ].join('');
 }
 
@@ -295,6 +357,13 @@ function renderScreen() {
     body = renderStats();
   }
 
+  if (state.screen === 'town') {
+    terminal.classList.add('town-fidelity');
+    terminal.innerHTML = `<div class="screen">${body}${townPromptLine()}</div>`;
+    return;
+  }
+
+  terminal.classList.remove('town-fidelity');
   terminal.innerHTML = `<div class="screen">${renderHeader()}${body}<div></div>${promptLine()}</div>`;
 }
 
@@ -335,12 +404,6 @@ function handleGlobalInput(key) {
   }
 
   if (state.screen === 'town') {
-    if (key === 'f') transitionTo('forest');
-    else if (key === 'i') transitionTo('inn');
-    else if (key === 'v') transitionTo('stats');
-    else if (key === 'l') transitionTo('rankings');
-    else if (key === 'd') transitionTo('daily');
-    else state.transientMessage = 'That place is closed in this prototype.';
     renderScreen();
     return;
   }
