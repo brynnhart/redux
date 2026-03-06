@@ -1,3 +1,4 @@
+import { getDb } from '../db/db.js';
 import type { PlayerRecord, PlayerRepo } from '../repos/playerRepo.js';
 
 const BIGINT_MAX = 9_223_372_036_854_775_807;
@@ -11,18 +12,22 @@ export class BankService {
   constructor(private readonly playerRepo: PlayerRepo) {}
 
   deposit(player: PlayerRecord, amount: number): BankTransactionResult {
+    const onHand = this.getOnHandGold(player);
+    const inBank = this.getBankGold(player);
+
     if (!Number.isInteger(amount) || amount <= 0) {
       return { ok: false, message: 'That is not a real amount. Try a positive integer.' };
     }
-    if (amount > player.gold) {
+    if (amount > onHand) {
       return { ok: false, message: "You pat your pockets and come up short. That's too much gold." };
     }
 
-    const nextBank = this.safeAdd(player.bank_gold, amount);
+    const nextBank = this.safeAdd(inBank, amount);
     this.playerRepo.updatePlayerStats(player.id, {
-      gold: player.gold - amount,
-      bank_gold: nextBank.value
+      gold_on_hand: onHand - amount,
+      gold_in_bank: nextBank.value
     });
+    this.recordTransaction(player.id, 'deposit', amount);
 
     if (nextBank.clamped) {
       return { ok: true, message: `You deposit ${amount} gold. The vault overflows, so excess coin is discarded.` };
@@ -32,31 +37,50 @@ export class BankService {
   }
 
   depositAll(player: PlayerRecord): BankTransactionResult {
-    if (player.gold <= 0) {
+    const onHand = this.getOnHandGold(player);
+    if (onHand <= 0) {
       return { ok: false, message: 'Your pockets are empty.' };
     }
-    return this.deposit(player, player.gold);
+    return this.deposit(player, onHand);
   }
 
   withdraw(player: PlayerRecord, amount: number): BankTransactionResult {
+    const onHand = this.getOnHandGold(player);
+    const inBank = this.getBankGold(player);
+
     if (!Number.isInteger(amount) || amount <= 0) {
       return { ok: false, message: 'That is not a real amount. Try a positive integer.' };
     }
-    if (amount > player.bank_gold) {
+    if (amount > inBank) {
       return { ok: false, message: 'The vault is not a magical bottomless pit. Too much.' };
     }
 
-    const nextPocket = this.safeAdd(player.gold, amount);
+    const nextPocket = this.safeAdd(onHand, amount);
     this.playerRepo.updatePlayerStats(player.id, {
-      gold: nextPocket.value,
-      bank_gold: player.bank_gold - amount
+      gold_on_hand: nextPocket.value,
+      gold_in_bank: inBank - amount
     });
+    this.recordTransaction(player.id, 'withdraw', amount);
 
     if (nextPocket.clamped) {
       return { ok: true, message: `You withdraw ${amount} gold, but can only carry so much. Excess coin stays in limbo.` };
     }
 
     return { ok: true, message: `You withdraw ${amount} gold.` };
+  }
+
+  private getOnHandGold(player: PlayerRecord): number {
+    return player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+  }
+
+  private getBankGold(player: PlayerRecord): number {
+    return player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
+  }
+
+  private recordTransaction(playerId: string, type: 'deposit' | 'withdraw' | 'interest', amount: number) {
+    getDb()
+      .prepare('INSERT INTO bank_transactions (player_id, type, amount, created_at) VALUES (?, ?, ?, ?)')
+      .run([playerId, type, amount, new Date().toISOString()]);
   }
 
   private safeAdd(left: number, right: number) {

@@ -135,7 +135,7 @@ function shouldUseLineInput(session: Session) {
   return session.state === 'DAILY_HAPPENINGS' || isCoreNavigationScreen(session.state);
 }
 
-function applyCoreNavigationTransition(session: Session, transition: { type: string; screenId?: Session['state']; notice?: string; message?: string }, close: () => void) {
+function applyCoreNavigationTransition(session: Session, transition: { type: string; screenId?: Session['state']; notice?: string; message?: string; amount?: number }, close: () => void) {
   if (transition.type === 'logout') {
     close();
     return;
@@ -147,6 +147,42 @@ function applyCoreNavigationTransition(session: Session, transition: { type: str
     }
     setScreen(session, transition.screenId);
     session.notice = transition.notice ?? '';
+    return;
+  }
+  if (!session.player) {
+    session.notice = 'No player loaded.';
+    return;
+  }
+  if (transition.type === 'auto_deposit') {
+    const onHand = session.player.gold_on_hand ?? session.player.gold_pocket ?? session.player.gold;
+    if (onHand > 0) {
+      bankService.depositAll(session.player);
+      refreshPlayer(session);
+      session.notice = 'A vulture swoops down and whisks your gold into the bank.';
+    } else {
+      session.notice = 'You have no gold to deposit.';
+    }
+    return;
+  }
+  if (transition.type === 'bank_deposit') {
+    session.notice = bankService.deposit(session.player, transition.amount ?? 0).message;
+    refreshPlayer(session);
+    return;
+  }
+  if (transition.type === 'bank_withdraw') {
+    session.notice = bankService.withdraw(session.player, transition.amount ?? 0).message;
+    refreshPlayer(session);
+    return;
+  }
+  if (transition.type === 'bank_deposit_all') {
+    session.notice = bankService.depositAll(session.player).message;
+    refreshPlayer(session);
+    return;
+  }
+  if (transition.type === 'bank_withdraw_all') {
+    const inBank = session.player.gold_in_bank ?? session.player.gold_bank ?? session.player.bank_gold;
+    session.notice = inBank > 0 ? bankService.withdraw(session.player, inBank).message : 'Your bank account is empty.';
+    refreshPlayer(session);
     return;
   }
   if (transition.type === 'error') {

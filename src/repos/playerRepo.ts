@@ -19,6 +19,8 @@ export interface PlayerRecord {
   hp_max: number;
   gold: number;
   bank_gold: number;
+  gold_on_hand: number;
+  gold_in_bank: number;
   gold_pocket: number;
   gold_bank: number;
   gems: number;
@@ -92,6 +94,8 @@ type MutablePlayerStats = Pick<
   | 'hp_max'
   | 'gold'
   | 'bank_gold'
+  | 'gold_on_hand'
+  | 'gold_in_bank'
   | 'gold_pocket'
   | 'gold_bank'
   | 'gems'
@@ -187,17 +191,29 @@ export class PlayerRepo {
   updatePlayerStats(id: string, patch: Partial<MutablePlayerStats>) {
     const syncedPatch: Partial<MutablePlayerStats> = { ...patch };
 
-    if (patch.gold !== undefined && patch.gold_pocket === undefined) {
-      syncedPatch.gold_pocket = patch.gold;
+    if (patch.gold !== undefined) {
+      if (patch.gold_pocket === undefined) syncedPatch.gold_pocket = patch.gold;
+      if (patch.gold_on_hand === undefined) syncedPatch.gold_on_hand = patch.gold;
     }
-    if (patch.gold_pocket !== undefined && patch.gold === undefined) {
-      syncedPatch.gold = patch.gold_pocket;
+    if (patch.gold_pocket !== undefined) {
+      if (patch.gold === undefined) syncedPatch.gold = patch.gold_pocket;
+      if (patch.gold_on_hand === undefined) syncedPatch.gold_on_hand = patch.gold_pocket;
     }
-    if (patch.bank_gold !== undefined && patch.gold_bank === undefined) {
-      syncedPatch.gold_bank = patch.bank_gold;
+    if (patch.gold_on_hand !== undefined) {
+      if (patch.gold === undefined) syncedPatch.gold = patch.gold_on_hand;
+      if (patch.gold_pocket === undefined) syncedPatch.gold_pocket = patch.gold_on_hand;
     }
-    if (patch.gold_bank !== undefined && patch.bank_gold === undefined) {
-      syncedPatch.bank_gold = patch.gold_bank;
+    if (patch.bank_gold !== undefined) {
+      if (patch.gold_bank === undefined) syncedPatch.gold_bank = patch.bank_gold;
+      if (patch.gold_in_bank === undefined) syncedPatch.gold_in_bank = patch.bank_gold;
+    }
+    if (patch.gold_bank !== undefined) {
+      if (patch.bank_gold === undefined) syncedPatch.bank_gold = patch.gold_bank;
+      if (patch.gold_in_bank === undefined) syncedPatch.gold_in_bank = patch.gold_bank;
+    }
+    if (patch.gold_in_bank !== undefined) {
+      if (patch.bank_gold === undefined) syncedPatch.bank_gold = patch.gold_in_bank;
+      if (patch.gold_bank === undefined) syncedPatch.gold_bank = patch.gold_in_bank;
     }
     if (patch.today_money_doubler_used !== undefined && patch.money_doubler_used_today === undefined) {
       syncedPatch.money_doubler_used_today = patch.today_money_doubler_used;

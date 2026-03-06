@@ -3,6 +3,7 @@ import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
 import { classLabel } from '../services/skillService.js';
 import type { Session, ScreenState } from '../session.js';
+import { renderBank } from './bank.js';
 
 interface Dimensions {
   cols: number;
@@ -17,7 +18,12 @@ type Transition =
   | { type: 'stay'; notice?: string }
   | { type: 'goto'; screenId: ScreenState; notice?: string }
   | { type: 'logout' }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'auto_deposit' }
+  | { type: 'bank_deposit'; amount: number }
+  | { type: 'bank_withdraw'; amount: number }
+  | { type: 'bank_deposit_all' }
+  | { type: 'bank_withdraw_all' };
 
 interface Screen {
   id: ScreenState;
@@ -28,7 +34,7 @@ interface Screen {
 const TOWN_MENU: Array<{ key: string; label: string; target: ScreenState }> = [
   { key: 'F', label: 'Forest', target: 'FOREST' },
   { key: 'I', label: 'The Inn', target: 'INN' },
-  { key: 'B', label: 'Ye Olde Bank', target: 'BANK' },
+  { key: 'K', label: 'Ye Olde Bank', target: 'BANK' },
   { key: 'H', label: "Healer's Hut", target: 'HEALER' },
   { key: 'W', label: "King Arthur's Weapons", target: 'WEAPONS_SHOP' },
   { key: 'A', label: "Abdul's Armor", target: 'ARMOR_SHOP' },
@@ -55,11 +61,13 @@ const townScreen: Screen = {
 
     const player = session.player;
     if (player) {
+      const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+      const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
       drawText(
         buffer,
         3,
         8,
-        `Lvl ${player.level} | Exp ${player.exp} | HP ${player.hp}/${player.hp_max} | Gold ${player.gold} | Bank ${player.bank_gold} | Gems ${player.spirits} | Forest ${player.turns_forest_left}`
+        `Lvl ${player.level} | Exp ${player.exp} | HP ${player.hp}/${player.hp_max} | Gold ${onHand} | Bank ${inBank} | Gems ${player.spirits} | Forest ${player.turns_forest_left}`
       );
     }
 
@@ -68,6 +76,7 @@ const townScreen: Screen = {
       drawText(buffer, 3, y++, `(${item.key}) ${item.label}`);
     }
     drawText(buffer, 3, y++, '(V) View Stats');
+    drawText(buffer, 3, y++, '(B) Auto-deposit on-hand gold');
     drawText(buffer, 3, y++, '(?) Help');
     drawText(buffer, 3, y++, '(Q) Quit');
 
@@ -98,8 +107,9 @@ function makeStubScreen(id: ScreenState, title: string, message: string): Screen
       renderHeader(buffer, title);
       drawText(buffer, 3, 7, message);
       drawText(buffer, 3, 9, '(R) Return to Town');
-      drawText(buffer, 3, 10, '(?) Help');
-      drawText(buffer, 3, 11, '(Q) Quit');
+      drawText(buffer, 3, 10, '(B) Auto-deposit on-hand gold');
+      drawText(buffer, 3, 11, '(?) Help');
+      drawText(buffer, 3, 12, '(Q) Quit');
       drawText(buffer, 3, rows - 4, session.notice || '');
       drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
       return { cols, rows, lines: toLines(buffer) };
@@ -113,6 +123,61 @@ function makeStubScreen(id: ScreenState, title: string, message: string): Screen
   };
 }
 
+const bankScreen: Screen = {
+  id: 'BANK',
+  render: ({ session }, dims) => renderBank(session, dims),
+  handleInput: ({ session }, input) => {
+    const normalized = input.trim().toUpperCase();
+    if (session.bankState === 'DEPOSIT_PROMPT') {
+      if (normalized === 'R' || normalized === '') {
+        session.bankState = 'MENU';
+        return { type: 'stay', notice: 'Back to the ledger.' };
+      }
+      if (normalized === '1') {
+        session.bankState = 'MENU';
+        return { type: 'bank_deposit_all' };
+      }
+      const amount = Number(normalized);
+      if (!Number.isInteger(amount) || amount < 1) {
+        return { type: 'error', message: 'Use a whole number >= 1, 1 for all, or R to return.' };
+      }
+      session.bankState = 'MENU';
+      return { type: 'bank_deposit', amount };
+    }
+
+    if (session.bankState === 'WITHDRAW_PROMPT') {
+      if (normalized === 'R' || normalized === '') {
+        session.bankState = 'MENU';
+        return { type: 'stay', notice: 'Back to the ledger.' };
+      }
+      if (normalized === '1') {
+        session.bankState = 'MENU';
+        return { type: 'bank_withdraw_all' };
+      }
+      const amount = Number(normalized);
+      if (!Number.isInteger(amount) || amount < 1) {
+        return { type: 'error', message: 'Use a whole number >= 1, 1 for all, or R to return.' };
+      }
+      session.bankState = 'MENU';
+      return { type: 'bank_withdraw', amount };
+    }
+
+    if (input === 'D') {
+      session.bankState = 'DEPOSIT_PROMPT';
+      return { type: 'stay', notice: 'Deposit how much? (1=All, R=Return)' };
+    }
+    if (input === 'W') {
+      session.bankState = 'WITHDRAW_PROMPT';
+      return { type: 'stay', notice: 'Withdraw how much? (1=All, R=Return)' };
+    }
+    if (input === '1') return { type: 'bank_deposit_all' };
+    if (input === '2') return { type: 'bank_withdraw_all' };
+    if (input === 'R') return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
+
+    return { type: 'error', message: 'Bank keys: D deposit, W withdraw, 1 all deposit, 2 all withdraw, R return.' };
+  }
+};
+
 const helpScreen: Screen = {
   id: 'HELP_MENU',
   render: ({ session }, dims) => {
@@ -122,8 +187,7 @@ const helpScreen: Screen = {
     drawBox(buffer, 0, 0, cols, rows);
     renderHeader(buffer, 'Help / Menu Legend');
     drawText(buffer, 3, 7, 'Single-line input: type a command, then press Enter.');
-    drawText(buffer, 3, 8, '? = Help, R = Return to Town, Q/X = Quit');
-    drawText(buffer, 3, 9, 'Commands are case-insensitive.');
+    drawText(buffer, 3, 8, '? = Help, R = Return to Town, Q/X = Quit, B = Auto-deposit');
     drawText(buffer, 3, 11, '(R) Return to Town');
     drawText(buffer, 3, rows - 4, session.notice || '');
     drawText(buffer, 3, rows - 3, `Command> ${session.inputBuffer}`);
@@ -149,13 +213,15 @@ const statsScreen: Screen = {
     if (player) {
       const weapon = getWeaponTier(player.weapon_tier);
       const armor = getArmorTier(player.armor_tier);
+      const onHand = player.gold_on_hand ?? player.gold_pocket ?? player.gold;
+      const inBank = player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
       drawText(buffer, 3, 7, `Name: ${player.display_name}`);
       drawText(buffer, 3, 8, `Sex: ${player.sex}  Class: ${classLabel(player.class)}  Level: ${player.level}`);
       drawText(buffer, 3, 9, `Exp: ${player.exp} / ???`);
       drawText(buffer, 3, 10, `HP: ${player.hp}/${player.hp_max}   Charm: ${player.charm}`);
       drawText(buffer, 3, 11, `Weapon: ${weapon.name || 'None'}`);
       drawText(buffer, 3, 12, `Armor: ${armor.name || 'None'}`);
-      drawText(buffer, 3, 13, `Gold: ${player.gold}   Bank: ${player.bank_gold}   Gems: ${player.spirits}`);
+      drawText(buffer, 3, 13, `Gold: ${onHand}   Bank: ${inBank}   Gems: ${player.spirits}`);
       drawText(buffer, 3, 14, `Skill uses - DK: ${player.skill_uses_death}, Mystic: ${player.skill_uses_mystic}, Thief: ${player.skill_uses_thief}`);
     }
 
@@ -177,7 +243,7 @@ const screens: Partial<Record<ScreenState, Screen>> = {
   HELP_MENU: helpScreen,
   FOREST: makeStubScreen('FOREST', 'The Forest', 'The forest looms... (coming soon)'),
   INN: makeStubScreen('INN', 'The Inn', 'The barkeep polishes a glass... (coming soon)'),
-  BANK: makeStubScreen('BANK', 'Ye Olde Bank', 'A vulture eyes your coin purse... (coming soon)'),
+  BANK: bankScreen,
   HEALER: makeStubScreen('HEALER', "Healer's Hut", 'Herbs and pain await... (coming soon)'),
   WEAPONS_SHOP: makeStubScreen('WEAPONS_SHOP', "King Arthur's Weapons", 'Steel racks line the walls... (coming soon)'),
   ARMOR_SHOP: makeStubScreen('ARMOR_SHOP', "Abdul's Armor", 'Abdul grunts from behind a helm... (coming soon)'),
@@ -200,7 +266,11 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
   const normalized = inputText.trim().toUpperCase();
   const command = normalized.length > 0 ? normalized[0] : '';
 
-  if (command === '?') {
+  if (command === 'B' && session.state !== 'BANK') {
+    return { type: 'auto_deposit' };
+  }
+
+  if (command === '?' && session.state !== 'BANK') {
     return { type: 'goto', screenId: 'HELP_MENU' };
   }
 
@@ -208,9 +278,9 @@ export function handleCoreNavigationInput(session: Session, inputText: string): 
     return { type: 'logout' };
   }
 
-  if (command === 'R' && session.state !== 'TOWN_SQUARE') {
+  if (command === 'R' && session.state !== 'TOWN_SQUARE' && session.state !== 'BANK') {
     return { type: 'goto', screenId: 'TOWN_SQUARE', notice: 'You return to town.' };
   }
 
-  return screen.handleInput({ session }, command);
+  return screen.handleInput({ session }, normalized);
 }
