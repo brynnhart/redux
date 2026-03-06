@@ -28,6 +28,7 @@ import { renderHealer } from './screens/healer.js';
 import { renderWeaponsShop } from './screens/weaponsShop.js';
 import { renderArmorShop } from './screens/armorShop.js';
 import { renderInn, renderInnBartender, renderInnBreakIn, renderInnFlirt } from './screens/inn.js';
+import { renderSlaughterFields } from './screens/slaughter.js';
 import { renderTraining } from './screens/training.js';
 import { handleCoreNavigationInput, isCoreNavigationScreen, renderCoreNavigationScreen } from './screens/coreNavigation.js';
 import { InnService } from './services/innService.js';
@@ -35,6 +36,7 @@ import { trainClassSkillPatch } from './services/skillService.js';
 import { challengeMaster, getMasterForLevel, isEligibleForMasterChallenge, levelUpHpGain } from './services/trainingService.js';
 import { renderHallOfHonor } from './screens/hallOfHonor.js';
 import { config } from './config.js';
+import { PvpService } from './services/pvpService.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -46,6 +48,7 @@ const bankService = new BankService(playerRepo);
 const healerService = new HealerService(playerRepo);
 const equipmentService = new EquipmentService(playerRepo);
 const innService = new InnService(playerRepo, newsService);
+const pvpService = new PvpService(playerRepo, newsService);
 
 runMigrations();
 app.log.info({ dbPath: getDbPath() }, 'Migrations complete');
@@ -238,6 +241,21 @@ function enterTraining(session: Session) {
   loadDailyNews(session, todayDayKey);
   setScreen(session, 'TRAINING');
   session.notice = "Turgon cracks his knuckles. Train hard or go home.";
+}
+
+function enterSlaughterFields(session: Session) {
+  if (!session.player || !session.playerId) {
+    session.notice = 'No player loaded.';
+    return;
+  }
+  const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
+  refreshPlayer(session);
+  loadDailyNews(session, todayDayKey);
+  session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
+  session.pvpEncounter = undefined;
+  session.pvpTargetSelection = undefined;
+  setScreen(session, 'SLAUGHTER_FIELDS');
+  session.notice = 'You scan the Warfield for potential victims...';
 }
 
 
@@ -562,6 +580,11 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     return;
   }
 
+  if (session.playerId && key === 'S' && session.state === 'TOWN_SQUARE') {
+    enterSlaughterFields(session);
+    return;
+  }
+
   if (session.state === 'TOWN_SQUARE') {
     if (key === 'Q') {
       close();
@@ -620,6 +643,74 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     }
 
     session.notice = 'Training keys: Q question, A attack, H hall, C class train, R/T town.';
+    return;
+  }
+
+  if (session.state === 'SLAUGHTER_FIELDS') {
+    if (!session.player || !session.playerId) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
+    refreshPlayer(session);
+    if (!session.player) {
+      returnToTown(session, 'No player loaded.');
+      return;
+    }
+
+    if (key === 'Q') {
+      session.pvpEncounter = undefined;
+      session.pvpTargetSelection = undefined;
+      returnToTown(session, 'You leave the fields.');
+      return;
+    }
+
+    if (session.pvpEncounter && !session.pvpEncounter.over) {
+      if (key === 'A') {
+        const result = pvpService.takeAction(session.pvpEncounter, 'ATTACK', todayDayKey);
+        session.notice = result.message;
+        session.pvpEncounter = result.state;
+        refreshPlayer(session);
+        loadDailyNews(session, todayDayKey);
+        if (result.over) {
+          session.pvpEncounter = undefined;
+          session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
+        }
+        return;
+      }
+      if (key === 'R') {
+        const result = pvpService.takeAction(session.pvpEncounter, 'RUN', todayDayKey);
+        session.notice = result.message;
+        session.pvpEncounter = undefined;
+        session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
+        refreshPlayer(session);
+        loadDailyNews(session, todayDayKey);
+        return;
+      }
+      session.notice = 'PvP keys: A attack, R run.';
+      return;
+    }
+
+    if (key === 'L') {
+      session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
+      session.notice = session.pvpFieldsTargets.length > 0 ? 'You spot possible victims.' : 'No eligible victims in the fields.';
+      return;
+    }
+
+    if (/^[1-9]$/.test(key)) {
+      const targets = playerRepo.listFieldsTargets(session.playerId);
+      const target = targets[Number(key) - 1];
+      if (!target) {
+        session.notice = 'No such target on this list.';
+        return;
+      }
+      session.pvpTargetSelection = target.id;
+      session.notice = `Attack ${target.display_name} (Level ${target.level})? (Y/N)`;
+      startPrompt(session, 'fields_confirm');
+      return;
+    }
+
+    session.notice = 'Fields keys: L list, 1-9 attack, R/Q town.';
     return;
   }
   if (session.state === 'HALL_OF_HONOR') {
@@ -1099,6 +1190,27 @@ function handleTextEntry(session: Session, message: KeyMessage) {
       session.innTargetSelection = undefined;
       refreshPlayer(session);
       loadDailyNews(session, todayDayKey);
+    } else if (field === 'fields_confirm' && session.state === 'SLAUGHTER_FIELDS') {
+      if (!session.player || !session.playerId || !session.pvpTargetSelection) {
+        session.notice = 'No target selected.';
+        return;
+      }
+      const choice = value.toUpperCase();
+      if (choice !== 'Y') {
+        session.notice = 'You decide to let this one live... for now.';
+        session.pvpTargetSelection = undefined;
+        return;
+      }
+      const target = playerRepo.findById(session.pvpTargetSelection);
+      if (!target) {
+        session.notice = 'That target is gone.';
+        session.pvpTargetSelection = undefined;
+        return;
+      }
+      const create = pvpService.createEncounter(session.player, target, 'FIELDS');
+      session.notice = create.message;
+      session.pvpEncounter = create.state;
+      session.pvpTargetSelection = undefined;
     } else if (field === 'jennie_word' && session.state === 'FOREST') {
       if (!session.player || !session.playerId) {
         session.notice = 'Jennie is gone.';
@@ -1179,6 +1291,9 @@ function renderSession(session: Session) {
   }
   if (session.state === 'INN_BREAK_IN') {
     return renderInnBreakIn(session, { cols: session.cols, rows: session.rows }, session.player ? innService.getBreakInTargets(session.player) : []);
+  }
+  if (session.state === 'SLAUGHTER_FIELDS') {
+    return renderSlaughterFields(session, { cols: session.cols, rows: session.rows });
   }
   return renderTownSquare(session, { cols: session.cols, rows: session.rows });
 }

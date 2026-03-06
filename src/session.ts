@@ -1,5 +1,6 @@
-import type { PlayerClass, PlayerRecord, PlayerSex } from './repos/playerRepo.js';
+import type { FieldsTargetRecord, PlayerClass, PlayerRecord, PlayerSex } from './repos/playerRepo.js';
 import type { NewsRecord } from './services/newsService.js';
+import type { PvpEncounterState } from './services/pvpService.js';
 
 let nextSessionId = 1;
 
@@ -52,6 +53,9 @@ export interface Session {
   pendingEquipmentAction?: 'BUY_WEAPON' | 'BUY_ARMOR';
   pendingForestSkill?: 'DEATH_ATTACK' | 'MYSTIC_PINCH' | 'MYSTIC_HEAL' | 'THIEF_SNEAKY' | 'THIEF_PASS_MARK';
   innTargetSelection?: string;
+  pvpTargetSelection?: string;
+  pvpEncounter?: PvpEncounterState;
+  pvpFieldsTargets?: FieldsTargetRecord[];
   draft: {
     loginUsername?: string;
     username?: string;

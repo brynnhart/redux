@@ -32,6 +32,19 @@ interface AddPendingEventInput {
 }
 
 export class NewsService {
+  addDailyNews(dayKey: string, message: string, type: string) {
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO daily_news (day_key, created_at, message, type)
+       VALUES (@day_key, @created_at, @message, @type)`
+    ).run({
+      day_key: dayKey,
+      created_at: new Date().toISOString(),
+      message,
+      type
+    });
+  }
+
   addNews(dayKey: string, message: string, options: AddNewsOptions = {}) {
     const db = getDb();
     db.prepare(
