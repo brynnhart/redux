@@ -251,6 +251,7 @@ function enterSlaughterFields(session) {
     session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
     session.pvpEncounter = undefined;
     session.pvpTargetSelection = undefined;
+    session.pvpPressContext = undefined;
     setScreen(session, 'SLAUGHTER_FIELDS');
     session.notice = 'You scan the Warfield for potential victims...';
 }
@@ -645,6 +646,7 @@ function handleMenuKey(session, message, close) {
         if (key === 'Q') {
             session.pvpEncounter = undefined;
             session.pvpTargetSelection = undefined;
+            session.pvpPressContext = undefined;
             returnToTown(session, 'You leave the fields.');
             return;
         }
@@ -658,6 +660,11 @@ function handleMenuKey(session, message, close) {
                 if (result.over) {
                     session.pvpEncounter = undefined;
                     session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
+                    if (result.promptField === 'pvp_press_quote') {
+                        session.pvpPressContext = result.pressContext;
+                        session.notice = result.promptMessage ?? 'Say something to the press:';
+                        startPrompt(session, 'pvp_press_quote');
+                    }
                 }
                 return;
             }
@@ -665,6 +672,7 @@ function handleMenuKey(session, message, close) {
                 const result = pvpService.takeAction(session.pvpEncounter, 'RUN', todayDayKey);
                 session.notice = result.message;
                 session.pvpEncounter = undefined;
+                session.pvpPressContext = undefined;
                 session.pvpFieldsTargets = playerRepo.listFieldsTargets(session.playerId);
                 refreshPlayer(session);
                 loadDailyNews(session, todayDayKey);
@@ -686,7 +694,7 @@ function handleMenuKey(session, message, close) {
                 return;
             }
             session.pvpTargetSelection = target.id;
-            session.notice = `Attack ${target.display_name} (Level ${target.level})? (Y/N)`;
+            session.notice = pvpService.buildDuelAcceptancePrompt(target);
             startPrompt(session, 'fields_confirm');
             return;
         }
@@ -1177,6 +1185,17 @@ function handleTextEntry(session, message) {
             session.notice = create.message;
             session.pvpEncounter = create.state;
             session.pvpTargetSelection = undefined;
+        }
+        else if (field === 'pvp_press_quote' && session.state === 'SLAUGHTER_FIELDS') {
+            if (!session.player || !session.playerId) {
+                session.notice = 'No one is around to hear your quote.';
+                return;
+            }
+            const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
+            const defeatedName = session.pvpPressContext?.defeatedName ?? 'your victim';
+            session.notice = pvpService.recordPressQuote(session.player, value, todayDayKey, defeatedName);
+            session.pvpPressContext = undefined;
+            loadDailyNews(session, todayDayKey);
         }
         else if (field === 'jennie_word' && session.state === 'FOREST') {
             if (!session.player || !session.playerId) {
