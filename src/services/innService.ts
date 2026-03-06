@@ -5,6 +5,7 @@ import { getDb } from '../db/db.js';
 import { getWeaponById } from '../data/equipment.js';
 import type { PlayerRecord, PlayerRepo } from '../repos/playerRepo.js';
 import type { NewsService } from './newsService.js';
+import { getDayIndexFromDayKey } from './dayKey.js';
 
 export interface InnTarget {
   id: string;
@@ -85,7 +86,7 @@ export class InnService {
       patch.gold_in_bank = doubled.value;
       patch.money_doubler_used_today = 1;
       patch.today_money_doubler_used = 1;
-      this.newsService.addDailyNews(today, 'Somewhere magic has happened!', 'MONEY_DOUBLER');
+      this.newsService.moneyDoubler(player.id, today, bankBefore, doubled.value);
       this.recordBankTransaction(player.id, today, 'money_doubler', Math.max(0, doubled.value - bankBefore));
       moneyDoublerText = doubled.clamped
         ? ' Somewhere magic has happened! Your vault detonates with power, but the kingdom caps how much gold can exist.'
@@ -230,7 +231,7 @@ export class InnService {
       });
       this.recordBreakIn(attacker.id, victim.id, 'killed');
       this.newsService.addNews(today, `${attacker.display_name} broke into ${victim.display_name}'s room and won.`, { severity: 'pvp' });
-      this.newsService.addDailyNews(today, `${attacker.display_name} has killed ${victim.display_name}.`, 'INN_BREAKIN');
+      this.newsService.pvpKill(attacker.id, victim.id, { dayKey: today, killerName: attacker.display_name, victimName: victim.display_name });
       return { ok: true, message: `${rounds.join(' ')} You win. +${xpGain} exp, ${stealAmount} gold stolen.` };
     }
 
@@ -247,7 +248,7 @@ export class InnService {
     });
     this.recordBreakIn(attacker.id, victim.id, 'killed');
     this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });
-    this.newsService.addDailyNews(today, `${attacker.display_name} has attacked ${victim.display_name} and has been killed in self-defense.`, 'PVP_DEFEND');
+    this.newsService.addDailyNews({ day: getDayIndexFromDayKey(today), type: 'PVP_DEFEND', actorId: attacker.id, targetId: victim.id, message: `${attacker.display_name} has attacked ${victim.display_name} and has been killed in self-defense.` });
     return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
   }
 

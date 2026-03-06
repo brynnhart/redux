@@ -8,6 +8,7 @@ import type { NewsService } from './newsService.js';
 import { CombatService, type ActiveEnemy } from './combatService.js';
 import { ForestEventService, type ForestEventEncounter } from './forestEventService.js';
 import { consumeClassSkillUsePatch } from './skillService.js';
+import { getDayIndexFromDayKey } from './dayKey.js';
 
 export interface ForestEventResolution {
   text: string;
@@ -305,7 +306,7 @@ export class ForestService {
 
         this.playerRepo.updatePlayerStats(player.id, patch);
         this.newsService.addNews(today, `${player.display_name} has defeated the Red Dragon!`, { severity: 'dragon' });
-        this.newsService.addDailyNews(today, `${player.display_name} has defeated the Red Dragon!`, 'DRAGON_KILL');
+        this.newsService.dragonKill(player.id, { dayKey: today, playerName: player.display_name });
         db.prepare(
           `INSERT INTO player_history (player_id, day_key, event_type, lap_before, lap_after, created_at)
            VALUES (?, ?, 'dragon_kill', ?, ?, ?)`
@@ -326,7 +327,7 @@ export class ForestService {
       };
       this.playerRepo.updatePlayerStats(player.id, deathPatch);
       this.newsService.addNews(today, `The Red Dragon has killed ${player.display_name}!`, { severity: 'dragon' });
-      this.newsService.addDailyNews(today, `The Red Dragon has killed ${player.display_name}!`, 'DRAGON_KILLED');
+      this.newsService.addDailyNews({ day: getDayIndexFromDayKey(today), type: 'DRAGON_KILLED', targetId: player.id, message: `The Red Dragon has killed ${player.display_name}.` });
       db.exec('COMMIT');
 
       return {

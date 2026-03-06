@@ -52,6 +52,9 @@ export interface Session {
   screenParams?: Record<string, string>;
   dailyNews: NewsRecord[];
   todayDate?: string;
+  todayDayNumber?: number;
+  dailyNewsOffset: number;
+  dailyNewsHasMore: boolean;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
   bankState?: 'MENU' | 'DEPOSIT_PROMPT' | 'WITHDRAW_PROMPT';
   healerState?: 'MENU' | 'HEAL_AMOUNT_PROMPT';
@@ -84,6 +87,8 @@ export function createSession(): Session {
     notice: '',
     draft: {},
     dailyNews: [],
+    dailyNewsOffset: 0,
+    dailyNewsHasMore: false,
     bankState: 'MENU',
     healerState: 'MENU'
   };
