@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 15;
 
 export function runMigrations() {
   const db = getDb();
@@ -274,7 +274,8 @@ export function runMigrations() {
       CREATE TABLE IF NOT EXISTS bank_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         player_id TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('deposit', 'withdraw', 'interest')),
+        day_key TEXT,
+        type TEXT NOT NULL CHECK (type IN ('deposit', 'withdraw', 'interest', 'money_doubler')),
         amount INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
@@ -444,6 +445,60 @@ export function runMigrations() {
     `);
   }
 
+
+
+
+  if (currentVersion < 15) {
+    const bankTransactionsExists = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bank_transactions'")
+      .get() as { name?: string } | undefined;
+
+    if (!bankTransactionsExists) {
+      db.exec(`
+        CREATE TABLE bank_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          player_id TEXT NOT NULL,
+          day_key TEXT,
+          type TEXT NOT NULL CHECK (type IN ('deposit', 'withdraw', 'interest', 'money_doubler')),
+          amount INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bank_transactions_player_created
+        ON bank_transactions (player_id, created_at);
+      `);
+    } else {
+      db.exec('ALTER TABLE bank_transactions RENAME TO bank_transactions_old;');
+      db.exec(`
+        CREATE TABLE bank_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          player_id TEXT NOT NULL,
+          day_key TEXT,
+          type TEXT NOT NULL CHECK (type IN ('deposit', 'withdraw', 'interest', 'money_doubler')),
+          amount INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+        );
+      `);
+      db.exec(`
+        INSERT INTO bank_transactions (id, player_id, day_key, type, amount, created_at)
+        SELECT
+          id,
+          player_id,
+          COALESCE(day_key, substr(created_at, 1, 10)),
+          type,
+          amount,
+          created_at
+        FROM bank_transactions_old;
+      `);
+      db.exec('DROP TABLE bank_transactions_old;');
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_bank_transactions_player_created
+        ON bank_transactions (player_id, created_at);
+      `);
+    }
+  }
 
 db.prepare(
     `INSERT INTO meta (key, value) VALUES ('schema_version', ?)

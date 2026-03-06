@@ -34,12 +34,12 @@ export function renderBank(session: Session, dims: Dimensions) {
   if (session.bankState === 'DEPOSIT_PROMPT') {
     drawText(buffer, 3, 14, `Deposit how much? (1=All, R=Return) ${session.inputBuffer}_`);
   } else if (session.bankState === 'WITHDRAW_PROMPT') {
-    drawText(buffer, 3, 14, `Withdraw how much? (1=All, R=Return) ${session.inputBuffer}_`);
+    drawText(buffer, 3, 14, `Withdraw how much? (2=All, R=Return) ${session.inputBuffer}_`);
   } else {
     drawText(buffer, 3, 14, `Command> ${session.inputBuffer}`);
   }
 
-  drawText(buffer, 3, rows - 4, session.notice || 'The banker squints at you suspiciously.');
+  drawText(buffer, 3, rows - 4, session.notice || 'You stash your gold where thieves can\'t easily sniff it.');
 
   return { cols, rows, lines: toLines(buffer) };
 }

@@ -215,13 +215,13 @@ const bankScreen: Screen = {
         session.bankState = 'MENU';
         return { type: 'stay', notice: 'Back to the ledger.' };
       }
-      if (normalized === '1') {
+      if (normalized === '2') {
         session.bankState = 'MENU';
         return { type: 'bank_withdraw_all' };
       }
       const amount = Number(normalized);
       if (!Number.isInteger(amount) || amount < 1) {
-        return { type: 'error', message: 'Use a whole number >= 1, 1 for all, or R to return.' };
+        return { type: 'error', message: 'Use a whole number >= 1, 2 for all, or R to return.' };
       }
       session.bankState = 'MENU';
       return { type: 'bank_withdraw', amount };
@@ -233,7 +233,7 @@ const bankScreen: Screen = {
     }
     if (input === 'W') {
       session.bankState = 'WITHDRAW_PROMPT';
-      return { type: 'stay', notice: 'Withdraw how much? (1=All, R=Return)' };
+      return { type: 'stay', notice: 'Withdraw how much? (2=All, R=Return)' };
     }
     if (input === '1') return { type: 'bank_deposit_all' };
     if (input === '2') return { type: 'bank_withdraw_all' };

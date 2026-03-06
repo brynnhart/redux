@@ -39,7 +39,7 @@ export class BankService {
   depositAll(player: PlayerRecord): BankTransactionResult {
     const onHand = this.getOnHandGold(player);
     if (onHand <= 0) {
-      return { ok: false, message: 'Your pockets are empty.' };
+      return { ok: false, message: 'You have no gold to deposit.' };
     }
     return this.deposit(player, onHand);
   }
@@ -77,10 +77,11 @@ export class BankService {
     return player.gold_in_bank ?? player.gold_bank ?? player.bank_gold;
   }
 
-  private recordTransaction(playerId: string, type: 'deposit' | 'withdraw' | 'interest', amount: number) {
+  private recordTransaction(playerId: string, type: 'deposit' | 'withdraw' | 'interest' | 'money_doubler', amount: number) {
+    const createdAt = new Date().toISOString();
     getDb()
-      .prepare('INSERT INTO bank_transactions (player_id, type, amount, created_at) VALUES (?, ?, ?, ?)')
-      .run([playerId, type, amount, new Date().toISOString()]);
+      .prepare('INSERT INTO bank_transactions (player_id, day_key, type, amount, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run([playerId, createdAt.slice(0, 10), type, amount, createdAt]);
   }
 
   private safeAdd(left: number, right: number) {

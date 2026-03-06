@@ -120,7 +120,8 @@ export class DayService {
           severity: 'info',
           playerId: player.id
         });
-        db.prepare('INSERT INTO bank_transactions (player_id, type, amount, created_at) VALUES (?, ?, ?, ?)').run([player.id, 'interest', interest, new Date().toISOString()]);
+        this.newsService.addDailyNews(todayDayKey, `The bank paid ${player.display_name} ${interest} gold in interest.`, 'BANK_INTEREST');
+        db.prepare('INSERT INTO bank_transactions (player_id, day_key, type, amount, created_at) VALUES (?, ?, ?, ?, ?)').run([player.id, todayDayKey, 'interest', interest, new Date().toISOString()]);
       }
 
       for (const event of pendingEventNews) {
