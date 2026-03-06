@@ -28,7 +28,6 @@ export interface PlayerRecord {
   is_alive: number;
   last_killed_at: string | null;
   in_inn_room: number;
-  pvp_used_today: number;
   killed_by_player_id: string | null;
   player_kills: number;
   times_laid: number;
@@ -144,7 +143,6 @@ type MutablePlayerStats = Pick<
   | 'is_alive'
   | 'last_killed_at'
   | 'in_inn_room'
-  | 'pvp_used_today'
   | 'killed_by_player_id'
   | 'player_kills'
   | 'times_laid'
