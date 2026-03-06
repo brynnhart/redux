@@ -24,6 +24,15 @@ export interface PlayerRecord {
   gems: number;
   charm: number;
   last_daily_reset_date: string | null;
+  last_day_key: string | null;
+  forest_fights_used_today: number;
+  forest_fights_max_today: number;
+  player_fight_used_today: number;
+  inn_flirt_used_today: number;
+  bard_listens_used_today: number;
+  in_room: number;
+  room_paid_until_day_key: string | null;
+  is_dead: number;
   spirits: Spirits;
   turns_forest_max: number;
   turns_forest_left: number;
@@ -88,6 +97,15 @@ type MutablePlayerStats = Pick<
   | 'gems'
   | 'charm'
   | 'last_daily_reset_date'
+  | 'last_day_key'
+  | 'forest_fights_used_today'
+  | 'forest_fights_max_today'
+  | 'player_fight_used_today'
+  | 'inn_flirt_used_today'
+  | 'bard_listens_used_today'
+  | 'in_room'
+  | 'room_paid_until_day_key'
+  | 'is_dead'
   | 'spirits'
   | 'turns_forest_max'
   | 'turns_forest_left'

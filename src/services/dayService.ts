@@ -1,21 +1,23 @@
 import { config } from '../config.js';
-import { PlayerRepo, type PlayerRecord } from '../repos/playerRepo.js';
-import { NewsService } from './newsService.js';
+import { getDb } from '../db/db.js';
+import { PlayerRepo } from '../repos/playerRepo.js';
+import { NewsService, type PendingEventRecord } from './newsService.js';
 import { getDailySkillUses } from './skillService.js';
 
-export type Spirits = 'LOW' | 'NORMAL' | 'HIGH';
-
-function getDateFormatter(tz: string) {
+export function getTodayDayKey(now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
+    timeZone: config.timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  });
+  }).format(now);
 }
 
-export function getTodayDateString(tz: string): string {
-  return getDateFormatter(tz).format(new Date());
+function isDayKeyBefore(left: string | null, right: string): boolean {
+  if (!left) {
+    return true;
+  }
+  return left < right;
 }
 
 export class DayService {
@@ -25,77 +27,134 @@ export class DayService {
     private readonly rng: () => number = Math.random
   ) {}
 
-  ensureDailyReset(playerId: string): { didReset: boolean; today: string } {
+  ensureDailyReset(playerId: string): { didReset: boolean; todayDayKey: string } {
     const player = this.playerRepo.findById(playerId);
     if (!player) {
       throw new Error('Player not found');
     }
 
-    const today = getTodayDateString(config.timezone);
-    if (player.last_daily_reset_date === today) {
-      return { didReset: false, today };
+    const todayDayKey = getTodayDayKey();
+    if (player.last_day_key === todayDayKey) {
+      return { didReset: false, todayDayKey };
+    }
+
+    this.rolloverPlayerToNewDay(playerId, todayDayKey);
+    return { didReset: true, todayDayKey };
+  }
+
+  private rolloverPlayerToNewDay(playerId: string, todayDayKey: string) {
+    const db = getDb();
+    const player = this.playerRepo.findById(playerId);
+    if (!player) {
+      throw new Error('Player not found');
     }
 
     const spirits = this.rollSpirits();
-    const turnsForestMax = this.getForestTurnsMax(spirits);
-    const turnsPvpMax = 1;
-
+    const forestMax = config.forestFightsPerDay;
     const interest = Math.floor(player.bank_gold * config.bankDailyInterestRate);
-    const bankAfterInterest = this.safeAdd(player.bank_gold, interest);
+    const bankAfterInterest = this.safeAdd(player.bank_gold, interest).value;
 
-    this.playerRepo.updatePlayerStats(player.id, {
-      spirits,
-      turns_forest_max: turnsForestMax,
-      turns_forest_left: turnsForestMax,
-      turns_pvp_max: turnsPvpMax,
-      turns_pvp_left: turnsPvpMax,
-      today_money_doubler_used: 0,
-      today_bard_listens: 0,
-      today_flirts: 0,
-      has_room: 0,
-      daily_flirt_used: 0,
-      daily_bard_used: 0,
-      daily_room_rented: 0,
-      inn_bribe_count_today: 0,
-      inn_breakin_used_today: 0,
-      has_flirted_today: 0,
-      has_listened_bard_today: 0,
-      bonus_forest_fights: 0,
-      room_expires_at: null,
-      elixirs: player.elixirs,
-      daily_skill_training_used: 0,
-      skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
-      skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
-      skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
-      bank_gold: bankAfterInterest.value,
-      last_daily_reset_date: today
-    });
+    const pendingEvents = this.newsService.consumePendingEventsForPlayer(playerId);
+    const pendingEventNews = this.mapPendingEventsToNews(pendingEvents);
 
-    this.newsService.addNews({
-      date: today,
-      type: 'RESET',
-      message: 'A new day dawns in the Realm...'
-    });
+    const shouldExpireRoom = isDayKeyBefore(player.room_paid_until_day_key, todayDayKey);
 
-    this.newsService.addNews({
-      date: today,
-      type: spirits === 'HIGH' ? 'SPIRITS_HIGH' : spirits === 'LOW' ? 'SPIRITS_LOW' : 'GENERIC',
-      message: `${player.display_name} wakes up in ${spirits} spirits.`,
-      playerId: player.id
-    });
+    db.exec('BEGIN');
+    try {
+      this.playerRepo.updatePlayerStats(player.id, {
+        last_day_key: todayDayKey,
+        last_daily_reset_date: todayDayKey,
+        spirits,
+        forest_fights_used_today: 0,
+        forest_fights_max_today: forestMax,
+        turns_forest_max: forestMax,
+        turns_forest_left: forestMax,
+        player_fight_used_today: 0,
+        turns_pvp_max: 1,
+        turns_pvp_left: 1,
+        inn_flirt_used_today: 0,
+        bard_listens_used_today: 0,
+        today_flirts: 0,
+        today_bard_listens: 0,
+        daily_flirt_used: 0,
+        daily_bard_used: 0,
+        money_doubler_used_today: 0,
+        today_money_doubler_used: 0,
+        daily_skill_training_used: 0,
+        skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
+        skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
+        skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
+        has_room: shouldExpireRoom ? 0 : player.has_room,
+        in_room: shouldExpireRoom ? 0 : player.in_room,
+        room_expires_at: shouldExpireRoom ? null : player.room_expires_at,
+        bank_gold: bankAfterInterest,
+        gold_bank: bankAfterInterest,
+        inn_bribe_count_today: 0,
+        inn_breakin_used_today: 0,
+        has_flirted_today: 0,
+        has_listened_bard_today: 0,
+        bonus_forest_fights: 0
+      });
 
-    if (interest > 0) {
-      this.newsService.addNews({
-        date: today,
-        type: 'GENERIC',
-        message: `The bank paid you ${bankAfterInterest.value - player.bank_gold} gold in interest.`,
+      this.newsService.addNews(todayDayKey, 'A new day dawns in the realm...', { severity: 'system' });
+      this.newsService.addNews(todayDayKey, 'You awaken feeling refreshed.', {
+        severity: 'highlight',
         playerId: player.id
       });
-    }
 
-    return { didReset: true, today };
+      if (interest > 0) {
+        this.newsService.addNews(todayDayKey, `The bank paid you ${bankAfterInterest - player.bank_gold} gold in interest.`, {
+          severity: 'info',
+          playerId: player.id
+        });
+      }
+
+      for (const event of pendingEventNews) {
+        this.newsService.addNews(todayDayKey, event.message, {
+          severity: event.severity,
+          playerId: event.playerId ?? undefined
+        });
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
   }
 
+  private mapPendingEventsToNews(events: PendingEventRecord[]) {
+    return events.map((event) => {
+      const payload = this.parsePayload(event.payload_json);
+      if (event.type === 'pvp_killed') {
+        const killerName = payload.killerName ?? 'Someone';
+        const victimName = payload.victimName ?? 'someone';
+        return { message: `${killerName} has killed ${victimName}.`, severity: 'pvp' as const, playerId: null };
+      }
+      if (event.type === 'pvp_attacked_fled') {
+        const attackerName = payload.attackerName ?? 'An enemy';
+        return {
+          message: `${attackerName} attacked you in the night, but you escaped.`,
+          severity: 'pvp' as const,
+          playerId: event.target_player_id
+        };
+      }
+
+      const victimName = payload.victimName ?? 'an adventurer';
+      return { message: `The Red Dragon has killed ${victimName}!`, severity: 'dragon' as const, playerId: null };
+    });
+  }
+
+  private parsePayload(payloadJson: string): Record<string, string> {
+    try {
+      const parsed = JSON.parse(payloadJson);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, string>;
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  }
 
   private safeAdd(left: number, right: number) {
     const BIGINT_MAX = 9_223_372_036_854_775_807;
@@ -106,7 +165,7 @@ export class DayService {
     return { value: total, clamped: false };
   }
 
-  private rollSpirits(): Spirits {
+  private rollSpirits(): 'LOW' | 'NORMAL' | 'HIGH' {
     const roll = this.rng();
     if (roll < config.spiritsChances.high) {
       return 'HIGH';
@@ -115,16 +174,5 @@ export class DayService {
       return 'LOW';
     }
     return 'NORMAL';
-  }
-
-  private getForestTurnsMax(spirits: PlayerRecord['spirits']) {
-    let turns = config.forestTurnsBase;
-    if (spirits === 'HIGH') {
-      turns += 5;
-    }
-    if (spirits === 'LOW') {
-      turns -= 5;
-    }
-    return Math.max(config.forestTurnsMin, turns);
   }
 }

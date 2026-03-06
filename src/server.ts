@@ -31,6 +31,7 @@ import { renderInn, renderInnBartender, renderInnBreakIn, renderInnFlirt } from 
 import { renderTraining } from './screens/training.js';
 import { InnService } from './services/innService.js';
 import { trainClassSkillPatch } from './services/skillService.js';
+import { config } from './config.js';
 
 const app = Fastify({ logger: true });
 const playerRepo = new PlayerRepo();
@@ -68,29 +69,25 @@ function refreshPlayer(session: Session) {
   session.player = playerRepo.findById(session.playerId) ?? undefined;
 }
 
-function loadDailyNews(session: Session, today: string) {
+function loadDailyNews(session: Session, dayKey: string) {
   if (!session.playerId) {
     session.dailyNews = [];
     return;
   }
-  session.dailyNews = newsService.getMergedNews(session.playerId, today, 50);
-  session.todayDate = today;
+  session.dailyNews = newsService.getDailyNewsForPlayer(session.playerId, dayKey, 50);
+  session.todayDate = dayKey;
 }
 
 function handlePostLogin(session: Session, playerId: string, displayName: string) {
   session.playerId = playerId;
-  const { today } = dayService.ensureDailyReset(playerId);
+  const { todayDayKey } = dayService.ensureDailyReset(playerId);
 
-  newsService.addNews({
-    date: today,
-    type: 'LOGIN',
-    message: `${displayName} has logged in.`
-  });
+  newsService.addNews(todayDayKey, `${displayName} has logged in.`, { severity: 'info' });
 
   refreshPlayer(session);
-  loadDailyNews(session, today);
-  setScreen(session, 'DAILY_HAPPENINGS');
-  session.notice = 'Press any key to continue...';
+  loadDailyNews(session, todayDayKey);
+  setScreen(session, config.enableDailyNewsAutoShow ? 'DAILY_HAPPENINGS' : 'TOWN_SQUARE');
+  session.notice = config.enableDailyNewsAutoShow ? 'Press [Enter] to continue...' : 'Welcome to town.';
 }
 
 function beginLogin(session: Session) {
@@ -113,9 +110,9 @@ function enterForest(session: Session) {
     session.notice = 'No player loaded.';
     return;
   }
-  const { today } = dayService.ensureDailyReset(session.playerId);
+  const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, today);
+  loadDailyNews(session, todayDayKey);
 
   if ((session.player?.turns_forest_left ?? 0) <= 0) {
     setScreen(session, 'TOWN_SQUARE');
@@ -137,9 +134,9 @@ function enterInn(session: Session) {
     session.notice = 'No player loaded.';
     return;
   }
-  const { today } = dayService.ensureDailyReset(session.playerId);
+  const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, today);
+  loadDailyNews(session, todayDayKey);
   setScreen(session, 'INN');
   session.notice = 'The Inn smells like ale, ambition, and bad decisions.';
 }
@@ -150,9 +147,9 @@ function enterTraining(session: Session) {
     session.notice = 'No player loaded.';
     return;
   }
-  const { today } = dayService.ensureDailyReset(session.playerId);
+  const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
   refreshPlayer(session);
-  loadDailyNews(session, today);
+  loadDailyNews(session, todayDayKey);
   setScreen(session, 'TRAINING');
   session.notice = "Turgon cracks his knuckles. Train hard or go home.";
 }
@@ -307,11 +304,11 @@ function handleForestChoiceEvent(session: Session, key: string, textInput?: stri
     return;
   }
 
-  const today = dayService.ensureDailyReset(session.playerId).today;
-  const outcome = forestService.resolveEventChoice(session.player, today, key, textInput);
+  const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
+  const outcome = forestService.resolveEventChoice(session.player, todayDayKey, key, textInput);
   session.notice = outcome.text;
   refreshPlayer(session);
-  loadDailyNews(session, today);
+  loadDailyNews(session, todayDayKey);
   if (outcome.promptField) {
     startPrompt(session, outcome.promptField);
   }
@@ -430,7 +427,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    const today = dayService.ensureDailyReset(session.playerId).today;
+    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
     refreshPlayer(session);
     if (!session.player) {
       returnToTown(session, 'No player loaded.');
@@ -449,7 +446,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       }
       playerRepo.updatePlayerStats(session.player.id, trainClassSkillPatch(session.player));
       refreshPlayer(session);
-      loadDailyNews(session, today);
+      loadDailyNews(session, todayDayKey);
       session.notice = `${session.player?.display_name ?? 'You'} trained class skills.`;
       return;
     }
@@ -463,7 +460,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       returnToTown(session, 'No player loaded.');
       return;
     }
-    const today = dayService.ensureDailyReset(session.playerId).today;
+    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
     refreshPlayer(session);
     const freshPlayer = session.player;
     if (!freshPlayer) {
@@ -486,15 +483,15 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
     if (key === 'S') {
-      session.notice = innService.listenToBard(freshPlayer, today).message;
+      session.notice = innService.listenToBard(freshPlayer, todayDayKey).message;
       refreshPlayer(session);
-      loadDailyNews(session, today);
+      loadDailyNews(session, todayDayKey);
       return;
     }
     if (key === 'R') {
-      session.notice = innService.rentRoom(freshPlayer, today).message;
+      session.notice = innService.rentRoom(freshPlayer, todayDayKey).message;
       refreshPlayer(session);
-      loadDailyNews(session, today);
+      loadDailyNews(session, todayDayKey);
       return;
     }
     if (key === 'L') {
@@ -510,7 +507,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       returnToTown(session, 'No player loaded.');
       return;
     }
-    const today = dayService.ensureDailyReset(session.playerId).today;
+    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
     refreshPlayer(session);
     if (!session.player) {
       returnToTown(session, 'No player loaded.');
@@ -525,9 +522,9 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
 
     if (key === '1' || key === '2' || key === '3') {
       const style = key === '1' ? 'SWEET' : key === '2' ? 'COCKY' : 'WEIRD';
-      session.notice = innService.flirt(session.player, today, style).message;
+      session.notice = innService.flirt(session.player, todayDayKey, style).message;
       refreshPlayer(session);
-      loadDailyNews(session, today);
+      loadDailyNews(session, todayDayKey);
       setScreen(session, 'INN');
       return;
     }
@@ -593,7 +590,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    const today = dayService.ensureDailyReset(session.playerId).today;
+    const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
     refreshPlayer(session);
     if (!session.player) {
       returnToTown(session, 'No player loaded.');
@@ -735,7 +732,7 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
       return;
     }
 
-    const { today } = dayService.ensureDailyReset(session.playerId);
+    const { todayDayKey } = dayService.ensureDailyReset(session.playerId);
     refreshPlayer(session);
 
     if ((session.player?.turns_forest_left ?? 0) <= 0) {
@@ -756,14 +753,14 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     }
 
     if (key === 'L') {
-      session.notice = forestService.look(session.player, today);
+      session.notice = forestService.look(session.player, todayDayKey);
       return;
     }
 
     const forestEncounter = forestService.getEncounter(session.player.id);
 
     if (key === 'A' && forestEncounter.encounterType !== 'EVENT') {
-      session.notice = forestService.attack(session.player, today);
+      session.notice = forestService.attack(session.player, todayDayKey);
       refreshPlayer(session);
       if ((session.player?.turns_forest_left ?? 0) <= 0) {
         returnToTown(session, 'You are too tired. Come back tomorrow.');
@@ -783,31 +780,31 @@ function handleMenuKey(session: Session, message: KeyMessage, close: () => void)
     }
 
     if (key === 'D' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'DEATH_KNIGHT') {
-      session.notice = forestService.useSkill(session.player, today, 'DEATH_ATTACK');
+      session.notice = forestService.useSkill(session.player, todayDayKey, 'DEATH_ATTACK');
       refreshPlayer(session);
       return;
     }
 
     if (key === 'P' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'MYSTICAL') {
-      session.notice = forestService.useSkill(session.player, today, 'MYSTIC_PINCH');
+      session.notice = forestService.useSkill(session.player, todayDayKey, 'MYSTIC_PINCH');
       refreshPlayer(session);
       return;
     }
 
     if (key === 'M' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'MYSTICAL') {
-      session.notice = forestService.useSkill(session.player, today, 'MYSTIC_HEAL');
+      session.notice = forestService.useSkill(session.player, todayDayKey, 'MYSTIC_HEAL');
       refreshPlayer(session);
       return;
     }
 
     if (key === 'U' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'THIEF') {
-      session.notice = forestService.useSkill(session.player, today, 'THIEF_SNEAKY');
+      session.notice = forestService.useSkill(session.player, todayDayKey, 'THIEF_SNEAKY');
       refreshPlayer(session);
       return;
     }
 
     if (key === 'P' && forestEncounter.encounterType === 'ENEMY' && session.player.class === 'THIEF') {
-      session.notice = forestService.useSkill(session.player, today, 'THIEF_PASS_MARK');
+      session.notice = forestService.useSkill(session.player, todayDayKey, 'THIEF_PASS_MARK');
       refreshPlayer(session);
       return;
     }
@@ -902,11 +899,11 @@ function handleTextEntry(session: Session, message: KeyMessage) {
         session.innTargetSelection = undefined;
         return;
       }
-      const today = dayService.ensureDailyReset(session.playerId).today;
-      session.notice = innService.breakInAttack(session.player, session.innTargetSelection, today).message;
+      const todayDayKey = dayService.ensureDailyReset(session.playerId).todayDayKey;
+      session.notice = innService.breakInAttack(session.player, session.innTargetSelection, todayDayKey).message;
       session.innTargetSelection = undefined;
       refreshPlayer(session);
-      loadDailyNews(session, today);
+      loadDailyNews(session, todayDayKey);
     } else if (field === 'jennie_word' && session.state === 'FOREST') {
       if (!session.player || !session.playerId) {
         session.notice = 'Jennie is gone.';

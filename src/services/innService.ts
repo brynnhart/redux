@@ -31,7 +31,7 @@ export class InnService {
   ) {}
 
   flirt(player: PlayerRecord, today: string, style: 'SWEET' | 'COCKY' | 'WEIRD'): ActionResult {
-    if (player.has_flirted_today) {
+    if (player.inn_flirt_used_today || player.has_flirted_today) {
       return { ok: false, message: 'Violet smiles politely. You already had your shot today.' };
     }
 
@@ -42,7 +42,8 @@ export class InnService {
     const patch: Partial<PlayerRecord> = {
       exp: player.exp + expGain,
       has_flirted_today: 1,
-      daily_flirt_used: 1
+      daily_flirt_used: 1,
+      inn_flirt_used_today: 1
     };
 
     const rewards: string[] = [`+${expGain} exp`];
@@ -56,11 +57,7 @@ export class InnService {
     }
 
     this.playerRepo.updatePlayerStats(player.id, patch);
-    this.newsService.addNews({
-      date: today,
-      type: 'GENERIC',
-      message: `${player.display_name} spent time flirting with Violet at the Inn.`
-    });
+    this.newsService.addNews(today, `${player.display_name} spent time flirting with Violet at the Inn.`, { severity: 'info' });
 
     const opener = style === 'SWEET'
       ? 'You talk sweetly, and Violet laughs behind her hand.'
@@ -72,7 +69,7 @@ export class InnService {
   }
 
   listenToBard(player: PlayerRecord, today: string): ActionResult {
-    if (player.has_listened_bard_today) {
+    if (player.bard_listens_used_today >= config.bardMaxListensPerDay || player.has_listened_bard_today) {
       return { ok: false, message: 'Seth Able has no encore for you today.' };
     }
 
@@ -81,7 +78,8 @@ export class InnService {
       turns_forest_left: player.turns_forest_left + bonus,
       bonus_forest_fights: player.bonus_forest_fights + bonus,
       has_listened_bard_today: 1,
-      daily_bard_used: 1
+      daily_bard_used: 1,
+      bard_listens_used_today: player.bard_listens_used_today + 1
     };
 
     let doublerText = '';
@@ -90,21 +88,12 @@ export class InnService {
       patch.bank_gold = doubled.value;
       patch.today_money_doubler_used = 1;
       doublerText = ` Somewhere magic has happened! Bank gold doubled from ${player.bank_gold} to ${doubled.value}${doubled.clamped ? ' (vault cap reached)' : ''}.`;
-      this.newsService.addNews({
-        date: today,
-        type: 'GENERIC',
-        message: 'Somewhere magic has happened!',
-        playerId: player.id
-      });
+      this.newsService.addNews(today, 'Somewhere magic has happened!', { severity: 'highlight', playerId: player.id });
     }
 
     this.playerRepo.updatePlayerStats(player.id, patch);
 
-    this.newsService.addNews({
-      date: today,
-      type: 'GENERIC',
-      message: `${player.display_name} listened to Seth Able and gained extra Forest courage.`
-    });
+    this.newsService.addNews(today, `${player.display_name} listened to Seth Able and gained extra Forest courage.`, { severity: 'info' });
 
     return { ok: true, message: `${this.getLyrics()} (+${bonus} bonus forest fights)${doublerText}` };
   }
@@ -122,15 +111,13 @@ export class InnService {
     this.playerRepo.updatePlayerStats(player.id, {
       gold: player.gold - cost,
       has_room: 1,
+      in_room: 1,
       daily_room_rented: 1,
+      room_paid_until_day_key: today,
       room_expires_at: `${today}T23:59:59`
     });
 
-    this.newsService.addNews({
-      date: today,
-      type: 'GENERIC',
-      message: `${player.display_name} rented a room at the Inn.`
-    });
+    this.newsService.addNews(today, `${player.display_name} rented a room at the Inn.`, { severity: 'info' });
 
     return { ok: true, message: 'You rent a room. You sleep behind a locked door...' };
   }
@@ -225,7 +212,7 @@ export class InnService {
         hp: 1
       });
       this.recordBreakIn(attacker.id, victim.id, 'killed');
-      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${attacker.display_name} broke into ${victim.display_name}'s room and won.` });
+      this.newsService.addNews(today, `${attacker.display_name} broke into ${victim.display_name}'s room and won.`, { severity: 'pvp' });
       return { ok: true, message: `${rounds.join(' ')} You win. +${xpGain} exp, ${stealAmount} gold stolen.` };
     }
 
@@ -235,7 +222,7 @@ export class InnService {
       turns_pvp_left: Math.max(0, attacker.turns_pvp_left - 1)
     });
     this.recordBreakIn(attacker.id, victim.id, 'killed');
-    this.newsService.addNews({ date: today, type: 'GENERIC', message: `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.` });
+    this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });
     return { ok: true, message: `${rounds.join(' ')} You are thrown out half-dead. Your day is done.` };
   }
 

@@ -86,10 +86,10 @@ export class ForestService {
       this.playerRepo.updatePlayerStats(player.id, patch);
 
       if (gemDrop >= 10) {
-        this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} was showered in gems.`, playerId: player.id });
+        this.newsService.addNews(today, `${player.display_name} was showered in gems.`, { severity: 'highlight', playerId: player.id });
       }
       if (this.rng() < 0.12) {
-        this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} walks out of the forest acting chipper.` });
+        this.newsService.addNews(today, `${player.display_name} walks out of the forest acting chipper.`, { severity: 'info' });
       }
 
       return `${result.rounds.join(' ')} Loot: +${goldEarned} gold, +${expEarned} exp${gemDrop ? `, +${gemDrop} gem` : ''}.`;
@@ -99,7 +99,7 @@ export class ForestService {
     this.stateRepo.clearEncounter(player.id);
 
     if (result.playerDied) {
-      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} was killed in the forest.` });
+      this.newsService.addNews(today, `${player.display_name} was killed in the forest.`, { severity: 'pvp' });
       return `${result.rounds.join(' ')} You crawl back to town at 1 HP. Your forest day is over.`;
     }
 
@@ -162,7 +162,7 @@ export class ForestService {
 
     if (result.playerHpAfter <= 0) {
       this.stateRepo.clearEncounter(player.id);
-      this.newsService.addNews({ date: today, type: 'GENERIC', message: `${player.display_name} was killed in the forest.` });
+      this.newsService.addNews(today, `${player.display_name} was killed in the forest.`, { severity: 'pvp' });
       this.playerRepo.updatePlayerStats(player.id, { hp: 1, turns_forest_left: 0 });
       return `${result.rounds.join(' ')} You collapse after the technique backfires.`;
     }
@@ -193,7 +193,7 @@ export class ForestService {
     this.stateRepo.clearEncounter(player.id);
 
     if (outcome.globalNews) {
-      this.newsService.addNews({ date: today, type: 'GENERIC', message: outcome.globalNews });
+      this.newsService.addNews(today, outcome.globalNews, { severity: 'info' });
     }
 
     return { text: `${outcome.text} Press any key to continue...` };
