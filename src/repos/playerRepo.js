@@ -80,7 +80,8 @@ export class PlayerRepo {
     listPlayerRankings(limit = 50) {
         const db = getDb();
         return db
-            .prepare(`SELECT id, display_name, class, level, exp, heroic_deeds_done, current_lap, is_alive, last_login_at
+            .prepare(`SELECT id, display_name, class, level, exp, heroic_deeds_done, current_lap, is_alive, last_login_at,
+          skill_mastery_death, skill_mastery_mystic, skill_mastery_thief
          FROM players
          ORDER BY heroic_deeds_done DESC, level DESC, exp DESC, display_name COLLATE NOCASE ASC
          LIMIT ?`)
