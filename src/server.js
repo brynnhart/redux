@@ -1293,10 +1293,25 @@ function renderSession(session) {
 app.get('/ws', { websocket: true }, (connection) => {
     const session = createSession();
     const socket = connection.socket ?? connection;
+    const getInputMode = () => {
+        if (session.mode === 'TEXT_ENTRY') {
+            return 'TEXT_ENTRY';
+        }
+        if (shouldUseLineInput(session)) {
+            return 'LINE_INPUT';
+        }
+        return 'MENU';
+    };
     const sendScreen = () => {
         const screen = {
             type: 'screen',
-            frame: renderSession(session)
+            frame: renderSession(session),
+            ui: {
+                inputMode: getInputMode(),
+                hiddenInput: Boolean(session.prompt?.hidden),
+                inputBuffer: session.inputBuffer,
+                promptField: session.prompt?.field ?? null
+            }
         };
         socket.send(JSON.stringify(screen));
     };
