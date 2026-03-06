@@ -50,30 +50,64 @@ export class NewsService {
         return Boolean(row);
     }
     pvpKill(killerId, victimId, context) {
+        const message = pickOne([
+            `${context.killerName} sent ${context.victimName} to the graveyard before moonrise.`,
+            `${context.killerName} carved through ${context.victimName} and left only silence behind.`,
+            `${context.victimName} crossed ${context.killerName} and paid in blood.`,
+            `${context.killerName} cut down ${context.victimName} in the ${context.mode === 'INN' ? 'Inn corridors' : 'fields'}.`
+        ]);
         this.addDailyNews({
             day: getDayIndexFromDayKey(context.dayKey),
             type: 'PVP_KILL',
             actorId: killerId,
             targetId: victimId,
-            message: `${context.killerName} has killed ${context.victimName}.`,
+            message,
+            payload: context
+        });
+    }
+    selfDefenseKill(attackerId, defenderId, context) {
+        const message = pickOne([
+            `${context.attackerName} lunged at ${context.defenderName} and was slain in self-defense.`,
+            `${context.defenderName} turned ${context.attackerName}'s ambush into a funeral.`,
+            `${context.attackerName} chose the wrong target; ${context.defenderName} answered with steel.`,
+            `${context.attackerName} broke against ${context.defenderName} and did not rise again.`
+        ]);
+        this.addDailyNews({
+            day: getDayIndexFromDayKey(context.dayKey),
+            type: 'PVP_DEFEND',
+            actorId: attackerId,
+            targetId: defenderId,
+            message,
             payload: context
         });
     }
     dragonKill(playerId, context) {
+        const message = pickOne([
+            `${context.playerName} has slain the Red Dragon and set the skies trembling.`,
+            `${context.playerName} stood before the Red Dragon and walked away victorious.`,
+            `The Red Dragon fell today beneath ${context.playerName}'s blade.`,
+            `${context.playerName} ended the Red Dragon's reign in fire and blood.`
+        ]);
         this.addDailyNews({
             day: getDayIndexFromDayKey(context.dayKey),
             type: 'DRAGON_KILL',
             actorId: playerId,
-            message: `${context.playerName} has defeated the Red Dragon.`,
+            message,
             payload: context
         });
     }
     masterBeaten(playerId, dayKey, masterName, newLevel, playerName) {
+        const message = pickOne([
+            `${playerName} defeated ${masterName} and claimed the next rank.`,
+            `${masterName} was forced to bow as ${playerName} took victory.`,
+            `${playerName} broke ${masterName}'s defense and rose to level ${newLevel}.`,
+            `${playerName} humbled ${masterName} in the training ring.`
+        ]);
         this.addDailyNews({
             day: getDayIndexFromDayKey(dayKey),
             type: 'MASTER_BEATEN',
             actorId: playerId,
-            message: `${playerName} has beaten ${masterName}.`,
+            message,
             payload: { masterName, newLevel }
         });
     }
@@ -87,20 +121,30 @@ export class NewsService {
         });
     }
     marriage(playerId, dayKey, npcName, playerName) {
+        const message = pickOne([
+            `${playerName} and ${npcName} left the Inn to cheers and bad advice.`,
+            `${playerName} pledged heart and trouble to ${npcName}.`,
+            `${playerName} married ${npcName}; wagers are now being taken on how long it lasts.`
+        ]);
         this.addDailyNews({
             day: getDayIndexFromDayKey(dayKey),
             type: 'MARRIAGE',
             actorId: playerId,
-            message: `${playerName} married ${npcName}.`,
+            message,
             payload: { npcName }
         });
     }
     divorce(playerId, dayKey, npcName, playerName) {
+        const message = pickOne([
+            `${playerName} and ${npcName} called it quits before the ale went warm.`,
+            `${playerName} left ${npcName}; the Inn bookie paid out heavily.`,
+            `${playerName} and ${npcName} split, loudly, and in public.`
+        ]);
         this.addDailyNews({
             day: getDayIndexFromDayKey(dayKey),
             type: 'DIVORCE',
             actorId: playerId,
-            message: `${playerName} left ${npcName}.`,
+            message,
             payload: { npcName }
         });
     }
@@ -143,4 +187,7 @@ function sanitizeNewsMessage(message) {
 function dayIndexToDayKey(day) {
     const date = new Date(day * 86400000);
     return date.toISOString().slice(0, 10);
+}
+function pickOne(options) {
+    return options[Math.floor(Math.random() * options.length)] ?? options[0] ?? '';
 }

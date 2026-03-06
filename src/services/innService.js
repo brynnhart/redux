@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { config } from '../config.js';
 import { getDb } from '../db/db.js';
 import { getWeaponById } from '../data/equipment.js';
-import { getDayIndexFromDayKey } from './dayKey.js';
 function randInt(min, max, rng) {
     return Math.floor(rng() * (max - min + 1)) + min;
 }
@@ -168,7 +167,12 @@ export class InnService {
             });
             this.recordBreakIn(attacker.id, victim.id, 'killed');
             this.newsService.addNews(today, `${attacker.display_name} broke into ${victim.display_name}'s room and won.`, { severity: 'pvp' });
-            this.newsService.pvpKill(attacker.id, victim.id, { dayKey: today, killerName: attacker.display_name, victimName: victim.display_name });
+            this.newsService.pvpKill(attacker.id, victim.id, {
+                dayKey: today,
+                killerName: attacker.display_name,
+                victimName: victim.display_name,
+                mode: 'INN'
+            });
             return { ok: true, message: `${rounds.join(' ')} You leave the room breathing and richer. +${xpGain} exp, ${stealAmount} gold stolen.` };
         }
         this.playerRepo.updatePlayerStats(attacker.id, {
@@ -181,7 +185,12 @@ export class InnService {
         });
         this.recordBreakIn(attacker.id, victim.id, 'killed');
         this.newsService.addNews(today, `${attacker.display_name} died during an Inn break-in on ${victim.display_name}.`, { severity: 'pvp' });
-        this.newsService.addDailyNews({ day: getDayIndexFromDayKey(today), type: 'PVP_DEFEND', actorId: attacker.id, targetId: victim.id, message: `${attacker.display_name} has attacked ${victim.display_name} and has been killed in self-defense.` });
+        this.newsService.selfDefenseKill(attacker.id, victim.id, {
+            dayKey: today,
+            attackerName: attacker.display_name,
+            defenderName: victim.display_name,
+            mode: 'INN'
+        });
         return { ok: true, message: `${rounds.join(' ')} You are hurled into the street bleeding. Your day is over.` };
     }
     recordBreakIn(attackerPlayerId, targetPlayerId, result) {
