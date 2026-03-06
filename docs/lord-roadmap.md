@@ -90,3 +90,22 @@ Outcome:
 Goal:
 - only after stabilization and fidelity work
 - continue with extra places, expanded event packs, optional modernizations, and future content
+
+## Phase 8: LoRD Screen Fidelity Phase
+
+Goal:
+Bring the UI and screen flow much closer to original LoRD using reference screenshots.
+
+This phase focuses on:
+
+1. Fixing the renderer architecture so styled text does not break the terminal grid.
+2. Restoring authentic LoRD screen layouts.
+3. Expanding command palettes and prompt rhythms to match the original game.
+4. Improving Daily News and PvP messaging tone.
+5. Restoring visual vocabulary (including blue).
+6. Removing modernized UI patterns that diverge from LoRD.
+
+No new gameplay systems should be introduced during this phase.
+
+Outcome:
+The game should visually and interactively feel like LoRD running in a browser terminal.
