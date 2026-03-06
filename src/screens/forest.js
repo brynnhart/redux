@@ -1,28 +1,23 @@
 import { createBuffer, toCells } from '../render/buffer.js';
-import { drawBox, drawText } from '../render/draw.js';
+import { drawText } from '../render/draw.js';
 export function renderForest(session, dims) {
     const cols = Math.max(72, dims.cols);
     const rows = Math.max(24, dims.rows);
     const buffer = createBuffer(cols, rows);
     const player = session.player;
-    const divider = '-'.repeat(Math.max(14, cols - 6));
-    drawBox(buffer, 0, 0, cols, rows);
-    drawText(buffer, 3, 1, '[b][c:red]The Forest of Teeth and Thorns[b][c:white]');
-    drawText(buffer, 3, 2, '[dim]No speeches. No mercy. Just quick choices and sharp consequences.[dim]');
-    drawText(buffer, 3, 3, `[dim]${divider}[dim]`);
+
+    drawText(buffer, 2, 1, '[b]Forest[b]');
+    drawText(buffer, 2, 3, 'Actions:');
+    drawText(buffer, 2, 5, '(L)ook for something to kill');
+    drawText(buffer, 2, 6, '(H)ealers hut');
+    drawText(buffer, 2, 7, '(R)eturn to town');
+
+    drawText(buffer, 2, rows - 4, session.notice ? `[c:yellow]${session.notice}[c:white]` : 'The forest waits.');
+
     if (player) {
-        drawText(buffer, 3, 5, `[b][c:yellow]Turn[b][c:white] ${player.turns_forest_max - player.turns_forest_left + 1}/${player.turns_forest_max}   [b][c:yellow]Left[b][c:white] ${player.turns_forest_left}/${player.turns_forest_max}   [b][c:red]HP[b][c:white] ${player.hp}/${player.hp_max}`);
-        drawText(buffer, 3, 6, `L${player.level} ${player.display_name} | Lap ${player.current_lap} | Gold ${player.gold_on_hand} | Gems ${player.gems}`);
-        drawText(buffer, 3, 7, `Fairy companion: ${player.has_fairy ? '[c:green]Yes[c:white]' : '[c:magenta]No[c:white]'}`);
+        drawText(buffer, 2, rows - 2, `HitPoints: (${player.hp} of ${player.hp_max})  Fights: ${player.turns_forest_left}  Gold: ${player.gold_on_hand}  Gems: ${player.gems}`);
     }
-    const dragonOption = player && player.level >= 12 ? '  (S)earch Red Dragon' : '';
-    drawText(buffer, 3, 9, '[b][c:magenta]Look -> Attack -> Run -> Town[b][c:white]');
-    drawText(buffer, 3, 10, session.notice ? `[c:yellow]${session.notice}[c:white]` : '[c:red]You hear something moving ahead.[c:white]');
-    drawText(buffer, 3, 12, `[b][c:cyan]Commands[b][c:white] [c:green]L[c:white])ook  [c:green]A[c:white])ttack  S[c:green]k[c:white])ill  [c:green]R[c:white])un  [c:green]T[c:white])own  [c:green]B[c:white])ank${dragonOption}`);
-    if (player && player.level < 12) {
-        drawText(buffer, 3, 13, '[c:magenta]Only Ultimate Warriors may challenge the Red Dragon.[c:white]');
-    }
-    drawText(buffer, 3, rows - 5, '[dim]Pacing: Look for trouble, attack hard, run if needed, town to reset.[dim]');
-    drawText(buffer, 3, rows - 4, '[c:green]Fast hands win days.[c:white]');
+    drawText(buffer, 2, rows - 1, '[b]Command?[b]');
+
     return { cols, rows, cells: toCells(buffer) };
 }
