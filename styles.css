@@ -1,0 +1,91 @@
+:root {
+  --bg: #000;
+  --fg: #d6d6d6;
+  --green: #00b300;
+  --yellow: #d9d900;
+  --cyan: #00baba;
+  --magenta: #c94ec9;
+  --white: #f2f2f2;
+  --red: #d04141;
+  --blue: #3b7ddb;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  color: var(--fg);
+  font-family: "Courier New", Courier, "Lucida Console", monospace;
+  font-size: 18px;
+  line-height: 1.2;
+  display: flex;
+  justify-content: center;
+  padding: 14px;
+}
+
+#terminal {
+  width: min(1020px, 100%);
+  min-height: calc(100vh - 28px);
+  white-space: pre;
+  overflow-y: auto;
+  padding: 8px 10px;
+  text-shadow: 0 0 4px rgba(180, 255, 180, 0.18);
+  position: relative;
+}
+
+#terminal::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.28;
+}
+
+.screen {
+  position: relative;
+  z-index: 1;
+}
+
+.prompt {
+  display: inline;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.62em;
+  margin-left: 0.02em;
+  color: var(--white);
+  animation: blink 0.9s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.c-green { color: var(--green); }
+.c-yellow { color: var(--yellow); }
+.c-cyan { color: var(--cyan); }
+.c-magenta { color: var(--magenta); }
+.c-white { color: var(--white); }
+.c-red { color: var(--red); }
+.c-blue { color: var(--blue); }
+.c-dim { color: #8c8c8c; }
+
+::selection {
+  background: #7a7a7a;
+  color: #000;
+}
