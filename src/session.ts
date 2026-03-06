@@ -16,7 +16,8 @@ export type ScreenState =
   | 'ARMOR_SHOP'
   | 'INN'
   | 'INN_BARTENDER'
-  | 'INN_BREAK_IN';
+  | 'INN_BREAK_IN'
+  | 'TRAINING';
 export type InputMode = 'MENU' | 'TEXT_ENTRY';
 
 export interface PromptState {
@@ -40,6 +41,7 @@ export interface Session {
   todayDate?: string;
   pendingBankAction?: 'DEPOSIT' | 'WITHDRAW';
   pendingEquipmentAction?: 'BUY_WEAPON' | 'BUY_ARMOR';
+  pendingForestSkill?: 'DEATH_ATTACK' | 'MYSTIC_PINCH' | 'MYSTIC_HEAL' | 'THIEF_SNEAKY' | 'THIEF_PASS_MARK';
   innTargetSelection?: string;
   draft: {
     loginUsername?: string;

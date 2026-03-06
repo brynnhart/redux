@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 export function runMigrations() {
   const db = getDb();
@@ -124,6 +124,35 @@ export function runMigrations() {
       UPDATE players SET daily_bard_used = COALESCE(daily_bard_used, 0);
       UPDATE players SET daily_room_rented = COALESCE(daily_room_rented, 0);
       UPDATE players SET inn_bribe_count_today = COALESCE(inn_bribe_count_today, 0);
+    `);
+  }
+
+
+  if (currentVersion < 6) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN skill_level_death INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN skill_level_mystic INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN skill_level_thief INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN skill_uses_death INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN skill_uses_mystic INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN skill_uses_thief INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE players ADD COLUMN skill_mastery_death INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN skill_mastery_mystic INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN skill_mastery_thief INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN daily_skill_training_used INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players SET skill_level_death = COALESCE(skill_level_death, 0);
+      UPDATE players SET skill_level_mystic = COALESCE(skill_level_mystic, 0);
+      UPDATE players SET skill_level_thief = COALESCE(skill_level_thief, 0);
+      UPDATE players SET skill_uses_death = COALESCE(skill_uses_death, 1);
+      UPDATE players SET skill_uses_mystic = COALESCE(skill_uses_mystic, 1);
+      UPDATE players SET skill_uses_thief = COALESCE(skill_uses_thief, 1);
+      UPDATE players SET skill_mastery_death = COALESCE(skill_mastery_death, 0);
+      UPDATE players SET skill_mastery_mystic = COALESCE(skill_mastery_mystic, 0);
+      UPDATE players SET skill_mastery_thief = COALESCE(skill_mastery_thief, 0);
+      UPDATE players SET daily_skill_training_used = COALESCE(daily_skill_training_used, 0);
     `);
   }
 db.prepare(

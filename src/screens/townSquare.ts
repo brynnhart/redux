@@ -1,6 +1,7 @@
 import { getArmorTier, getWeaponTier } from '../data/equipment.js';
 import { createBuffer, toLines } from '../render/buffer.js';
 import { drawBox, drawText } from '../render/draw.js';
+import { classLabel, skillLabel } from '../services/skillService.js';
 import type { Session } from '../session.js';
 
 interface Dimensions {
@@ -22,7 +23,7 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
   drawText(buffer, 3, 7, "W) King Arthur's Weapons");
   drawText(buffer, 3, 8, "A) Abdul's Armor");
   drawText(buffer, 3, 9, 'I) Inn');
-  drawText(buffer, 3, 10, 'T) Training (coming soon)');
+  drawText(buffer, 3, 10, 'T) Training');
   drawText(buffer, 3, 11, 'Q) Quit');
 
   drawText(buffer, 38, 4, 'Stats');
@@ -37,9 +38,12 @@ export function renderTownSquare(session: Session, dims: Dimensions) {
     drawText(buffer, 38, 10, `Forest turns: ${player.turns_forest_left} / ${player.turns_forest_max}`);
     drawText(buffer, 38, 11, `Player fights: ${player.turns_pvp_left} / ${player.turns_pvp_max}`);
     drawText(buffer, 38, 12, `Date: ${session.todayDate ?? player.last_daily_reset_date ?? 'Unknown'}`);
-    drawText(buffer, 38, 13, `Class: ${player.class}   Sex: ${player.sex}`);
+    drawText(buffer, 38, 13, `Class: ${classLabel(player.class)}   Sex: ${player.sex}`);
     drawText(buffer, 38, 14, `Weapon: ${weapon.name} (T${weapon.tier}, +${weapon.bonus} atk)`);
     drawText(buffer, 38, 15, `Armor: ${armor.name} (T${armor.tier}, +${armor.bonus} def)`);
+    const skillUses = player.class === 'DEATH_KNIGHT' ? player.skill_uses_death : player.class === 'MYSTICAL' ? player.skill_uses_mystic : player.skill_uses_thief;
+    const skillLevel = player.class === 'DEATH_KNIGHT' ? player.skill_level_death : player.class === 'MYSTICAL' ? player.skill_level_mystic : player.skill_level_thief;
+    drawText(buffer, 38, 16, `${skillLabel(player.class)}: ${skillLevel} (Uses left: ${skillUses})`);
   }
 
   drawText(buffer, 3, rows - 4, session.notice || 'Welcome to town.');

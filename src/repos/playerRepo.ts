@@ -37,6 +37,16 @@ export interface PlayerRecord {
   inn_bribe_count_today: number;
   weapon_tier: number;
   armor_tier: number;
+  skill_level_death: number;
+  skill_level_mystic: number;
+  skill_level_thief: number;
+  skill_uses_death: number;
+  skill_uses_mystic: number;
+  skill_uses_thief: number;
+  skill_mastery_death: number;
+  skill_mastery_mystic: number;
+  skill_mastery_thief: number;
+  daily_skill_training_used: number;
 }
 
 export interface InnTargetRecord {
@@ -81,6 +91,16 @@ type MutablePlayerStats = Pick<
   | 'inn_bribe_count_today'
   | 'weapon_tier'
   | 'armor_tier'
+  | 'skill_level_death'
+  | 'skill_level_mystic'
+  | 'skill_level_thief'
+  | 'skill_uses_death'
+  | 'skill_uses_mystic'
+  | 'skill_uses_thief'
+  | 'skill_mastery_death'
+  | 'skill_mastery_mystic'
+  | 'skill_mastery_thief'
+  | 'daily_skill_training_used'
 >;
 
 export class PlayerRepo {
