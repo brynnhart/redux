@@ -26,6 +26,7 @@ export const config = {
     dragonHp: Number(process.env.LORD_DRAGON_HP ?? '5000'),
     dragonAttackMin: Number(process.env.LORD_DRAGON_ATTACK_MIN ?? '40'),
     dragonAttackMax: Number(process.env.LORD_DRAGON_ATTACK_MAX ?? '120'),
+    dragonDefense: Number(process.env.LORD_DRAGON_DEFENSE ?? '32'),
     dragonMissChance: Number(process.env.LORD_DRAGON_MISS_CHANCE ?? '0.10'),
     playerMissChance: Number(process.env.LORD_PLAYER_MISS_CHANCE ?? '0.12'),
     dragonCritChance: Number(process.env.LORD_DRAGON_CRIT_CHANCE ?? '0.08'),

@@ -16,7 +16,7 @@ export class CombatService {
         rounds.push(playerStarts ? 'You lunge first before it can blink.' : `${enemy.name} gets the jump on you!`);
         while (playerHp > 0 && enemyHp > 0) {
             if (playerStarts) {
-                const hit = this.playerAttackDamage(player, enemy.attackMin);
+                const hit = this.playerAttackDamage(player, enemy.defense);
                 enemyHp -= hit;
                 rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
                 if (enemyHp <= 0)
@@ -37,7 +37,7 @@ export class CombatService {
                 }
                 if (playerHp <= 0)
                     break;
-                const hit = this.playerAttackDamage(player, enemy.attackMin);
+                const hit = this.playerAttackDamage(player, enemy.defense);
                 enemyHp -= hit;
                 rounds.push(`You hit ${enemy.name} for ${hit} damage!`);
             }
@@ -58,7 +58,7 @@ export class CombatService {
         let enemyHp = enemy.hp;
         let playerHp = player.hp;
         let enemyWeakenedTurns = enemy.weakenedTurns ?? 0;
-        const baseDamage = this.playerAttackDamage(player, enemy.attackMin);
+        const baseDamage = this.playerAttackDamage(player, enemy.defense);
         if (skillKey === 'DEATH_ATTACK') {
             const damage = Math.floor(baseDamage * (2 + this.rng()));
             enemyHp -= damage;
@@ -102,13 +102,13 @@ export class CombatService {
             enemyWeakenedTurns
         };
     }
-    playerAttackDamage(player, monsterDef) {
+    playerAttackDamage(player, enemyDefense = 0) {
         const weapon = getWeaponById(player.weapon_id);
         const playerAtk = config.baseAtk + weapon.atk_bonus;
         const rawMin = Math.max(1, Math.floor(playerAtk * 0.8));
         const rawMax = Math.max(rawMin, Math.floor(playerAtk * 1.2));
         const raw = randInt(rawMin, rawMax, this.rng);
-        return Math.max(1, raw - monsterDef);
+        return Math.max(1, raw - enemyDefense);
     }
     enemyAttackDamage(player, enemy, weakened = false) {
         const armor = getArmorById(player.armor_id);

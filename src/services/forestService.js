@@ -166,7 +166,7 @@ export class ForestService {
         let fairyUsed = false;
         while (playerHp > 0 && dragonHp > 0) {
             if (this.rng() >= config.playerMissChance) {
-                const hit = this.combatService.playerAttackDamage(player, config.dragonAttackMin);
+                const hit = this.combatService.playerAttackDamage(player, config.dragonDefense);
                 dragonHp = Math.max(0, dragonHp - hit);
                 rounds.push(`You strike the Red Dragon for ${hit} damage!`);
             }
@@ -189,7 +189,8 @@ export class ForestService {
                 attackMax: config.dragonAttackMax,
                 goldReward: 0,
                 expReward: 0,
-                gemChance: 0
+                gemChance: 0,
+                defense: config.dragonDefense
             });
             if (this.rng() < config.dragonCritChance) {
                 retaliate = Math.max(1, Math.floor(retaliate * config.dragonCritMult));
@@ -312,6 +313,7 @@ export class ForestService {
             maxHp,
             attackMin: template.attackBase + template.attackPerLevel * Math.max(1, level - 1),
             attackMax: template.attackBase + template.attackPerLevel * level + 2,
+            defense: template.defenseBase + template.defensePerLevel * level,
             goldReward: template.goldBase + template.goldPerLevel * level,
             expReward: template.expBase + template.expPerLevel * level,
             gemChance: template.gemChance
