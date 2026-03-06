@@ -7,6 +7,8 @@ export const config = {
   innBribeCost: Number(process.env.LORD_INN_BRIBE_COST ?? '2000'),
   innRoomCostPerLevel: Number(process.env.LORD_INN_ROOM_COST_PER_LEVEL ?? '200'),
   innBardBonusFights: Number(process.env.LORD_INN_BARD_BONUS_FIGHTS ?? '2'),
+  bankDailyInterestRate: Number(process.env.LORD_BANK_DAILY_INTEREST_RATE ?? '0.10'),
+  moneyDoublerChance: Number(process.env.LORD_MONEY_DOUBLER_CHANCE ?? '0.02'),
   skillDailyUsesCap: Number(process.env.LORD_SKILL_DAILY_USES_CAP ?? '12'),
   skillMasteryLevel: Number(process.env.LORD_SKILL_MASTERY_LEVEL ?? '30'),
   spiritsChances: {

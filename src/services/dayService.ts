@@ -40,6 +40,9 @@ export class DayService {
     const turnsForestMax = this.getForestTurnsMax(spirits);
     const turnsPvpMax = 1;
 
+    const interest = Math.floor(player.bank_gold * config.bankDailyInterestRate);
+    const bankAfterInterest = this.safeAdd(player.bank_gold, interest);
+
     this.playerRepo.updatePlayerStats(player.id, {
       spirits,
       turns_forest_max: turnsForestMax,
@@ -64,6 +67,7 @@ export class DayService {
       skill_uses_death: getDailySkillUses(player.skill_level_death, player.skill_mastery_death === 1),
       skill_uses_mystic: getDailySkillUses(player.skill_level_mystic, player.skill_mastery_mystic === 1),
       skill_uses_thief: getDailySkillUses(player.skill_level_thief, player.skill_mastery_thief === 1),
+      bank_gold: bankAfterInterest.value,
       last_daily_reset_date: today
     });
 
@@ -80,7 +84,26 @@ export class DayService {
       playerId: player.id
     });
 
+    if (interest > 0) {
+      this.newsService.addNews({
+        date: today,
+        type: 'GENERIC',
+        message: `The bank paid you ${bankAfterInterest.value - player.bank_gold} gold in interest.`,
+        playerId: player.id
+      });
+    }
+
     return { didReset: true, today };
+  }
+
+
+  private safeAdd(left: number, right: number) {
+    const BIGINT_MAX = 9_223_372_036_854_775_807;
+    const total = left + right;
+    if (total > BIGINT_MAX) {
+      return { value: BIGINT_MAX, clamped: true };
+    }
+    return { value: total, clamped: false };
   }
 
   private rollSpirits(): Spirits {

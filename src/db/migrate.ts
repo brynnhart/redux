@@ -1,6 +1,6 @@
 import { getDb } from './db.js';
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 export function runMigrations() {
   const db = getDb();
@@ -186,6 +186,21 @@ export function runMigrations() {
 
       CREATE INDEX IF NOT EXISTS idx_inn_breakins_attacker ON inn_breakins (attacker_player_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_inn_breakins_target ON inn_breakins (target_player_id, created_at);
+    `);
+  }
+
+
+  if (currentVersion < 8) {
+    db.exec(`
+      ALTER TABLE players ADD COLUMN gold_pocket INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN gold_bank INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN money_doubler_used_today INTEGER NOT NULL DEFAULT 0;
+    `);
+
+    db.exec(`
+      UPDATE players SET gold_pocket = COALESCE(gold_pocket, gold, 0);
+      UPDATE players SET gold_bank = COALESCE(gold_bank, bank_gold, 0);
+      UPDATE players SET money_doubler_used_today = COALESCE(money_doubler_used_today, today_money_doubler_used, 0);
     `);
   }
 db.prepare(
