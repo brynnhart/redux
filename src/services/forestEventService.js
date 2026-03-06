@@ -5,7 +5,18 @@ import { jennieEvent } from '../events/events/jennie.js';
 import { oldManEvent } from '../events/events/oldMan.js';
 import { oldWitchEvent } from '../events/events/oldWitch.js';
 import { mysticalGuessingEvent } from '../events/events/mysticalGuessing.js';
-const engineEvents = [fairiesEvent, oldManEvent, oldWitchEvent, deadBirdRescueEvent, jennieEvent, mysticalGuessingEvent];
+import { oliviaEvent } from '../events/events/olivia.js';
+
+const engineEvents = [
+    fairiesEvent,
+    oldManEvent,
+    oldWitchEvent,
+    deadBirdRescueEvent,
+    oliviaEvent,
+    jennieEvent,
+    mysticalGuessingEvent
+];
+
 export class ForestEventService {
     rng;
     engine;
@@ -44,6 +55,7 @@ export class ForestEventService {
         return {
             text: result.text.join(' '),
             patch: result.effects ?? {},
+            payload: result.payload,
             globalNews: result.globalNews,
             personalNews: result.personalNews,
             keepOpen: result.keepOpen,
