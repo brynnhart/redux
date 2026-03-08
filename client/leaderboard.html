@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoRD — Leaderboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="leaderboard-page">
+
+  <div class="lb-container">
+    <h1 class="title">
+      <span class="red">Mighty Warriors</span> of the Realm
+    </h1>
+
+    <div id="lb-meta">
+      <span>Latest Hero: <strong id="lb-hero">—</strong></span>
+      <span>Day <strong id="lb-day">—</strong> of the Realm</span>
+    </div>
+
+    <table id="lb-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Name</th>
+          <th>Level</th>
+          <th>Experience</th>
+          <th>Dragon Kills</th>
+          <th>PvP Kills</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="lb-body">
+        <tr><td colspan="7" class="loading">Loading...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="lb-footer">
+      <a href="index.html">← Back to Login</a>
+    </div>
+  </div>
+
+  <script>
+    async function loadLeaderboard() {
+      try {
+        const res  = await fetch('/api/leaderboard');
+        const data = await res.json();
+
+        document.getElementById('lb-hero').textContent = data.latesthero || '—';
+        document.getElementById('lb-day').textContent  = data.days || '0';
+
+        const tbody = document.getElementById('lb-body');
+        if (!data.players || !data.players.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="loading">No warriors yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.players.map(p => `
+          <tr class="${p.dead ? 'dead-row' : ''}">
+            <td>${p.rank}</td>
+            <td>${escHtml(p.name)}</td>
+            <td>${p.level}</td>
+            <td>${p.exp.toLocaleString()}</td>
+            <td>${p.drag_kills}</td>
+            <td>${p.pvp}</td>
+            <td>${p.dead ? '💀 Dead' : '⚔️ Active'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        document.getElementById('lb-body').innerHTML =
+          '<tr><td colspan="7" class="error">Failed to load leaderboard.</td></tr>';
+      }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>

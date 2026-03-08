@@ -1,0 +1,212 @@
+/* client/css/style.css */
+
+:root {
+  --bg:       #0a0a0a;
+  --surface:  #111;
+  --border:   #333;
+  --red:      #cc2200;
+  --red-bright: #ff3300;
+  --gold:     #cc9900;
+  --green:    #22aa44;
+  --text:     #ccc;
+  --text-dim: #777;
+  --font:     'Courier New', Courier, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+
+/* ── Auth page ────────────────────────────────────────────────────────────── */
+
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem 1.5rem;
+}
+
+.title {
+  font-size: 1.6rem;
+  text-align: center;
+  color: var(--text);
+  margin-bottom: .3rem;
+  letter-spacing: 1px;
+}
+
+.red { color: var(--red-bright); }
+
+.subtitle {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: .8rem;
+  margin-bottom: 1.8rem;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  flex: 1;
+  padding: .5rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: .9rem;
+  cursor: pointer;
+  transition: color .15s;
+}
+
+.tab.active {
+  color: var(--gold);
+  border-bottom: 2px solid var(--gold);
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; }
+
+.field input {
+  width: 100%;
+  padding: .5rem .7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: .95rem;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color .15s;
+}
+.field input:focus { border-color: var(--gold); }
+
+.btn-primary {
+  width: 100%;
+  margin-top: .5rem;
+  padding: .6rem;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  font-family: var(--font);
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background .15s;
+}
+.btn-primary:hover { background: var(--red-bright); }
+
+.error {
+  color: #ff6644;
+  font-size: .8rem;
+  margin: .4rem 0;
+}
+.hidden { display: none; }
+
+.leaderboard-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: .8rem;
+}
+.leaderboard-link a { color: var(--text-dim); text-decoration: none; }
+.leaderboard-link a:hover { color: var(--gold); }
+
+/* ── Game page ────────────────────────────────────────────────────────────── */
+
+.game-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#terminal-container {
+  flex: 1;
+  overflow: hidden;
+  padding: 4px;
+}
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .3rem .8rem;
+  background: #1a1a1a;
+  border-top: 1px solid var(--border);
+  font-size: .75rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+#status-bar span { color: var(--text); }
+.status-spacer { flex: 1; }
+
+.btn-small {
+  padding: .2rem .5rem;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: .72rem;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.btn-small:hover { color: var(--red-bright); border-color: var(--red); }
+
+/* ── Leaderboard page ─────────────────────────────────────────────────────── */
+
+.leaderboard-page { padding: 2rem 1rem; }
+
+.lb-container { max-width: 860px; margin: 0 auto; }
+
+#lb-meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 1rem 0 1.5rem;
+  font-size: .85rem;
+  color: var(--text-dim);
+}
+
+#lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+
+#lb-table th {
+  text-align: left;
+  padding: .4rem .6rem;
+  border-bottom: 1px solid var(--gold);
+  color: var(--gold);
+  font-weight: normal;
+}
+
+#lb-table td {
+  padding: .35rem .6rem;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+#lb-table tr:hover td { background: #151515; }
+
+.dead-row td { color: var(--text-dim); text-decoration: line-through; }
+
+.loading { text-align: center; color: var(--text-dim); padding: 1.5rem 0; }
+
+.lb-footer { margin-top: 1.5rem; font-size: .8rem; }
+.lb-footer a { color: var(--text-dim); text-decoration: none; }
+.lb-footer a:hover { color: var(--gold); }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoRD — Playing</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- xterm.js -->
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+</head>
+<body class="game-page">
+
+  <div id="terminal-container"></div>
+
+  <div id="status-bar">
+    <span id="status-name"></span>
+    <span id="status-level"></span>
+    <span id="status-hp"></span>
+    <span id="status-gold"></span>
+    <span class="status-spacer"></span>
+    <button id="btn-logout" class="btn-small">Logout</button>
+  </div>
+
+  <script src="js/terminal.js"></script>
+</body>
+</html>

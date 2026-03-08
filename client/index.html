@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legend of the Red Dragon</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <h1 class="title">
+      <span class="red">Legend</span> of the
+      <span class="red">Red Dragon</span>
+    </h1>
+    <p class="subtitle">A Web Port of the Classic BBS Door Game</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Login</button>
+      <button class="tab" data-tab="register">Register</button>
+    </div>
+
+    <!-- Login form -->
+    <div id="login-panel" class="panel active">
+      <div class="field">
+        <label for="login-user">Username</label>
+        <input id="login-user" type="text" autocomplete="username" autofocus>
+      </div>
+      <div class="field">
+        <label for="login-pass">Password</label>
+        <input id="login-pass" type="password" autocomplete="current-password">
+      </div>
+      <div id="login-error" class="error hidden"></div>
+      <button id="login-btn" class="btn-primary">Enter the Realm</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="register-panel" class="panel">
+      <div class="field">
+        <label for="reg-user">Username</label>
+        <input id="reg-user" type="text" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="reg-pass">Password</label>
+        <input id="reg-pass" type="password" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="reg-confirm">Confirm Password</label>
+        <input id="reg-confirm" type="password" autocomplete="new-password">
+      </div>
+      <div id="reg-error" class="error hidden"></div>
+      <button id="reg-btn" class="btn-primary">Create Account</button>
+    </div>
+
+    <div class="leaderboard-link">
+      <a href="leaderboard.html">View Leaderboard</a>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>
