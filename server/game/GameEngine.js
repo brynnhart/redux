@@ -68,7 +68,7 @@ async function checkDaily(player) {
 // ── New player creation ────────────────────────────────────────────────────
 
 async function newPlayer(session, disp) {
-  // TODO: Port lord.js new_player() function
+  // TODO: Port lord.js new_player() function (full version)
   // Steps:
   //   1. Display welcome / intro text
   //   2. Ask for character name (validate with check_name())
@@ -77,16 +77,58 @@ async function newPlayer(session, disp) {
   //   5. Create DB record via PlayerDB.create()
   //   6. Return player object
 
-  session.sendln('\r\n`%Welcome to the Legend of the Red Dragon!`0\r\n');
-  session.send('`2Enter your character\'s name`0: ');
-  const name = await session.getStr(20, { allowed: /[a-zA-Z0-9 ]/ });
-  if (!name.trim()) return null;
+  // ── Color codes must go through disp.sln() / disp.sw(), NOT session.sendln() ──
+  // session.sendln() sends raw strings. disp.sln() runs them through LordColors.toAnsi().
 
-  session.send('\r\n`2Sex (`%M`2/`%F`2)`0: ');
+  session.clearScreen();
+  disp.sln('');
+  disp.sln('`%              Welcome to the Legend of the Red Dragon!`0');
+  disp.sln('');
+  disp.sln('`2In the days when the world was young, and the Red Dragon roamed the');
+  disp.sln('`2land, there were those who dared to challenge its power...');
+  disp.sln('');
+  disp.sln('`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+  disp.sln('');
+
+  // ── Character name ─────────────────────────────────────────────────────────
+  // No `allowed` regex — let all printable chars through, validate after.
+  // getStr() already handles backspace, Enter, and Escape correctly.
+  let name = '';
+  while (true) {
+    disp.sw('`2What is your character\'s name`0? ');
+    name = await session.getStr(20);
+    name = name.trim();
+
+    if (!name) {
+      disp.sln('`4You must enter a name. Please try again.');
+      continue;
+    }
+    // Basic validation: only letters, numbers, spaces
+    if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
+      disp.sln('`4Name may only contain letters, numbers, and spaces.');
+      continue;
+    }
+    break;
+  }
+
+  // ── Sex ─────────────────────────────────────────────────────────────────────
+  disp.sln('');
+  disp.sw(`\`2Are you `);
+  disp.sw('`%M`2)ale');
+  disp.sw(' `0or ');
+  disp.sw('`%F`2)emale');
+  disp.sw('`0? ');
   const sex = await session.prompt('', ['M', 'F']);
+  disp.sln('');
 
-  session.sendln('\r\n');
-  const player = PlayerDB.create(session.userId, name.trim(), sex);
+  // ── Create player ───────────────────────────────────────────────────────────
+  const player = PlayerDB.create(session.userId, name, sex);
+
+  disp.sln('');
+  disp.sln(`\`2Welcome, \`%${name}\`2! Your adventure begins...`);
+  disp.sln('');
+  await session.more();
+
   return player;
 }
 

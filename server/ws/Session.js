@@ -1,5 +1,7 @@
 'use strict';
 
+const LordColors = require('../game/text/LordColors');
+
 /**
  * server/ws/Session.js
  *
@@ -139,15 +141,18 @@ class Session extends EventEmitter {
 
     while (true) {
       const key = await this.getKey();
-      if (!key) continue;
 
+      // Disconnected / session ended
+      if (key === null) return buf;
+
+      // Enter — terminal.js maps browser Enter to '\r'
       if (key === '\r' || key === '\n') {
         this.send('\r\n');
         return buf;
       }
 
+      // Backspace / Delete
       if (key === '\x08' || key === '\x7f') {
-        // Backspace
         if (buf.length > 0) {
           buf = buf.slice(0, -1);
           this.send('\x08 \x08');
@@ -155,19 +160,25 @@ class Session extends EventEmitter {
         continue;
       }
 
+      // Escape — clear buffer contents without returning
       if (key === '\x1b') {
-        // Escape — cancel, return empty
-        this.send('\r\n');
-        return '';
+        if (buf.length > 0) {
+          this.send('\x08 \x08'.repeat(buf.length));
+          buf = '';
+        }
+        continue;
       }
 
-      // Printable character
-      if (key.length === 1 && key >= ' ') {
-        if (allowed && !allowed.test(key)) continue;
-        if (buf.length < maxLen) {
-          buf += key;
-          this.send(password ? '*' : key);
-        }
+      // Skip non-printable / multi-char sequences (arrow keys etc.)
+      if (key.length !== 1 || key < ' ') continue;
+
+      // Optional character whitelist
+      if (allowed && !allowed.test(key)) continue;
+
+      // Append to buffer
+      if (buf.length < maxLen) {
+        buf += key;
+        this.send(password ? '*' : key);
       }
     }
   }
@@ -177,7 +188,7 @@ class Session extends EventEmitter {
    * Replaces: more() / more_nomail()
    */
   async more() {
-    this.send('\r\n`2[ `%More`2 ]`0 ');
+    this.send(LordColors.toAnsi('\r\n`2[ `%More`2 ]`0 '));
     await this.getKey();
     this.send('\r');
     this.clearEOL();
@@ -191,7 +202,7 @@ class Session extends EventEmitter {
    * @param {string[]} options  Accepted keys (case-insensitive)
    */
   async prompt(promptStr, options) {
-    this.send(promptStr);
+    if (promptStr) this.send(LordColors.toAnsi(promptStr));
     const valid = options.map(o => o.toUpperCase());
     while (true) {
       const k = await this.getKeyUpper(true);
@@ -220,7 +231,7 @@ class Session extends EventEmitter {
 
   /** Kick the player with a message (e.g. duplicate login). */
   kick(reason) {
-    this.send(`\r\n\`4${reason}\`0\r\n`);
+    this.send(LordColors.toAnsi(`\`4${reason}\`0`) + '\r\n');
     this.end();
   }
 }
