@@ -195,51 +195,138 @@ async function showDailyLog(session, disp) {
   }
 }
 
-// ── C — Bar Conversation (lord.js converse()) ─────────────────────────────
+// ── C — Bar Conversation — live chat room ─────────────────────────────────
 
 async function barConverse(session, disp) {
+  const ChatRoom = require('../systems/ChatRoom');
+  const LordColors = require('../text/LordColors');
+  const p = session.player;
+
   session.clearScreen();
   disp.sln('');
   disp.sln('  `%Conversation at the Bar`0');
   disp.sln(SEP);
   disp.sln('');
 
-  const lines = ConversationDB.getLines('bar');
-  if (!lines.length) {
+  // ── Print recent history ─────────────────────────────────────────────────
+  const history = ConversationDB.getLines('bar');
+  if (!history.length) {
     disp.sln('  `2The bar is quiet.  No one has said anything yet.');
   } else {
-    lines.forEach(l => disp.sln(l));
+    history.forEach(l => disp.sln(l));
+  }
+  disp.sln('');
+
+  // ── Print who is here ────────────────────────────────────────────────────
+  const handle = ChatRoom.enter('bar', session, p.name);
+  const roster = handle.roster();
+  if (roster.length === 1) {
+    disp.sln('  `2You are the only one here right now.');
+  } else {
+    disp.sln('  `2Currently chatting: `%' + roster.join('`2, `%'));
+  }
+  disp.sln('');
+  disp.sln('  `8Type a message and press Enter to send.  Enter on an empty line to leave.');
+  disp.sln('');
+
+  // ── Announce arrival ─────────────────────────────────────────────────────
+  handle.broadcast('`8  -- `%' + p.name + ' `8has entered the bar --');
+
+  // ── Live chat input loop ──────────────────────────────────────────────────
+  // We implement our own line-editor here (rather than session.getStr) so we
+  // can update the stored inputBuf character-by-character, which lets the
+  // ChatRoom module correctly reprint it when an incoming message arrives.
+
+  const PROMPT = LordColors.toAnsi('`2> `%');
+  session.send(PROMPT);
+  handle.setInputBuf('');
+  handle.setPromptShowing(true);
+
+  let buf = '';
+
+  while (session.alive) {
+    // Short timeout so we stay responsive but don't spin
+    const key = await session.getKey(120_000);
+
+    if (!key || !session.alive) break;
+
+    // ── Enter ───────────────────────────────────────────────────────────────
+    if (key === '\r' || key === '\n') {
+      const text = buf.trim();
+      session.send('\r\n');
+      buf = '';
+      handle.setInputBuf('');
+      handle.setPromptShowing(false);
+
+      if (!text) {
+        // Empty enter = leave chat
+        break;
+      }
+
+      // Persist to ring-buffer DB (single combined line: "Name: message")
+      const dbLine = '  `%' + p.name + '`2: `7' + text;
+      ConversationDB.addLines('bar', [dbLine], p.id);
+      StateDB.patch({ last_bar: p.id });
+
+      // Render the line on this user's screen
+      disp.sln(dbLine);
+      disp.sln('');
+
+      // Broadcast to everyone else currently in the chat
+      handle.broadcast(dbLine);
+
+      // Reprint prompt for next message
+      session.send(PROMPT);
+      handle.setPromptShowing(true);
+      continue;
+    }
+
+    // ── Backspace / Delete ───────────────────────────────────────────────────
+    if (key === '\x08' || key === '\x7f') {
+      if (buf.length > 0) {
+        buf = buf.slice(0, -1);
+        session.send('\x08 \x08');
+        handle.setInputBuf(buf);
+      }
+      continue;
+    }
+
+    // ── Escape — clear current input ─────────────────────────────────────────
+    if (key === '\x1b') {
+      if (buf.length > 0) {
+        session.send('\x08 \x08'.repeat(buf.length));
+        buf = '';
+        handle.setInputBuf('');
+      }
+      continue;
+    }
+
+    // ── Skip non-printable ───────────────────────────────────────────────────
+    if (key.length !== 1 || key < ' ') continue;
+
+    // ── Append character (max 120) ───────────────────────────────────────────
+    if (buf.length < 120) {
+      buf += key;
+      session.send(key);
+      handle.setInputBuf(buf);
+    }
+  }
+
+  // ── Leave ─────────────────────────────────────────────────────────────────
+  handle.broadcast('`8  -- `%' + p.name + ' `8has left the bar --');
+
+  // Show updated roster to remaining chatters
+  handle.leave();
+  const remaining = handle.roster();
+  if (remaining.length === 0) {
+    // nobody left — nothing to broadcast
+  } else {
+    handle.broadcastAll('`8  -- Now chatting: `%' + remaining.join('`8, `%') + ' `8--');
   }
 
   disp.sln('');
-  disp.sw('  `2(`5C`2)ontinue  (`5A`2)dd to Conversation  [`5C`2] : ');
-
-  const ch = await session.getKeyUpper();
-  if (!ch) return;
-  disp.sln(ch === 'A' ? 'A' : 'C');
-
-  if (ch !== 'A') return;
-
-  const p = session.player;
+  disp.sln('  `2You step back from the bar...');
   disp.sln('');
-  disp.sln('  `2Share your feelings now.. (Max 75 chars)');
-  disp.sln('');
-  disp.sw('  `2> `%');
-
-  const msg = (await session.getStr(75)).trim();
-  disp.sln('');
-
-  if (msg.length < 2) {
-    disp.sln('  You decide not to speak..  You really don\'t have anything to say.');
-    disp.sln('  (ENTRY NOT ENTERED)');
-    await session.more();
-    return;
-  }
-
-  ConversationDB.addLines('bar', [`  \`%${p.name}:`, `  \`2${msg}`], p.id);
-  StateDB.patch({ last_bar: p.id });
-  disp.sln('  Said!');
-  await session.more();
 }
 
 // ── B — Attack in Inn (lord.js attack_in_inn()) ───────────────────────────────

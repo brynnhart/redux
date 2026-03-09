@@ -9,7 +9,7 @@
 
 const { getDB } = require('./init');
 
-const LIMITS = { bar: 18, darkbar: 18, garden: 20, dirt: 1 };
+const LIMITS = { bar: 30, darkbar: 18, garden: 20, dirt: 1 };
 const CHANNELS = Object.keys(LIMITS);
 
 function validChannel(ch) {
