@@ -104,6 +104,10 @@ function initDB() {
       horse           INTEGER NOT NULL DEFAULT 0,
       amulet          INTEGER NOT NULL DEFAULT 0,   -- amulet of accuracy
       has_fairy       INTEGER NOT NULL DEFAULT 0,   -- thief fairy companion
+      fairy_lore      INTEGER NOT NULL DEFAULT 0,   -- fairy lore level
+      light_shield    INTEGER NOT NULL DEFAULT 0,   -- mystic light shield
+      magically_delicious INTEGER NOT NULL DEFAULT 0, -- Jennie GIFT gate
+      ran_away        INTEGER NOT NULL DEFAULT 0,   -- fled from battle today
 
       -- Olivia / special events
       olivia          INTEGER NOT NULL DEFAULT 0,

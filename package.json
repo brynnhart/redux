@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
-    "db:init": "node server/db/init.js",
-    "db:reset": "node server/db/init.js --reset"
+    "db:init":    "node server/db/init.js",
+    "db:reset":   "node server/db/init.js --reset",
+    "db:migrate": "node server/db/migrate.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
