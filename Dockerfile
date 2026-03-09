@@ -1,23 +1,21 @@
-# Simple, production-friendly Node image
 FROM node:20-alpine
 
-WORKDIR /server
+# Install native build tools needed for better-sqlite3
+RUN apk add --no-cache python3 make g++
 
-# Install deps first (better cache)
-COPY package*.json ./
-RUN npm ci --omit=dev
+WORKDIR /app
 
-# Copy the app
+# Install dependencies first (layer cache)
+COPY package.json ./
+RUN npm install --omit=dev
+
+# Copy application source
 COPY . .
 
-# Environment (Fly will also inject PORT)
-ENV NODE_ENV=production
-ENV PORT=3000
-# IMPORTANT: your server.js should read DB_PATH; we'll mount a volume at /data
-ENV DB_PATH=/data/dis.sqlite3
-ENV ROCKO_MODEL=gpt-4.1-mini
+# The SQLite DB lives on a Fly persistent volume mounted at /data
+# Point the app at it via environment variable (read in server/db/init.js)
+ENV DB_PATH=/data/lord.db
 
 EXPOSE 3000
 
-# Run the BBS
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
