@@ -80,14 +80,11 @@ function toAnsi(str, subs = {}) {
 
       case '0': case '1': case '2': case '3':
       case '4': case '5': case '6': case '7': {
-        // Foreground color
+        // Foreground color — always resets bold (matches original LORD behaviour:
+        // `2 = plain green, `%`2 = bold green, then next `2 = plain green again)
         const fg = FG[code];
-        if (bold) {
-          out += `\x1b[${fg};1m`;
-        } else {
-          out += `\x1b[0;${fg}m`;
-          bold = false;
-        }
+        bold = false;
+        out += `\x1b[0;${fg}m`;
         break;
       }
 

@@ -188,7 +188,7 @@ class Session extends EventEmitter {
    * Replaces: more() / more_nomail()
    */
   async more() {
-    this.send(LordColors.toAnsi('\r\n`2[ `%More`2 ]`0 '));
+    this.send(LordColors.toAnsi('\r\n`2<`%MORE`2>`0'));
     await this.getKey();
     this.send('\r');
     this.clearEOL();

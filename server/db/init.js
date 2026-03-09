@@ -145,6 +145,7 @@ function initDB() {
       won_by              INTEGER NOT NULL DEFAULT -1,  -- player id or -1
       last_bar            INTEGER NOT NULL DEFAULT -1,  -- player id
       forest_gold         INTEGER NOT NULL DEFAULT 100,
+      which_castle        INTEGER NOT NULL DEFAULT 1,   -- current correct rescue castle (1-5)
       days                INTEGER NOT NULL DEFAULT 0,
       last_reset          INTEGER NOT NULL DEFAULT 0    -- unix timestamp
     );
