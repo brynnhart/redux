@@ -447,25 +447,20 @@ async function talkBartender(session, disp) {
         break;
 
       case 'V':
-        if (pp.sex === 'M') {
-          disp.sln('');
-          disp.sln('  `5"Ya want to know about `#Violet`5 do ya?  She is every warrior\'s');
-          disp.sln('  wet dream...But forget it, Lad, she only goes for the type');
-          disp.sln('  of guy who would help old people..."');
-          disp.sln('');
-        }
+        disp.sln('');
+        disp.sln('  `5"Ya want to know about `#Violet`5 do ya?  She\'s a handful, I\'ll');
+        disp.sln('  tell you that much.  She only goes for the type of person who');
+        disp.sln('  would help old people...  A lot of Charm is what you would need."');
+        disp.sln('');
         break;
 
       case 'S':
-        if (pp.sex === 'F') {
-          disp.sln('');
-          disp.sln('  `5"Ya want to know about `%Seth Able`5 the Bard, eh?  Well... He');
-          disp.sln('  has a good voice, and can really play that mandolin.  I don\'t');
-          disp.sln('  think he would go for your type tho, he likes the type of girl');
-          disp.sln('  that would help an old man or something... A lot of Charm is');
-          disp.sln('  what you would need.  I could sure go for your type tho!  Har har!"');
-          disp.sln('');
-        }
+        disp.sln('');
+        disp.sln('  `5"Ya want to know about `%Seth Able`5 the Bard, eh?  Well... He');
+        disp.sln('  has a good voice, and can really play that mandolin.  He likes');
+        disp.sln('  the helpful, charming type.  You\'d need a lot of Charm to catch');
+        disp.sln('  his eye.  I could sure go for your type tho!  Har har!"');
+        disp.sln('');
         break;
 
       case '?':
@@ -679,16 +674,17 @@ async function talkBard(session, disp) {
   disp.sln(SEP);
   disp.sln('');
 
-  if (p.sex === 'M') {
-    disp.sln('  `2Seth Able strums his mandolin and nods at you pleasantly.');
-    disp.sln('  He seems to be in good spirits.');
+  const sethMarried = (state.married_to_seth === p.id);
+  if (sethMarried) {
+    disp.sln('  `2Seth Able looks up from his mandolin and beams at you.');
+    disp.sln('  He pats the stool beside him invitingly.');
   } else {
     disp.sln('  `2Seth Able glances over and gives you a warm smile.');
     disp.sln('  His fingers dance skillfully over the mandolin strings.');
   }
   disp.sln('');
   disp.sln('  (`%A`2)sk for a song');
-  if (p.sex === 'F') disp.sln('  (`%F`2)lirt with Seth');
+  disp.sln('  (`%F`2)lirt with Seth');
   disp.sln('  (`%R`2)eturn');
   disp.sln('');
 
@@ -711,13 +707,12 @@ async function talkBard(session, disp) {
         break;
 
       case 'F':
-        if (p.sex !== 'F') break;
         await sethFlirt(session, disp);
         break;
 
       case '?':
         disp.sln('  (`%A`2)sk for a song');
-        if (p.sex === 'F') disp.sln('  (`%F`2)lirt with Seth');
+        disp.sln('  (`%F`2)lirt with Seth');
         disp.sln('  (`%R`2)eturn');
         disp.sln('');
         break;
@@ -765,13 +760,13 @@ async function sethFlirt(session, disp) {
 
   disp.sln('');
 
-  // Already married to someone else
-  if (state.married_to_seth && state.married_to_seth !== p.id) {
+  // Seth is already married (not to this player)
+  if (state.married_to_seth > 0 && state.married_to_seth !== p.id) {
     const owner = PlayerDB.getById(state.married_to_seth);
     disp.sln('  `2You are about to give Seth your best, when he turns away.');
     disp.sln('  You see a shiny new `0ring `2on his hand.');
     if (owner) {
-      disp.sln(`  You notice it matches the one worn by \`0${owner.name}\`2.`);
+      disp.sln('  You notice it matches the one worn by \`0' + owner.name + '\`2.');
     }
     disp.sln('');
     await session.more();
@@ -779,14 +774,14 @@ async function sethFlirt(session, disp) {
     return;
   }
 
-  // Married to player
+  // Married to this player
   if (state.married_to_seth === p.id) {
     const responses = [
-      '  `0"I love you too, honey!"',
-      '  `2Seth gives you a quick peck on the cheek.',
-      '  `0"I\'d love to sweetie, but duty calls."',
+      '  `0"I love you, you know that?"',
+      '  `2Seth gives you a warm smile and squeezes your hand.',
+      '  `0"I\'d love to linger, but duty calls."',
       '  `0"We\'ll have plenty of time for that tonight!"',
-      '  `2In the roar of the crowd, he doesn\'t hear.',
+      '  `2In the roar of the crowd, he doesn\'t hear.  You don\'t mind.',
       '  `0"After work, you\'re mine!" `2he laughs.',
     ];
     disp.sln(responses[rand(responses.length)]);
@@ -798,8 +793,9 @@ async function sethFlirt(session, disp) {
 
   // Single Seth — flirt options
   disp.sln('  (`%W`2)ink at Seth');
-  disp.sln('  (`%E`2)yelash flutter');
+  disp.sln('  (`%C`2)ompliment his playing');
   disp.sln('  (`%S`2)educe him');
+  disp.sln('  (`%A`2)sk him to marry you');
   disp.sln('  (`%R`2)eturn');
   disp.sln('');
   disp.sw('  `2Your move : ');
@@ -813,49 +809,48 @@ async function sethFlirt(session, disp) {
 
   if (act === 'W') {
     persist(session, { seen_violet: true });
+    disp.sln('  `%You wink at Seth Able across the room..');
     if (p.cha >= 1) {
-      disp.sln('  `%You wink at Seth Able seductively..');
-      disp.sln('  `2He blushes and smiles!!');
-      disp.sln('  You are making progress with him!');
+      disp.sln('  `2He blushes and smiles back at you!');
+      disp.sln('  You are making progress!');
       disp.sln('');
-      disp.sln(`  \`%You receive \`0${pretty(p.level*5)} \`%experience!`);
+      disp.sln('  \`%You receive \`0' + pretty(p.level*5) + ' \`%experience!');
       persist(session, { exp: clamp(p.exp + p.level*5, 0, 2000000000), seen_violet: true });
     } else {
-      disp.sln('  `%You wink at Seth Able seductively..');
       disp.sln('  `4He looks the other way!');
       disp.sln('  You nearly die of embarrassment!');
     }
-  } else if (act === 'E') {
+  } else if (act === 'C') {
     persist(session, { seen_violet: true });
-    disp.sln('  `%You flutter your eyelashes at Seth Able..');
+    disp.sln('  `%You tell Seth his playing is the finest you\'ve ever heard..');
     if (p.cha >= 2) {
-      disp.sln('  `2He smiles broadly and winks back!');
+      disp.sln('  `2He beams and launches into a little flourish just for you!');
       disp.sln('  Your relationship with him is taking off!');
       disp.sln('');
-      disp.sln(`  \`%You receive \`0${pretty(p.level*10)} \`%experience!`);
+      disp.sln('  \`%You receive \`0' + pretty(p.level*10) + ' \`%experience!');
       persist(session, { exp: clamp(p.exp + p.level*10, 0, 2000000000), seen_violet: true });
     } else {
-      disp.sln('  `2He doesn\'t seem interested!');
-      disp.sln(`  \`4YOU LOSE \`%${pretty(p.level)} \`4HIT POINTS!`);
+      disp.sln('  `2He nods politely but looks unconvinced.');
+      disp.sln('  \`4YOU LOSE \`%' + pretty(p.level) + ' \`4HIT POINTS from wounded pride!');
       persist(session, { hp: Math.max(1, p.hp - p.level), seen_violet: true });
     }
   } else if (act === 'S') {
     persist(session, { seen_violet: true });
     if (p.married_to > -1) {
       disp.sln('  `2Seth Able is appalled that you would even suggest such a thing!');
-      disp.sln('  He calls you a filthy harlot!');
-      LogDB.append(`\`5  Seth Able \`2calls \`0${p.name} \`2a filthy harlot!`);
+      disp.sln('  He loudly announces your shamelessness to the entire bar!');
+      LogDB.append('\`5  Seth Able \`2announces the shameless behaviour of \`0' + p.name + '\`2!');
     } else if (p.cha >= 32) {
       const outcome = rand(4);
       if (outcome === 2) {
-        disp.sln('  `2He smiles invitingly...');
+        disp.sln('  `2He smiles invitingly and sets his mandolin aside...');
         disp.sln('');
-        disp.sln('  `2Hours later.. You saunter downstairs.  When a bearded drunk');
+        disp.sln('  `2Hours later you saunter downstairs.  When a bearded drunk');
         disp.sln('  asks what all the racket was, you smile knowingly.');
         disp.sln('  The drunks are mystified!');
         disp.sln('');
-        disp.sln(`  \`0YOU GET \`%${pretty(p.level*40)} \`0EXPERIENCE!`);
-        LogDB.append(`\`0  ${p.name} \`2got laid by \`%Seth Able\`2!`);
+        disp.sln('  \`0YOU GET \`%' + pretty(p.level*40) + ' \`0EXPERIENCE!');
+        LogDB.append('\`0  ' + p.name + ' \`2spent quality time with \`%Seth Able\`2!');
         persist(session, {
           exp: clamp(p.exp + p.level*40, 0, 2000000000),
           laid: p.laid + 1,
@@ -863,25 +858,85 @@ async function sethFlirt(session, disp) {
         });
       } else {
         const excuses = [
-          'he has a headache!',
-          'he is not in the mood!',
-          'he is too exhausted from last night!',
+          'he has a headache.',
+          'he is not in the mood.',
+          'he is too exhausted from last night.',
+          'he has to practice.',
         ];
-        disp.sln('  `2He tells you ' + excuses[rand(excuses.length)]);
+        disp.sln('  `2He regretfully tells you ' + excuses[rand(excuses.length)]);
         disp.sln('  You are very disappointed.');
       }
     } else {
-      disp.sln('  `2He shoves you away harshly!');
-      disp.sln('  He calls you a filthy whore!');
-      disp.sln('  You trudge away from him dejectedly..');
-      disp.sln('  The entire bar laughs at your misfortune!!');
+      disp.sln('  `2He looks horrified and backs away sharply!');
+      disp.sln('  The entire bar erupts in laughter at your misfortune!!');
       disp.sln('');
       disp.sln('  `4YOUR HITPOINTS GO DOWN TO 1!');
-      LogDB.append(`\`5  ${p.name} \`2was called a whore by \`%Seth Able\`2!`);
+      LogDB.append('\`5  ' + p.name + ' \`2was publicly rejected by \`%Seth Able\`2!');
       persist(session, { hp: 1, seen_violet: true });
     }
+  } else if (act === 'A') {
+    await sethMarriageProposal(session, disp);
+    return;
   }
 
+  disp.sln('');
+  await session.more();
+}
+
+async function sethMarriageProposal(session, disp) {
+  const p     = session.player;
+  const state = StateDB.get();
+
+  if (p.married_to > -1) {
+    disp.sln('  `2You\'re already married!  You can\'t propose to Seth!');
+    disp.sln('');
+    persist(session, { seen_violet: true });
+    await session.more();
+    return;
+  }
+
+  if (p.cha < 50) {
+    disp.sln('  `2Seth Able blushes but shakes his head gently.');
+    disp.sln('  \`5"You need at least \`%50 \`5charm before I could even consider it, love."');
+    disp.sln('');
+    persist(session, { seen_violet: true });
+    await session.more();
+    return;
+  }
+
+  disp.sln('  `2You get down on one knee...');
+  disp.sln('');
+  await session.more();
+
+  const freshState = StateDB.get();
+  if (freshState.married_to_seth > 0 && freshState.married_to_seth !== p.id) {
+    const owner = PlayerDB.getById(freshState.married_to_seth);
+    disp.sln('  `c                        `%** THE BLESSED DAY ARRIVES **`0');
+    disp.sln(SEP);
+    disp.sln('  `2As you walk up to the chapel, you see Seth walking out...');
+    if (owner) disp.sln('  arm in arm with \`0' + owner.name + '\`2!');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+
+  StateDB.patch({ married_to_seth: p.id });
+  disp.sln('  `c                        `%** THE BLESSED DAY ARRIVES **`0');
+  disp.sln(SEP);
+  disp.sln('  `2Seth Able agrees to marry you!');
+  disp.sln('');
+  disp.sln('  After a short ceremony you are finally able to take him in your arms.');
+  disp.sln('');
+  disp.sln('  He agrees to cut back on performances to spend more time with you.');
+  disp.sln('');
+  disp.sln('  \`%YOU RECEIVE \`0' + pretty(1000 * p.level) + ' \`%EXPERIENCE!');
+  LogDB.append('\`%  Seth Able\`2 has \`%MARRIED \`0' + p.name + '\`2!  He hangs up his mandolin for love!');
+
+  persist(session, {
+    exp: clamp(p.exp + p.level*1000, 0, 2000000000),
+    married_to: -2,
+    seen_violet: false,
+  });
   disp.sln('');
   await session.more();
 }
@@ -892,45 +947,49 @@ async function flirtViolet(session, disp) {
   const p     = session.player;
   const state = StateDB.get();
 
-  // Female players redirect to Seth
-  if (p.sex === 'F') {
-    disp.sln('');
-    disp.sln('  You would rather flirt with Seth Able.');
-    disp.sln('');
-    await session.more();
-    return;
-  }
-
   disp.sln('');
   disp.sln('');
 
   // Violet is already married (not to this player)
-  if (state.married_to_violet && state.married_to_violet !== p.id) {
+  if (state.married_to_violet > 0 && state.married_to_violet !== p.id) {
     if (p.seen_violet) {
       disp.sln('  `2You are still shaking from your last encounter with `4Grizelda`2!');
       disp.sln('');
       await session.more();
       return;
     }
-    // Grizelda encounter
-    disp.sln('  You whistle loudly for the barmaid, hardly containing your glee at the');
-    disp.sln('  thought of patting Violet\'s soft supple hips, but when you pat...');
+    // Grizelda encounter — works for anyone who tries to flirt with a taken Violet
+    disp.sln('  You whistle loudly for the barmaid, hardly containing your excitement,');
+    disp.sln('  but when you reach out...');
     disp.sln('');
     await session.more();
     disp.sln('  `4YOU FEEL HUGE LUMPS OF CELLULITE!');
     disp.sln('');
     disp.sln('  `2The obese barmaid introduces her portly self as `4Grizelda`2!');
     disp.sln('');
-    if (state.married_to_violet === p.id) {
-      disp.sln('  You remember now that Violet quit work when she married you!');
-    } else {
-      const owner = PlayerDB.getById(state.married_to_violet);
-      if (owner) {
-        disp.sln(`  You suddenly remember seeing something in the news about \`0${owner.name}\`2`);
-        disp.sln('  marrying Violet!  As Grizelda grabs you for a kiss, her buckteeth jab');
-        disp.sln(`  you painfully.  You curse \`0${owner.name}\`2 as you scream in horror.`);
-      }
+    const owner = PlayerDB.getById(state.married_to_violet);
+    if (owner) {
+      disp.sln('  You suddenly remember seeing something in the news about \`0' + owner.name + '\`2');
+      disp.sln('  marrying Violet!  As Grizelda grabs you for a kiss, her buckteeth jab');
+      disp.sln('  you painfully.  You curse \`0' + owner.name + '\`2 as you scream in horror.');
     }
+    disp.sln('');
+    persist(session, { seen_violet: true });
+    await session.more();
+    return;
+  }
+
+  // Violet is married to this player
+  if (state.married_to_violet === p.id) {
+    const responses = [
+      '  `#"I love you too, darling!"',
+      '  `2Violet gives you a warm kiss on the cheek.',
+      '  `#"I\'d love to, but I\'m working tonight."',
+      '  `#"We\'ll have plenty of time for that later!"',
+      '  `2In the noise of the bar, she doesn\'t hear.  She winks at you anyway.',
+      '  `#"After closing time, you\'re mine!" `2she laughs.',
+    ];
+    disp.sln(responses[rand(responses.length)]);
     disp.sln('');
     persist(session, { seen_violet: true });
     await session.more();
@@ -939,7 +998,7 @@ async function flirtViolet(session, disp) {
 
   // Already flirted today
   if (p.seen_violet) {
-    disp.sln('  You feel you had better not go too fast, maybe tomorrow.');
+    disp.sln('  `2You feel you had better not go too fast, maybe tomorrow.');
     disp.sln('');
     await session.more();
     return;
@@ -952,11 +1011,12 @@ async function flirtViolet(session, disp) {
 async function singleViolet(session, disp) {
   const p = session.player;
 
-  disp.sln('  `2You saunter up to the bar and catch the eye of `#Violet`2,');
-  disp.sln('  the barmaid.  She tosses her long hair and smiles.');
+  disp.sln('  `2You catch the eye of `#Violet`2, the barmaid.');
+  disp.sln('  She tosses her long hair and smiles.');
   disp.sln('');
   disp.sln('  (`%W`2)ink at Violet');
   disp.sln('  (`%C`2)ompliment her');
+  disp.sln('  (`%S`2)educe her');
   disp.sln('  (`%A`2)sk her to marry you');
   disp.sln('  (`%R`2)eturn');
   disp.sln('');
@@ -976,7 +1036,7 @@ async function singleViolet(session, disp) {
       disp.sln('  `#She blushes and smiles back at you!');
       disp.sln('  `2You are making progress!');
       disp.sln('');
-      disp.sln(`  \`%You receive \`0${pretty(p.level*5)} \`%experience!`);
+      disp.sln('  \`%You receive \`0' + pretty(p.level*5) + ' \`%experience!');
       persist(session, { exp: clamp(p.exp + p.level*5, 0, 2000000000), seen_violet: true });
     } else {
       disp.sln('  `2She rolls her eyes and walks away!');
@@ -986,10 +1046,50 @@ async function singleViolet(session, disp) {
     persist(session, { seen_violet: true });
     if (p.cha >= 10) {
       disp.sln('  `#Violet smiles broadly.  "Why thank you, kind warrior!"');
-      disp.sln(`  \`%You receive \`0${pretty(p.level*10)} \`%experience!`);
+      disp.sln('  \`%You receive \`0' + pretty(p.level*10) + ' \`%experience!');
       persist(session, { exp: clamp(p.exp + p.level*10, 0, 2000000000), seen_violet: true });
     } else {
       disp.sln('  `2Violet doesn\'t seem impressed.  "Sure, whatever," she mutters.');
+    }
+  } else if (act === 'S') {
+    persist(session, { seen_violet: true });
+    if (p.married_to > -1) {
+      disp.sln('  `2Violet is appalled that you would even suggest such a thing!');
+      disp.sln('  She loudly announces your shamelessness to the entire bar!');
+      LogDB.append('\`5  Violet \`2announces the shameless behaviour of \`0' + p.name + '\`2!');
+    } else if (p.cha >= 32) {
+      const outcome = rand(4);
+      if (outcome === 2) {
+        disp.sln('  `2She smiles invitingly and sets her tray down...');
+        disp.sln('');
+        disp.sln('  `2Hours later you saunter downstairs.  When a bearded drunk');
+        disp.sln('  asks what all the racket was, you smile knowingly.');
+        disp.sln('  The drunks are mystified!');
+        disp.sln('');
+        disp.sln('  \`0YOU GET \`%' + pretty(p.level*40) + ' \`0EXPERIENCE!');
+        LogDB.append('\`0  ' + p.name + ' \`2spent quality time with \`#Violet\`2!');
+        persist(session, {
+          exp: clamp(p.exp + p.level*40, 0, 2000000000),
+          laid: p.laid + 1,
+          seen_violet: true
+        });
+      } else {
+        const excuses = [
+          'she has a headache.',
+          'she is not in the mood.',
+          'she is too exhausted from last night.',
+          'she has tables to serve.',
+        ];
+        disp.sln('  `2She regretfully tells you ' + excuses[rand(excuses.length)]);
+        disp.sln('  You are very disappointed.');
+      }
+    } else {
+      disp.sln('  `2She looks horrified and slaps you with her tray!');
+      disp.sln('  The entire bar erupts in laughter at your misfortune!!');
+      disp.sln('');
+      disp.sln('  `4YOUR HITPOINTS GO DOWN TO 1!');
+      LogDB.append('\`5  ' + p.name + ' \`2was slapped by \`#Violet\`2 in front of the whole bar!');
+      persist(session, { hp: 1, seen_violet: true });
     }
   } else if (act === 'A') {
     await violetMarriage(session, disp);

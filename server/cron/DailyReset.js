@@ -122,106 +122,112 @@ function npcBarTalk(player) {
 
 // ── violet_marriage / seth_marriage (lord.js lines 2503–2665) ────────────────
 
-function violetMarriage(husband, state) {
-  const mstr_hdr = '\n`%  Latest news about `#Violet`%, your wife.\n`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n';
+function violetMarriage(partner, state) {
+  const mstr_hdr = '\n`%  Latest news about `#Violet`%, your partner.\n`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n';
   let mstr = mstr_hdr;
 
   if (rand(5) < 1) {
     // Divorce
     StateDB.patch({ married_to_violet: -1 });
-    const newCha = Math.floor((husband.cha || 1) / 2);
-    PlayerDB.patch(husband.id, { married_to: -1, cha: newCha });
+    const newCha = Math.floor((partner.cha || 1) / 2);
+    PlayerDB.patch(partner.id, { married_to: -1, cha: newCha });
 
     const r = rand(3);
     if (r === 0) {
-      LogDB.append(`\`2  \`#Violet\`2 has \`%DIVORCED \`0${husband.name}\`2 for cheating on her with\n\`2  \`4Grizelda!  \`#Violet\`2 got her barmaid job back!`);
-      mstr += '  `2Violet has divorced you because Grizelda said you kissed her!  You\n  curse Grizelda!  What will people think?\n';
+      LogDB.append(`\`2  \`#Violet\`2 has \`%DIVORCED \`0${partner.name}\`2 over a dispute involving\n\`2  \`4Grizelda!\`#  Violet\`2 got her barmaid job back!`);
+      mstr += '  `2Violet has divorced you because Grizelda claimed you kissed her!  You\n  curse Grizelda!  What will people think?\n';
     } else if (r === 1) {
-      LogDB.append(`\`2  \`#Violet\`2 has \`%LEFT \`0${husband.name}\`2 so she could get her old job\n\`2  back at the Inn!  \`0${husband.name} \`2is heartbroken.`);
+      LogDB.append(`\`2  \`#Violet\`2 has \`%LEFT \`0${partner.name}\`2 to get her old job\n\`2  back at the Inn!  \`0${partner.name} \`2is heartbroken.`);
       mstr += "  `2You hunt around the house for Violet, and all you find is a note!  She\n  left you!  She could not resist the temptation of working at the Inn\n  once again.  You try to control your convulsive sobs.\n";
     } else {
-      LogDB.append(`\`2  \`0${husband.name} \`2has \`%DIVORCED \`#Violet\`2 because she refused to do\n\`2  any housework!  She got her old job back at the Inn!`);
-      mstr += "  `2You ask Violet to wash the dishes, and she refuses!  You have a big\n  fight!  You decide she isn't the women you married, and divorce her.\n  The whole experience has left you bitter.\n";
+      LogDB.append(`\`2  \`0${partner.name} \`2has \`%DIVORCED \`#Violet\`2 over a housework dispute!\n\`2  She got her old job back at the Inn!`);
+      mstr += "  `2You ask Violet to wash the dishes, and she refuses!  You have a big\n  fight!  You decide she isn't the person you married, and divorce her.\n  The whole experience has left you bitter.\n";
     }
     mstr += '\n  `4CHARM DROPS TO ' + pretty(newCha) + '\n';
-    MailDB.sendMail(husband.id, null, mstr);
+    MailDB.sendMail(partner.id, null, mstr);
     return;
   }
 
   const r = rand(4);
+  // Children only happen in a male+female pairing
+  const canHaveChildren = (partner.sex === 'M');
+
   if (r === 0) {
-    LogDB.append(`\`2  \`#Violet\`2 has \`%PMS!  \`0${husband.name}\`2 is understanding, and peace\n\`2  is restored.  For now.`);
-    mstr += '  `2Violet gets angry over little things!  You realize she has PMS this\n  morning.  You treat her gently and calamity is avoided.\n\n';
-    mstr += `  \`%YOU RECEIVE ${pretty(100 * husband.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(husband.id, { exp: (husband.exp || 0) + 100 * husband.level });
-  } else if (r === 1) {
-    LogDB.append(`\`2  \`#Violet\`2 bears \`0${husband.name}\`2 a male child.`);
-    mstr += '  `2Violet bears you a male child.  You have never loved her more.\n\n';
-    mstr += `  \`%YOU RECEIVE ${pretty(150 * husband.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(husband.id, { exp: (husband.exp || 0) + 150 * husband.level, kids: (husband.kids || 0) + 1 });
-  } else if (r === 2) {
-    LogDB.append(`\`2  \`#Violet\`2 bears \`0${husband.name}\`2 a female child.`);
-    mstr += '  `2Violet bears you a female child.  You are a little disappointed.\n  However, you are very pleased she retained her voluptuous figure.\n\n';
-    mstr += `  \`%YOU RECEIVE ${pretty(50 * husband.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(husband.id, { exp: (husband.exp || 0) + 50 * husband.level, kids: (husband.kids || 0) + 1 });
+    LogDB.append(`\`2  \`#Violet\`2 and \`0${partner.name}\`2 had a minor disagreement, but peace is quickly restored.`);
+    mstr += '  `2Violet gets a little heated over something small.  You handle it\n  with patience and grace, and calm is restored.\n\n';
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level });
+  } else if (r === 1 && canHaveChildren) {
+    LogDB.append(`\`2  \`#Violet\`2 bears \`0${partner.name}\`2 a child.`);
+    mstr += '  `2Violet bears you a child.  You have never loved her more.\n\n';
+    mstr += `  \`%YOU RECEIVE ${pretty(150 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 150 * partner.level, kids: (partner.kids || 0) + 1 });
+  } else if (r === 2 && canHaveChildren) {
+    LogDB.append(`\`2  \`#Violet\`2 bears \`0${partner.name}\`2 a child.`);
+    mstr += '  `2Violet bears you a child.  Your family grows!\n\n';
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level, kids: (partner.kids || 0) + 1 });
   } else {
-    LogDB.append(`\`2  \`#Violet\`2 and \`0${husband.name}\`2 didn't appear to get much sleep last night.  The town is mystified.`);
-    mstr += "  `2Violet pleases you in ways you had only dreamed about.  Nothing\n  has ever felt so good as your wife giving herself freely to you.\n\n";
-    mstr += `  \`%YOU RECEIVE ${pretty(100 * husband.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(husband.id, { exp: (husband.exp || 0) + 100 * husband.level });
+    LogDB.append(`\`2  \`#Violet\`2 and \`0${partner.name}\`2 didn't appear to get much sleep last night.  The town is mystified.`);
+    mstr += "  `2You spend a wonderful evening together.  The town gossips, but you\n  don't care one bit.\n\n";
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level });
   }
-  MailDB.sendMail(husband.id, null, mstr);
+  MailDB.sendMail(partner.id, null, mstr);
 }
 
-function sethMarriage(wife, state) {
-  const mstr_hdr = '\n`%  Latest news about `0Seth Able`%, your husband.\n`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n';
+function sethMarriage(partner, state) {
+  const mstr_hdr = '\n`%  Latest news about `0Seth Able`%, your partner.\n`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n';
   let mstr = mstr_hdr;
 
   if (rand(5) < 1) {
     // Divorce
     StateDB.patch({ married_to_seth: -1 });
-    const newCha = Math.floor((wife.cha || 1) / 2);
-    PlayerDB.patch(wife.id, { married_to: -1, cha: newCha });
+    const newCha = Math.floor((partner.cha || 1) / 2);
+    PlayerDB.patch(partner.id, { married_to: -1, cha: newCha });
 
     const r = rand(3);
     if (r === 0) {
-      LogDB.append(`\`2  \`%Seth Able\`2 has \`%DIVORCED \`0${wife.name}\`2 for cheating on him with\n\`2  the Bartender!  He now sings a song of woe!`);
-      mstr += '  `2Seth Able has divorced you because the Bartender said you kissed him!\n  You curse him!  What will people think?\n';
+      LogDB.append(`\`2  \`%Seth Able\`2 has \`%DIVORCED \`0${partner.name}\`2 over a rumour spread\n\`2  by the Bartender!  He now sings a song of woe!`);
+      mstr += '  `2Seth Able has divorced you because the Bartender spread a rumour!\n  You curse him!  What will people think?\n';
     } else if (r === 1) {
-      LogDB.append(`\`2  \`0Seth Able \`2has been \`%BOOTED \`2by \`0${wife.name}\`2!  Artistic\n\`2  differences are to be blamed.`);
-      mstr += "  `2You are getting tired of seeing Seth hang around the house in his\n  underwear 'composing' music.  You tell him to get a real job.\n  There is a fight - And you end up booting this artist.\n";
+      LogDB.append(`\`2  \`0Seth Able \`2has been \`%KICKED OUT \`2by \`0${partner.name}\`2!\n\`2  Artistic differences are to be blamed.`);
+      mstr += "  `2You are getting tired of seeing Seth hang around the house in his\n  underwear 'composing' music.  You tell him to get a real job.\n  There is a fight — and you end up booting this artist out.\n";
     } else {
-      LogDB.append(`\`2  \`0${wife.name} \`2has \`%DIVORCED \`0Seth Able\`2 because he refused to do\n\`2  any housework!  It is \"womans work\" was his reply!`);
-      mstr += "  `2You ask Seth to wash the dishes, and he refuses!  You have a big\n  fight!  You decide he isn't the man you married, and divorce him.\n  The whole experience has left you bitter.\n";
+      LogDB.append(`\`2  \`0${partner.name} \`2has \`%DIVORCED \`0Seth Able\`2 over a housework dispute!`);
+      mstr += "  `2You ask Seth to wash the dishes, and he refuses!  You have a big\n  fight!  You decide he isn't the person you married, and divorce him.\n  The whole experience has left you bitter.\n";
     }
     mstr += '\n  `4CHARM DROPS TO ' + pretty(newCha) + '\n';
-    MailDB.sendMail(wife.id, null, mstr);
+    MailDB.sendMail(partner.id, null, mstr);
     return;
   }
 
   const r = rand(4);
+  // Children only happen in a female+male pairing
+  const canHaveChildren = (partner.sex === 'F');
+
   if (r === 0) {
-    LogDB.append(`\`2  \`0${wife.name}\`2 screams at \`%Seth Able \`2for leaving the lid up!  Seth is able to calm her down - peace is restored.`);
-    mstr += "  `2You wake up to find the toilet seat up - AGAIN!  You scream your\n  objections at your man - He promises to be more careful in the future.\n\n";
-    mstr += `  \`%YOU RECEIVE ${pretty(100 * wife.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(wife.id, { exp: (wife.exp || 0) + 100 * wife.level });
-  } else if (r === 1) {
-    LogDB.append(`\`2  \`0${wife.name}\`2 bears a male child - \`%Seth Able\`2 is proud.`);
-    mstr += '  You bear a male child!  Seth Able is extremely pleased with you.\n\n';
-    mstr += `  \`%YOU RECEIVE ${pretty(150 * wife.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(wife.id, { exp: (wife.exp || 0) + 150 * wife.level, kids: (wife.kids || 0) + 1 });
-  } else if (r === 2) {
-    LogDB.append(`\`2  \`0${wife.name}\`2 bears a female child - \`%Seth Able \`2approves.`);
-    mstr += "  `2You bear a female child!  You are puzzled why Seth is not as happy\n  as you.  He refuses to speak about it.\n\n";
-    mstr += `  \`%YOU RECEIVE ${pretty(50 * wife.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(wife.id, { exp: (wife.exp || 0) + 50 * wife.level, kids: (wife.kids || 0) + 1 });
+    LogDB.append(`\`2  \`0${partner.name}\`2 and \`%Seth Able \`2had a minor spat, but peace is restored.`);
+    mstr += "  `2You wake up to find Seth in a mood over something trivial.  You\n  handle it well — he promises to be more considerate.\n\n";
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level });
+  } else if (r === 1 && canHaveChildren) {
+    LogDB.append(`\`2  \`0${partner.name}\`2 bears a child — \`%Seth Able\`2 is proud.`);
+    mstr += '  You bear a child!  Seth Able is extremely pleased.\n\n';
+    mstr += `  \`%YOU RECEIVE ${pretty(150 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 150 * partner.level, kids: (partner.kids || 0) + 1 });
+  } else if (r === 2 && canHaveChildren) {
+    LogDB.append(`\`2  \`0${partner.name}\`2 bears a child — \`%Seth Able \`2approves.`);
+    mstr += "  `2You bear a child!  Seth Able is delighted.\n\n";
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level, kids: (partner.kids || 0) + 1 });
   } else {
-    LogDB.append(`\`2  \`%Seth Able\`2 and \`0${wife.name}\`2 didn't appear to get much sleep last night.  The town is mystified.`);
-    mstr += "  `2Seth Able pleases you in ways you had only dreamed about.  Nothing\n  has ever felt so good as your husband doing the chores around the house.\n\n";
-    mstr += `  \`%YOU RECEIVE ${pretty(100 * wife.level)} EXPERIENCE.\n`;
-    PlayerDB.patch(wife.id, { exp: (wife.exp || 0) + 100 * wife.level });
+    LogDB.append(`\`2  \`%Seth Able\`2 and \`0${partner.name}\`2 didn't appear to get much sleep last night.  The town is mystified.`);
+    mstr += "  `2Seth Able has a rare evening off, and you make the most of it.\n  The town gossips, but neither of you care.\n\n";
+    mstr += `  \`%YOU RECEIVE ${pretty(100 * partner.level)} EXPERIENCE.\n`;
+    PlayerDB.patch(partner.id, { exp: (partner.exp || 0) + 100 * partner.level });
   }
-  MailDB.sendMail(wife.id, null, mstr);
+  MailDB.sendMail(partner.id, null, mstr);
 }
 
 // ── Main reset function ────────────────────────────────────────────────────────
@@ -274,20 +280,20 @@ async function runReset() {
   const freshState = StateDB.get();
 
   if (freshState.married_to_violet > 0) {
-    const husband = PlayerDB.getById(freshState.married_to_violet);
-    if (husband && husband.name !== 'X') {
-      violetMarriage(husband, freshState);
-      console.log(`[DailyReset] Violet marriage event for ${husband.name}`);
+    const partner = PlayerDB.getById(freshState.married_to_violet);
+    if (partner && partner.name !== 'X') {
+      violetMarriage(partner, freshState);
+      console.log(`[DailyReset] Violet marriage event for ${partner.name}`);
     } else {
       StateDB.patch({ married_to_violet: -1 });
     }
   }
 
   if (freshState.married_to_seth > 0) {
-    const wife = PlayerDB.getById(freshState.married_to_seth);
-    if (wife && wife.name !== 'X') {
-      sethMarriage(wife, freshState);
-      console.log(`[DailyReset] Seth marriage event for ${wife.name}`);
+    const partner = PlayerDB.getById(freshState.married_to_seth);
+    if (partner && partner.name !== 'X') {
+      sethMarriage(partner, freshState);
+      console.log(`[DailyReset] Seth marriage event for ${partner.name}`);
     } else {
       StateDB.patch({ married_to_seth: -1 });
     }
