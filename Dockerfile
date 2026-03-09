@@ -1,7 +1,7 @@
 # Simple, production-friendly Node image
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /server
 
 # Install deps first (better cache)
 COPY package*.json ./
@@ -20,4 +20,4 @@ ENV ROCKO_MODEL=gpt-4.1-mini
 EXPOSE 3000
 
 # Run the BBS
-CMD ["node", "server.js"]
+CMD ["node", "index.js"]
