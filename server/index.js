@@ -6,7 +6,10 @@
  * Also starts the daily-reset cron job.
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+// Load .env in development — in production (Fly.io) env vars are injected directly
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+}
 
 const http    = require('http');
 const express = require('express');

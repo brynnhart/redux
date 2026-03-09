@@ -40,7 +40,7 @@ const term = new Terminal({
   cursorBlink     : true,
   scrollback      : 500,
   convertEol      : false,
-  disableStdin    : true,   // We handle input ourselves via WebSocket
+  disableStdin    : false,  // Let xterm capture input via onKey
 });
 
 const fitAddon = new FitAddon.FitAddon();
@@ -90,43 +90,19 @@ ws.addEventListener('error', () => {
 // ── Keyboard input ─────────────────────────────────────────────────────────────
 
 /**
- * Capture keypresses and forward them to the server over WebSocket.
- * The terminal is in "remote echo" mode — the server controls what appears.
+ * Use xterm's onKey handler — this is the correct API for capturing input.
+ * term.onKey fires for every keypress with the exact string xterm decoded,
+ * correctly handling lowercase, uppercase, Enter (\r), Backspace, and all
+ * special keys. document.addEventListener('keydown') + evt.key is unreliable
+ * because evt.key reflects the physical key name, not the terminal character.
  */
-document.addEventListener('keydown', (evt) => {
+term.onKey(({ key, domEvent }) => {
   if (ws.readyState !== WebSocket.OPEN) return;
 
-  // Don't capture browser shortcuts
-  if (evt.ctrlKey && (evt.key === 'c' || evt.key === 'v' || evt.key === 'a')) return;
+  // Pass browser clipboard shortcuts through to the browser
+  if (domEvent.ctrlKey && (domEvent.key === 'c' || domEvent.key === 'v' || domEvent.key === 'a')) return;
 
-  let key = null;
-
-  if (evt.key.length === 1) {
-    key = evt.key;
-  } else {
-    // Map special keys to their escape sequences / control chars
-    const SPECIAL = {
-      'Enter'     : '\r',
-      'Backspace' : '\x08',
-      'Delete'    : '\x7f',
-      'Escape'    : '\x1b',
-      'Tab'       : '\t',
-      'ArrowUp'   : '\x1b[A',
-      'ArrowDown' : '\x1b[B',
-      'ArrowRight': '\x1b[C',
-      'ArrowLeft' : '\x1b[D',
-      'Home'      : '\x1b[H',
-      'End'       : '\x1b[F',
-      'PageUp'    : '\x1b[5~',
-      'PageDown'  : '\x1b[6~',
-    };
-    key = SPECIAL[evt.key] || null;
-  }
-
-  if (key) {
-    evt.preventDefault();
-    ws.send(JSON.stringify({ type: 'key', key }));
-  }
+  ws.send(JSON.stringify({ type: 'key', key }));
 });
 
 // ── Logout ────────────────────────────────────────────────────────────────────
