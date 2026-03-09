@@ -38,6 +38,10 @@ async function run(session) {
   session.player = player;
 
   try {
+    // ── Login routines ───────────────────────────────────────────────────
+    await wakeUp(session, disp);
+    await checkMarriage(session, disp);
+    await checkWonBy(session, disp);
     await gameLoop(session, disp);
   } finally {
     PlayerDB.patch(player.id, { on_now: false });
@@ -47,7 +51,8 @@ async function run(session) {
 // ── Daily check ────────────────────────────────────────────────────────────
 
 async function checkDaily(player) {
-  // TODO: compare player.time to today's day number
+  // nothing needed here — wake_up / check_marriage run after the player
+  // is set on the session, so they can use session.send / session.more
 }
 
 // ── Character creation — mirrors lord.js new_player() ─────────────────────
@@ -140,7 +145,136 @@ async function newPlayer(session, disp) {
   return PlayerDB.getById(player.id);
 }
 
-// ── Main game loop ─────────────────────────────────────────────────────────
+// ── Wake up (inn scene on login) ──────────────────────────────────────────
+
+async function wakeUp(session, disp) {
+  const p = session.player;
+  if (!p.inn) return;
+
+  session.clearScreen();
+  disp.sln('');
+  disp.sln('  `%You Wake Up At The Inn`0');
+  disp.sln('`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+  disp.sln('');
+  disp.sln('  `2You yawn and stretch, rubbing sleep from your eyes.  The');
+  disp.sln('  smell of bacon and fresh bread drifts up from the common room.');
+  disp.sln('');
+  disp.sln('  `2You feel well-rested and ready to take on the world.');
+  disp.sln('');
+  disp.sln('  \`%Welcome back to the realm, \`0' + p.name + '\`2!');
+  disp.sln('');
+
+  // Restore HP to max on inn login
+  if (p.hp < p.hp_max) {
+    PlayerDB.patch(p.id, { hp: p.hp_max, inn: false });
+    session.player = PlayerDB.getById(p.id);
+    disp.sln('  \`2Your Hit Points have been restored to \`%' + p.hp_max + '\`2!');
+  } else {
+    PlayerDB.patch(p.id, { inn: false });
+    session.player = PlayerDB.getById(p.id);
+  }
+  disp.sln('');
+  await session.more();
+}
+
+// ── Check marriage mail (daily marriage perks / events at login) ──────────
+
+async function checkMarriage(session, disp) {
+  const MailDB = require('../db/MailDB');
+  const StateDB = require('../db/StateDB');
+  const p     = session.player;
+  const state = StateDB.get();
+
+  // NPC marriage — Violet
+  if (p.married_to === -2 && state.married_to_violet === p.id) {
+    const msgs = [
+      '  `#\"I missed you so much today!  The house seemed empty without you.\"',
+      '  `#\"I baked your favourite bread today, darling.  Hurry home soon!\"',
+      '  `#\"Some warrior came asking for you today.  I told them you were busy.\"',
+      '  `#\"I found a gem in the garden today!  I left it on the table for you.\"',
+      '  `#\"Thinking of you always, my love.\"',
+    ];
+    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+    // Gem gift (1 in 4 chance — matches the gem message)
+    const giveGem = (msg.includes('gem'));
+    if (giveGem) {
+      PlayerDB.patch(p.id, { gem: (p.gem || 0) + 1 });
+      session.player = PlayerDB.getById(p.id);
+    }
+    MailDB.sendMail(p.id, null,
+      '  `%A Note From Violet\n' +
+      '`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n' +
+      msg
+    );
+  }
+
+  // NPC marriage — Seth Able
+  if (p.married_to === -2 && state.married_to_seth === p.id) {
+    const msgs = [
+      '  `%"I wrote a new song about you today.  I\'ll play it tonight."',
+      '  `%"The crowd loved the ballad last night.  They asked if you\'d be there."',
+      '  `%"I found two gold pieces in my old coat.  Saved them for you, love."',
+      '  `%"Thinking of you while I tune this old mandolin."',
+      '  `%"A warrior insulted me today.  I bet you\'d have words with them!"',
+    ];
+    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+    const giveGold = msg.includes('gold pieces');
+    if (giveGold) {
+      PlayerDB.patch(p.id, { gold: Math.min((p.gold || 0) + 2, 2000000000) });
+      session.player = PlayerDB.getById(p.id);
+    }
+    MailDB.sendMail(p.id, null,
+      '  `%A Note From Seth Able\n' +
+      '`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n' +
+      msg
+    );
+  }
+
+  // Kids give a small experience bonus once per real-world day
+  if ((p.kids || 0) > 0) {
+    const bonus = p.kids * p.level * 10;
+    PlayerDB.patch(p.id, { exp: Math.min((p.exp || 0) + bonus, 2000000000) });
+    session.player = PlayerDB.getById(p.id);
+  }
+}
+
+// ── Check for game-over / won_by screen ───────────────────────────────────
+
+async function checkWonBy(session, disp) {
+  const StateDB = require('../db/StateDB');
+  const state   = StateDB.get();
+  if (state.won_by < 0) return;
+
+  const winner = PlayerDB.getById(state.won_by);
+  const name   = winner ? winner.name : state.latesthero;
+
+  session.clearScreen();
+  disp.sln('');
+  disp.sln('`c`%         ** THE RED DRAGON HAS BEEN SLAIN! **');
+  disp.sln('');
+  disp.sln('`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+  disp.sln('');
+  disp.sln('  \`0' + name + '\`2 has defeated the mighty \`4Red Dragon\`2 and saved the realm!');
+  disp.sln('');
+  disp.sln('  `2The kingdom erupts in celebration!  Songs are sung in every tavern,');
+  disp.sln('  banners hang from every window, and children dance in the streets.');
+  disp.sln('');
+  disp.sln('  \`%' + name + ' \`2is hailed as the greatest warrior who ever lived!');
+  disp.sln('');
+  disp.sln('  `2A new day will dawn soon and the realm will be reborn...');
+  disp.sln('');
+  disp.sln('`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+  disp.sln('');
+
+  if (winner && winner.id === session.player.id) {
+    disp.sln('  `%YOU are the hero of legend!  Your name will be remembered forever.');
+    disp.sln('');
+  }
+
+  await session.more();
+}
+
+
 
 async function gameLoop(session, disp) {
   // Check for incoming mail before the first town menu draw

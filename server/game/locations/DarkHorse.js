@@ -575,6 +575,169 @@ async function talkOldMan(session, disp) {
   }
 }
 
+// ── Blackjack mini-game (lord.js blackjack() — 1-in-25 on exit) ──────────────
+
+function cardName(val) {
+  if (val === 1)  return 'Ace';
+  if (val === 11) return 'Jack';
+  if (val === 12) return 'Queen';
+  if (val === 13) return 'King';
+  return String(val);
+}
+
+function cardValue(val) {
+  if (val >= 10) return 10;
+  return val; // Ace = 1 (we add +10 for soft aces manually)
+}
+
+function handTotal(cards) {
+  let total = cards.reduce((s, c) => s + cardValue(c), 0);
+  // One ace can count as 11
+  if (cards.includes(1) && total + 10 <= 21) total += 10;
+  return total;
+}
+
+function drawCard() {
+  return Math.floor(Math.random() * 13) + 1; // 1-13
+}
+
+async function blackjack(session, disp) {
+  const p = session.player;
+
+  session.clearScreen();
+  disp.sln('');
+  disp.sln('`%  ** BLACKJACK! **');
+  disp.sln(SEP);
+  disp.sln('');
+  disp.sln('  `2As you head for the door, a sharp-dressed man steps into your path.');
+  disp.sln('  He fans a deck of cards in one hand with practiced ease.');
+  disp.sln('');
+  disp.sln('  `0\"Care for a hand of Blackjack before you go?  One gold says I can');
+  disp.sln('  beat you without even trying.\"');
+  disp.sln('');
+  disp.sln('  `2(`%Y`2)es, deal me in   (`%N`2)o thanks');
+  disp.sln('');
+  disp.sw('  `2Your choice [`0N`2] : ');
+
+  const yn = await session.getKeyUpper();
+  disp.sln(yn || 'N');
+  disp.sln('');
+  if (yn !== 'Y') {
+    disp.sln('  `2The man shrugs and lets you pass, shuffling cards absently.');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+
+  if (p.gold < 1) {
+    disp.sln('  `4\"Ha!  You don\'t even have a single gold coin on you!\"');
+    disp.sln('  `2He waves you away dismissively.');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+
+  // Wager
+  disp.sln('  `2You have `%' + pretty(p.gold) + ' `2gold.');
+  disp.sln('');
+  const bet = await wager(session, disp);
+  if (bet === 0) {
+    disp.sln('  `2The hustler tosses his cards onto the table in disgust.');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+
+  // Deal
+  let playerCards = [drawCard(), drawCard()];
+  let dealerCards = [drawCard(), drawCard()];
+
+  const showHands = (hideDealer = true) => {
+    disp.sln('');
+    const pc = playerCards.map(cardName).join(', ');
+    disp.sln('  `2Your hand : `%' + pc + '  `2(`0' + handTotal(playerCards) + '`2)');
+    if (hideDealer) {
+      disp.sln('  `2Dealer    : `%' + cardName(dealerCards[0]) + '`2, [hidden]');
+    } else {
+      const dc = dealerCards.map(cardName).join(', ');
+      disp.sln('  `2Dealer    : `%' + dc + '  `2(`0' + handTotal(dealerCards) + '`2)');
+    }
+    disp.sln('');
+  };
+
+  showHands();
+
+  // Check natural blackjack
+  const playerBJ = handTotal(playerCards) === 21;
+  const dealerBJ = handTotal(dealerCards) === 21;
+
+  if (playerBJ && dealerBJ) {
+    showHands(false);
+    disp.sln('  `%PUSH! Both have Blackjack!  Your bet is returned.');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+  if (playerBJ) {
+    showHands(false);
+    disp.sln('  `%BLACKJACK!  You win 1.5x your bet!');
+    const winnings = Math.floor(bet * 1.5);
+    PlayerDB.patch(p.id, { gold: Math.min(p.gold + winnings, 2000000000) });
+    session.player = PlayerDB.getById(p.id);
+    disp.sln('  `2You pocket `%' + pretty(winnings) + ' `2gold.');
+    disp.sln('');
+    await session.more();
+    return;
+  }
+
+  // Player turn
+  while (session.alive && handTotal(playerCards) < 21) {
+    disp.sln('  `2(`%H`2)it   (`%S`2)tand');
+    disp.sw('  `2Your move : ');
+    const mv = await session.getKeyUpper();
+    disp.sln(mv || 'S');
+    disp.sln('');
+    if (mv !== 'H') break;
+    playerCards.push(drawCard());
+    showHands();
+    if (handTotal(playerCards) > 21) {
+      disp.sln('  `4BUST!  You went over 21!');
+      PlayerDB.patch(p.id, { gold: Math.max(0, p.gold - bet) });
+      session.player = PlayerDB.getById(p.id);
+      disp.sln('  `2You lose `%' + pretty(bet) + ' `2gold.');
+      disp.sln('');
+      await session.more();
+      return;
+    }
+  }
+
+  // Dealer turn — dealer hits on 16 or less
+  while (handTotal(dealerCards) <= 16) {
+    dealerCards.push(drawCard());
+  }
+
+  showHands(false);
+
+  const pt = handTotal(playerCards);
+  const dt = handTotal(dealerCards);
+
+  if (dt > 21 || pt > dt) {
+    disp.sln('  `%YOU WIN!');
+    PlayerDB.patch(p.id, { gold: Math.min(p.gold + bet, 2000000000) });
+    session.player = PlayerDB.getById(p.id);
+    disp.sln('  `2You collect `%' + pretty(bet) + ' `2gold.');
+  } else if (pt === dt) {
+    disp.sln('  `2PUSH — nobody wins.');
+  } else {
+    disp.sln('  `4YOU LOSE.');
+    PlayerDB.patch(p.id, { gold: Math.max(0, p.gold - bet) });
+    session.player = PlayerDB.getById(p.id);
+    disp.sln('  `2You lose `%' + pretty(bet) + ' `2gold.');
+  }
+  disp.sln('');
+  await session.more();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 async function enter(session) {
@@ -589,7 +752,13 @@ async function enter(session) {
     if (!ch) break;
     disp.sln(ch);
 
-    if (ch === 'R' || ch === 'Q' || ch === '\r') break;
+    if (ch === 'R' || ch === 'Q' || ch === '\r') {
+      // 1-in-25 chance of the Blackjack hustler blocking the exit
+      if (rand(25) === 0) {
+        await blackjack(session, disp);
+      }
+      break;
+    }
 
     switch (ch) {
       case 'C':
