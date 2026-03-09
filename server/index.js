@@ -36,6 +36,9 @@ async function main() {
   app.use('/api/auth',        AuthRouter);
   app.use('/api/leaderboard', LeaderboardRouter);
 
+  // Health check — Fly.io (and other platforms) hit this to confirm the app is up
+  app.get('/healthz', (req, res) => res.sendStatus(200));
+
   // Fallback — serve index.html for any unknown route (SPA-style)
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/index.html'));

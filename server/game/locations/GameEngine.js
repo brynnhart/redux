@@ -44,10 +44,23 @@ async function run(session) {
   }
 }
 
-// ── Daily check ────────────────────────────────────────────────────────────
+// ── Daily check — runs on login if a new day has ticked over ──────────────
 
 async function checkDaily(player) {
-  // TODO: compare player.time to today's day number
+  const StateDB    = require('../db/StateDB');
+  const { runReset } = require('../cron/DailyReset');
+
+  const state = StateDB.get();
+
+  // First-ever player login before any reset has run
+  if (!state.days) return;
+
+  // Update player's time to current day
+  if ((player.time || 0) < state.days) {
+    // If the cron missed a day (e.g. server was down), run it now
+    await runReset();
+    PlayerDB.patch(player.id, { time: state.days });
+  }
 }
 
 // ── Character creation — mirrors lord.js new_player() ─────────────────────

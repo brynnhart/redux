@@ -4,141 +4,103 @@
  * server/game/text/LordColors.js
  *
  * Converts LoRD backtick color codes to ANSI escape sequences.
- * Ported directly from lord.js lord_to_ansi() (lines 6482–6579).
+ * Ported EXACTLY from lord.js lord_to_ansi() (lines 6482–6579).
  *
- * LoRD color codes:
- *   `0  dark grey / reset
- *   `1  blue
- *   `2  green
- *   `3  cyan
- *   `4  red
- *   `5  magenta
- *   `6  brown/yellow
- *   `7  white
- *   `%  bold/bright
- *   `.  reset all
- *   `&  special substitution marker (handled separately)
- *   ``  literal backtick
+ * The CORRECT LoRD color table (from source):
+ *
+ *   `1  → \x1b[0;34m  blue
+ *   `2  → \x1b[0;32m  green
+ *   `3  → \x1b[0;36m  cyan
+ *   `4  → \x1b[0;31m  red
+ *   `5  → \x1b[0;35m  magenta
+ *   `6  → \x1b[0;33m  yellow/brown
+ *   `7  → \x1b[0;37m  white
+ *   `8  → \x1b[1;30m  bright black / dark grey
+ *   `9  → \x1b[1;34m  bright blue
+ *   `0  → \x1b[1;32m  bright green  (was wrongly mapped to 30/dark grey)
+ *   `!  → \x1b[1;36m  bright cyan
+ *   `@  → \x1b[1;31m  bright red
+ *   `#  → \x1b[1;35m  bright magenta
+ *   `$  → \x1b[1;33m  bright yellow
+ *   `%  → \x1b[1;37m  bright white
+ *   `.  → reset all
+ *   ``  → literal backtick
+ *   `c  → clear screen + cursor home
+ *   `l  → separator line (79 dashes)
  */
 
-// ANSI foreground color map for LoRD codes 0-7
-const FG = {
-  '0': '30',  // dark grey (bright black)
-  '1': '34',  // blue
-  '2': '32',  // green
-  '3': '36',  // cyan
-  '4': '31',  // red
-  '5': '35',  // magenta
-  '6': '33',  // brown/yellow
-  '7': '37',  // white
+const COLOR_MAP = {
+  '1': '\x1b[0;34m',
+  '2': '\x1b[0;32m',
+  '3': '\x1b[0;36m',
+  '4': '\x1b[0;31m',
+  '5': '\x1b[0;35m',
+  '6': '\x1b[0;33m',
+  '7': '\x1b[0;37m',
+  '8': '\x1b[1;30m',
+  '9': '\x1b[1;34m',
+  '0': '\x1b[1;32m',   // bright green — THE FIX
+  '!': '\x1b[1;36m',
+  '@': '\x1b[1;31m',
+  '#': '\x1b[1;35m',
+  '$': '\x1b[1;33m',
+  '%': '\x1b[1;37m',
+  '.': '\x1b[0m',
 };
 
-/**
- * Convert a LoRD-formatted string to ANSI.
- *
- * @param {string} str              The raw LoRD string with backtick codes
- * @param {object} [subs]           Key/value substitutions for `&KEY patterns
- * @param {string} [subs.name]      Player name  (`&NAME)
- * @param {string} [subs.weapon]    Player weapon (`&PWE)
- * @param {string} [subs.enemy]     Enemy name   (`&ENAME)
- * @returns {string}                ANSI-escaped string ready to send
- */
 function toAnsi(str, subs = {}) {
   if (!str) return '';
-  let out    = '';
-  let bold   = false;
-  let i      = 0;
+  let out = '';
+  let i   = 0;
 
   while (i < str.length) {
-    if (str[i] !== '`') {
-      out += str[i++];
+    if (str[i] !== '`') { out += str[i++]; continue; }
+
+    i++; // consume backtick
+    if (i >= str.length) break;
+    const code = str[i++];
+
+    if (COLOR_MAP[code] !== undefined) {
+      out += COLOR_MAP[code];
       continue;
     }
 
-    // We have a backtick — look at next char
-    i++; // consume '`'
-    if (i >= str.length) break;
-
-    const code = str[i++];
-
     switch (code) {
-      case '`':
-        out += '`';
-        break;
+      case '`': out += '`'; break;
 
-      case '.':
-        // Reset all
-        bold = false;
-        out += '\x1b[0m';
-        break;
+      case 'c': out += '\x1b[2J\x1b[H'; break;
 
-      case '%':
-        // Bold/bright on
-        bold = true;
-        out += '\x1b[1m';
-        break;
-
-      case '0': case '1': case '2': case '3':
-      case '4': case '5': case '6': case '7': {
-        // Foreground color — always resets bold (matches original LORD behaviour:
-        // `2 = plain green, `%`2 = bold green, then next `2 = plain green again)
-        const fg = FG[code];
-        bold = false;
-        out += `\x1b[0;${fg}m`;
-        break;
-      }
+      case 'l': out += '-'.repeat(79); break;
 
       case '&': {
-        // Variable substitution — read until non-alpha
         let key = '';
-        while (i < str.length && /[A-Z0-9_]/i.test(str[i])) {
-          key += str[i++];
-        }
+        while (i < str.length && /[A-Z0-9_]/i.test(str[i])) key += str[i++];
         const upper = key.toUpperCase();
-        if      (upper === 'NAME'  || upper === 'N') out += subs.name   || '';
-        else if (upper === 'PWE'   || upper === 'W') out += subs.weapon || '';
-        else if (upper === 'ENAME' || upper === 'E') out += subs.enemy  || '';
-        else if (upper === 'SEX'                   ) out += subs.sex    || '';
-        else out += '`&' + key; // unknown — pass through
+        if      (upper === 'NAME' || upper === 'N') out += subs.name   || '';
+        else if (upper === 'PWE'  || upper === 'W') out += subs.weapon || '';
+        else if (upper === 'ENAME'|| upper === 'E') out += subs.enemy  || '';
+        else if (upper === 'SEX'                  ) out += subs.sex    || '';
+        else out += '`&' + key;
         break;
       }
 
-      default:
-        // Unknown code — pass both chars through literally
-        out += '`' + code;
-        break;
+      default: out += '`' + code; break;
     }
   }
 
-  // Always reset at end
-  out += '\x1b[0m';
+  out += '\x1b[0m'; // always reset at end
   return out;
 }
 
-/**
- * Strip all LoRD color codes, returning plain text.
- * Useful for mail subject lines, log entries, etc.
- */
 function strip(str) {
   if (!str) return '';
-  return str.replace(/`[`.%0-7]|`&[A-Z0-9_]*/gi, '');
+  return str.replace(/`[`0-9!@#$%.clr]|`&[A-Z0-9_]*/gi, '');
 }
 
-/**
- * Measure the display width of a LoRD string (ignoring color codes).
- * Replaces: disp_len() in lord.js
- */
-function dispLen(str) {
-  return strip(str).length;
-}
+function dispLen(str) { return strip(str).length; }
 
-/**
- * Center a LoRD-formatted string within `width` columns.
- * Replaces: center() in lord.js
- */
 function center(str, width = 79) {
-  const len  = dispLen(str);
-  const pad  = Math.max(0, Math.floor((width - len) / 2));
+  const pad = Math.max(0, Math.floor((width - dispLen(str)) / 2));
   return ' '.repeat(pad) + str;
 }
 

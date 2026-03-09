@@ -109,20 +109,30 @@ function patch(id, fields) {
 
 /** Mark player as online. */
 function setOnline(id, isOnline) {
-  patch(id, { on_now: isOnline });
+  if (isOnline) {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2, '0');
+    const mm  = String(now.getMinutes()).padStart(2, '0');
+    patch(id, { on_now: 1, time_on: `${hh}:${mm}` });
+  } else {
+    patch(id, { on_now: 0 });
+  }
 }
 
 /** Reset all daily fields (called by DailyReset cron). */
 function resetDaily(id) {
+  // Kids give bonus forest fights (lord.js: forest_fights = settings.forest_fights + kids)
+  const p = getById(id);
+  const baseFights = Math.min(15 + (p.kids || 0), 32000);
   patch(id, {
-    forest_fights : 15,
-    pvp_fights    : 0,
+    forest_fights : baseFights,
+    pvp_fights    : 5,
+    killedaplayer : false,
     seen_master   : false,
     seen_dragon   : false,
     seen_violet   : false,
     seen_bard     : false,
     got_delicious : false,
-    weird         : false,
     high_spirits  : true,
     flirted       : false,
     leftbank      : false,

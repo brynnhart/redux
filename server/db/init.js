@@ -103,6 +103,7 @@ function initDB() {
       on_now          INTEGER NOT NULL DEFAULT 0,   -- currently online
       horse           INTEGER NOT NULL DEFAULT 0,
       amulet          INTEGER NOT NULL DEFAULT 0,   -- amulet of accuracy
+      has_fairy       INTEGER NOT NULL DEFAULT 0,   -- thief fairy companion
 
       -- Olivia / special events
       olivia          INTEGER NOT NULL DEFAULT 0,
@@ -123,6 +124,7 @@ function initDB() {
       -- Progress
       drag_kills      INTEGER NOT NULL DEFAULT 0,
       pvp             INTEGER NOT NULL DEFAULT 0,   -- total player kills
+      killedaplayer   INTEGER NOT NULL DEFAULT 0,   -- killed a player today (allows dirt writing)
       last_reincarnated INTEGER NOT NULL DEFAULT 0,
 
       -- Session tracking

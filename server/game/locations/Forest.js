@@ -20,9 +20,9 @@
  *   attack_dragon()    — see Dragon.js
  */
 
-const PlayerDB   = require('../db/PlayerDB');
-const StateDB    = require('../db/StateDB');
-const LogDB      = require('../db/LogDB');
+const PlayerDB   = require('../../db/PlayerDB');
+const StateDB    = require('../../db/StateDB');
+const LogDB      = require('../../db/LogDB');
 const Display    = require('../text/Display');
 const { battle, rand } = require('../systems/Battle');
 const { monster_stats, castles } = require('../data/constants');
@@ -55,6 +55,7 @@ function pickMonster(level) {
 
 function showForestMenu(session, disp) {
   session.clearScreen();
+  const p = session.player;
   disp.sln('`%Legend of the Red Dragon `0- `3The Forest`0');
   disp.sln('`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
   disp.sln('');
@@ -63,6 +64,13 @@ function showForestMenu(session, disp) {
   disp.sln('');
   disp.sln('`2(`0L`2)ook for something to kill');
   disp.sln('`2(`0H`2)ealers hut');
+  if (p.level >= 12) {
+    disp.sln('`2(`0S`2)earch for the Dragon\'s lair');
+  }
+  if (p.horse) {
+    disp.sln('`2(`0T`2)ake horse to DarkCloak Tavern');
+  }
+  disp.sln('`2(`0B`2)ank gold (vulture)');
   disp.sln('`2(`0R`2)eturn to town');
   disp.sln('');
 }
@@ -715,6 +723,323 @@ async function olivia(session, disp) {
   await session.more();
 }
 
+// ── Class skill forest events (lord.js death_knight_level / mystical_level / thief_level) ──
+
+async function classForestEvent(session, disp) {
+  const p = session.player;
+  if (p.clss === 0) return; // no class
+  const { raiseClass } = require('../locations/Turgons');
+
+  // ── Death Knight ────────────────────────────────────────────────────────
+  if (p.clss === 1) {
+    eventHeader(disp);
+    disp.sln('  `2While trekking through the forest, you come to the hidden castle of');
+    disp.sln('  The Black Knights.  You are immediately greeted by a score of men in');
+    disp.sln('  shiny black armour.');
+    disp.sln('');
+    const title = p.sex === 'F' ? 'Lady' : 'Lord';
+
+    if (p.skillw > 39) {
+      disp.sln(`  \`0"Well met ${title} \`%${p.name}\`0!  A fellow Black Knight is always welcome."\`2`);
+      disp.sln('  `2You walk the grounds and eat with your comrades.  You are fully refreshed.');
+      disp.sln('');
+      if (p.hp < p.hp_max) p.hp = p.hp_max;
+      p.levelw = Math.min((p.levelw || 0) + 1, 32000);
+      disp.sln('  `%HIT POINTS FILLED AND YOU RECEIVE THE ENERGY FOR 1 DEATH KNIGHT ATTACK!');
+      disp.sln('');
+      await session.more();
+      return;
+    }
+
+    if ((p.skillw || 0) < 20) {
+      disp.sln(`  \`0"Well met ${title} \`%${p.name}\`0!  We know you aspire to join us.`);
+      disp.sln('  We will teach you a lesson today, but only if you pass our test."');
+    } else {
+      disp.sln(`  \`0"Greetings ${title} \`%${p.name}\`0!  Now is a great time to practice`);
+      disp.sln('  your skills.  You know the routine..."');
+    }
+    disp.sln('');
+    disp.sln('  `2THEY LEAD YOU TO THE DEATH KNIGHT DUNGEON.');
+    disp.sln('');
+    await session.more();
+
+    disp.sln('`c');
+    disp.sln('                            ** THE TEST **');
+    disp.sln('');
+    disp.sln('  `2You are shown a man kneeling over a stained chopping block.');
+    disp.sln('');
+    disp.sln('  `0"This man is accused of a crime.  Is he innocent or guilty?"');
+    disp.sln('');
+    disp.sln('  `2(`01`2) Decapitate Him');
+    disp.sln('  (`02`2) Release Him');
+    disp.sln('');
+    disp.sw('  `2Your choice: ');
+    const ch = await session.getKeyUpper();
+    const chose1 = (ch !== '2');
+    disp.sln(ch || '1');
+    disp.sln('');
+
+    const guilty = rand(2) === 1;
+
+    if (chose1) {
+      disp.sln('  `2You take the axe and bring it down as hard as you can.');
+      disp.sln('  After a sickening (but satisfying) crunch the deed is done.');
+    } else {
+      disp.sln('  `%"That man is innocent!  You shall not harm a hair on his');
+      disp.sln('  head, as long as I have a breath in me to fight!" `2you shout.');
+    }
+    disp.sw('  `0"You have chosen');
+    await new Promise(r => setTimeout(r, 400));
+    disp.sw('...');
+    await new Promise(r => setTimeout(r, 400));
+
+    const correct = (chose1 && guilty) || (!chose1 && !guilty);
+    if (correct) {
+      disp.sln(' `%WISELY!`0"');
+      disp.sln('  "You have done this country justice today."');
+      disp.sln('');
+      await session.more();
+      await raiseClass(session, disp);
+    } else {
+      disp.sln(' `4POORLY`0."');
+      if (chose1) {
+        disp.sln('  "This man did no crime.  He was the father of 6 children."');
+        if ((p.olivia_count || 0) > 7) {
+          disp.sln('');
+          disp.sln('  `2Thinking of Olivia, you pick up the severed head and check it for life.');
+          disp.sln('  `%IT\'S DEAD, BUT YOUR KINDNESS MAKES YOU BEAUTIFUL. (1 CHARM ADDED)');
+          p.cha = Math.min((p.cha || 1) + 1, 32000);
+        }
+      } else {
+        disp.sln('  "That man raped 6 women.  And you defend him?  Good God man!"');
+      }
+      disp.sln('');
+      await session.more();
+    }
+    return;
+  }
+
+  // ── Mystic ─────────────────────────────────────────────────────────────
+  if (p.clss === 2) {
+    eventHeader(disp);
+    disp.sln('  `2While trekking through the forest, you come upon a small hut.');
+    disp.sln('');
+    disp.sln('  `2(`0K`2)nock On The Door');
+    disp.sln('  (`0B`2)ang On The Door');
+    disp.sln('  (`0L`2)eave It Be');
+    disp.sln('');
+    disp.sw('  `2What do you do? [`0K`2] : ');
+    const mc = await session.getKeyUpper();
+    disp.sln(mc || 'K');
+
+    if (mc === 'L') {
+      disp.sln('  `2You walk away.  Who needs magical instruction anyway!');
+      disp.sln('');
+      await session.more();
+      return;
+    }
+    if (rand(4) === 1) {
+      disp.sln('  `2You wait a while but no one is home.  Maybe next time.');
+      disp.sln('');
+      await session.more();
+      return;
+    }
+
+    if (mc === 'B') {
+      disp.sln('  `2You bang on the door as hard as you can!');
+    } else {
+      disp.sln('  `2You politely knock on the knotted wooden door.');
+    }
+    disp.sln('');
+    disp.sln(`  \`0"Watcha doin' down there ${p.sex === 'M' ? 'Sonny' : 'Miss'}?!"\`2  You look up and see a wizened old man.`);
+    disp.sln('  `0"Tell ya what!  I\'ll give ya a mystical lesson if you can pass my test!"');
+    disp.sln('');
+    await session.more();
+
+    disp.sln('`c`%                            ** THE TEST **');
+    disp.sln('');
+    disp.sln('  `0"I\'m thinking of a number between 1 and 100.  I\'ll give ya six guesses."');
+    disp.sln('');
+    const theNum  = rand(100) + 1;
+    let   guesses = 0;
+    let   won     = false;
+    while (guesses < 6 && session.alive) {
+      guesses++;
+      disp.sw(`  \`2Guess \`0${guesses}\`2: \`%`);
+      const gs = await session.getStr(3, { allowed: /[0-9]/ });
+      const guess = parseInt(gs, 10) || 0;
+      disp.sln('');
+      if (guess === theNum) { won = true; break; }
+      if (guess > theNum) disp.sln('  `0"The number is lower than that!"');
+      else                disp.sln('  `0"The number is higher than that!"');
+    }
+
+    if (won) {
+      disp.sln('  `0"That\'s right!  You read my mind!"');
+      disp.sln('  `2The old man nearly falls from his window in his excitement!');
+      disp.sln('');
+      disp.sln('`%                         ** YOU HAVE PASSED THE TEST **');
+      disp.sln('');
+      await session.more();
+      if ((p.skillm || 0) > 39) {
+        disp.sln('  `2The old man attempts to teach you but you know more than him.');
+        disp.sln('  `%YOU RECEIVE FOUR EXTRA MYSTICAL SKILLS USE POINTS!');
+        p.levelm = Math.min((p.levelm || 0) + 4, 32000);
+        disp.sln('');
+        await session.more();
+      } else {
+        await raiseClass(session, disp);
+      }
+    } else {
+      disp.sln('');
+      disp.sln(`  \`2The old man shakes his head.  \`0"No, no, NO!  The number was ${theNum}!`);
+      disp.sln('  Geez!  I won\'t teach such an unpromising student!"');
+      disp.sln('');
+      await session.more();
+    }
+    return;
+  }
+
+  // ── Thief ───────────────────────────────────────────────────────────────
+  if (p.clss === 3) {
+    eventHeader(disp);
+    if ((p.skillt || 0) > 39) {
+      disp.sln('  `2You are carefully moving through the forest, making absolutely no noise,');
+      disp.sln('  when your sensitive ears pick up a twig breaking.  You circle around');
+      disp.sln('  and find it\'s not an animal, but The Master Thieves!');
+      disp.sln('');
+      disp.sln('  `2As they pass under a tree you are in, you call out.');
+      disp.sln('  `0"Ahh... Master Thieves!  Do you think it would be possible to make');
+      disp.sln('  even MORE noise?!"`2');
+      disp.sln('');
+      disp.sln('  `2The group is embarrassed, but they overcome it to chew the fat with you.');
+      disp.sln('  You gain insight from their hard-won experience.');
+      disp.sln('');
+      p.levelt = Math.min((p.levelt || 0) + 2, 32000);
+      disp.sln('  `%YOU RECEIVE 2 EXTRA THIEF SKILL POINTS!');
+      disp.sln('');
+      await session.more();
+    } else {
+      disp.sln('  `2You notice you are being followed.  Using your skills, you circle back');
+      disp.sln('  and catch your pursuer by surprise.  It\'s one of the Master Thieves!');
+      disp.sln('');
+      disp.sln('  `0"Hah!  Well caught," `2the thief admits.  `0"You may be ready for a lesson."');
+      disp.sln('');
+      await session.more();
+      await raiseClass(session, disp);
+    }
+  }
+}
+
+// ── J key — Jennie Garth easter egg (lord.js J case in forest loop) ─────────
+
+async function jenniEaster(session, disp) {
+  const p = session.player;
+  if (!p.high_spirits) return;
+
+  // Consume high_spirits immediately
+  PlayerDB.patch(p.id, { high_spirits: 0 });
+  session.player = PlayerDB.getById(p.id);
+
+  // Must type J-E-N-N-I-E to unlock
+  const letters = ['E','N','N','I','E'];
+  for (const expected of letters) {
+    const k = await session.getKeyUpper();
+    if (k !== expected) return;
+  }
+
+  disp.sln('');
+  disp.sln('');
+  disp.sln('  `0Jennie?  Jennie Garth?');
+  disp.sw('  `2Define her. ');
+  const answer = (await session.getStr(4)).toUpperCase().trim();
+  disp.sln('');
+  disp.sln('');
+
+  switch (answer) {
+    case 'BABE':
+      disp.sln('  `0That is correct. `2(YOU RECEIVE AN EXTRA FOREST FIGHT!)');
+      p.forest_fights = Math.min((p.forest_fights || 0) + 1, 32000);
+      break;
+    case 'SEXY':
+      disp.sln('  `0Excellent. `2(YOU RECEIVE AN EXTRA USER FIGHT!)');
+      p.pvp_fights = Math.min((p.pvp_fights || 0) + 1, 32000);
+      break;
+    case 'LADY':
+      disp.sln('  `0Very true.  `2(YOU GET SOME GOLD!)');
+      p.gold = Math.min((p.gold || 0) + 1000 * p.level, 2000000000);
+      break;
+    case 'FOXY':
+      disp.sln('  `0Very wise. `%(YOU RECEIVE AN EXTRA GEM!)');
+      p.gem = Math.min((p.gem || 0) + 1, 32000);
+      break;
+    case 'GIFT':
+      if (p.clss === 2 && (p.skillm || 0) >= 1 && !p.magically_delicious) {
+        disp.sln('  `5YOU FEEL MAGICALLY DELICIOUS.');
+        p.levelm = p.skillm;
+        p.magically_delicious = 1;
+      } else if (p.clss === 1 && (p.skillw || 0) >= 1 && !p.magically_delicious) {
+        disp.sln('  `5YOU FEEL MAGICALLY DELICIOUS.');
+        p.levelw = p.skillw;
+        p.magically_delicious = 1;
+      } else if (p.clss === 3 && (p.skillt || 0) >= 1 && !p.magically_delicious) {
+        disp.sln('  `5YOU FEEL MAGICALLY DELICIOUS.');
+        p.levelt = p.skillt;
+        p.magically_delicious = 1;
+      } else {
+        disp.sln('  `%You are unable to accept the gift.');
+      }
+      break;
+    case 'HOTT':
+      disp.sln('  `0"Hot" is spelled with only one T.. But good job, nonetheless.');
+      disp.sln('');
+      p.hp = Math.min(Math.floor(p.hp_max + p.hp_max / 5), 32000);
+      disp.sln('  `%(YOU FEEL ENERGIZED!)');
+      break;
+    case 'COOL':
+      disp.sln('  `0Why, you are cool to notice that.');
+      if (p.hp < p.hp_max) {
+        disp.sln('  `%GOD NOTICES YOU ARE WOUNDED AND PITIES YOU.  YOU LOOK BETTER!');
+        p.cha = Math.min((p.cha || 1) + 1, 32000);
+      }
+      break;
+    case 'FAIR':
+      disp.sln('  `0Very fair. `2(YOU FEEL EXCITED!)');
+      p.flirted = 0;
+      break;
+    case 'DUMB':
+      disp.sln('  `0You idiot.  You will `)never`0 be a useful member of society.');
+      break;
+    case 'STAR':
+      disp.sln('  `0A huge star, infant.');
+      disp.sln('  `4(YOU GET NOTHING, YOU STATED THE OBVIOUS)');
+      break;
+    case 'UGLY':
+      disp.sln('  `0You understand nothing.  `4(YOU ARE BITCH SLAPPED!)');
+      p.hp = 1;
+      break;
+    default:
+      if (p.sex === 'M') {
+        disp.sln('  `2You do not understand her, my son.');
+      } else {
+        disp.sln('  `2Perhaps if you were male you might understand better.');
+      }
+  }
+
+  // Persist all changes
+  PlayerDB.patch(p.id, {
+    hp: p.hp, gem: p.gem, gold: p.gold,
+    forest_fights: p.forest_fights, pvp_fights: p.pvp_fights,
+    cha: p.cha, flirted: p.flirted || 0,
+    levelm: p.levelm || 0, levelw: p.levelw || 0, levelt: p.levelt || 0,
+    magically_delicious: p.magically_delicious || 0,
+    high_spirits: 0,
+  });
+  session.player = PlayerDB.getById(p.id);
+  disp.sln('');
+  await session.more();
+}
+
 // ── look_to_kill — the main fight/event dispatcher ────────────────────────
 
 async function lookToKill(session, disp) {
@@ -730,7 +1055,7 @@ async function lookToKill(session, disp) {
       case 3:  await eventMerryMen(session, disp);    break;
       case 4:  await eventGem(session, disp);         break;
       case 5:  await eventHammerStone(session, disp); break;
-      // case 6: class skill level-up events — TODO Healer/DK/Thief/Mystic
+      case 6:  await classForestEvent(session, disp); break;
       case 7:  await eventStick(session, disp);       break;
       case 8:  await eventHorseTrader(session, disp); break;
       case 9:  await eventFindLostGold(session, disp); break;
@@ -741,16 +1066,26 @@ async function lookToKill(session, disp) {
         break;
     }
 
-    // Persist state changes from the event
+    // Re-read player after event (raiseClass and others call PlayerDB.patch)
+    session.player = PlayerDB.getById(p.id);
+    const pAfter = session.player;
+
+    // Persist any in-memory mutations from events that write directly to p.*
     PlayerDB.patch(p.id, {
-      hp: p.hp, hp_max: p.hp_max, gold: p.gold, gem: p.gem, cha: p.cha,
-      str: p.str, forest_fights: p.forest_fights, exp: p.exp,
-      horse: p.horse ? 1 : 0,
-      done_tower: p.done_tower ? 1 : 0,
-      olivia: p.olivia ? 1 : 0,
-      asshole: p.asshole ? 1 : 0,
-      olivia_count: p.olivia_count || 0,
-      laid: p.laid || 0,
+      hp: pAfter.hp, hp_max: pAfter.hp_max, gold: pAfter.gold, gem: pAfter.gem,
+      cha: pAfter.cha, str: pAfter.str, forest_fights: pAfter.forest_fights,
+      exp: pAfter.exp,
+      horse: pAfter.horse ? 1 : 0,
+      done_tower: pAfter.done_tower ? 1 : 0,
+      olivia: pAfter.olivia ? 1 : 0,
+      asshole: pAfter.asshole ? 1 : 0,
+      olivia_count: pAfter.olivia_count || 0,
+      laid: pAfter.laid || 0,
+      levelm: pAfter.levelm || 0, levelw: pAfter.levelw || 0,
+      levelt: pAfter.levelt || 0, skillm: pAfter.skillm || 0,
+      skillw: pAfter.skillw || 0, skillt: pAfter.skillt || 0,
+      magically_delicious: pAfter.magically_delicious || 0,
+      pvp_fights: pAfter.pvp_fights,
     });
     session.player = PlayerDB.getById(p.id);
     return !p.dead;
@@ -834,16 +1169,74 @@ async function enter(session) {
         showForestMenu(session, disp);
         break;
 
-      case 'V':
       case 'S': {
-        // View stats inline
+        // S = Stats if level < 12, Dragon lair if level 12
         const pp = session.player;
-        disp.sln('');
-        disp.sln(`\`2HP: \`%${pretty(pp.hp)}\`2/\`%${pretty(pp.hp_max)}  \`2Gold: \`%${pretty(pp.gold)}  \`2Gems: \`%${pretty(pp.gem)}`);
-        disp.sln(`\`2STR: \`%${pretty(pp.str)}  \`2DEF: \`%${pretty(pp.def)}`);
-        disp.sln('');
+        if (pp.level >= 12) {
+          await require('./Dragon').enter(session);
+          if (session.player.dead) { over = true; break; }
+          showForestMenu(session, disp);
+        } else {
+          disp.sln('');
+          disp.sln(`\`2HP: \`%${pretty(pp.hp)}\`2/\`%${pretty(pp.hp_max)}  \`2Gold: \`%${pretty(pp.gold)}  \`2Gems: \`%${pretty(pp.gem)}`);
+          disp.sln(`\`2STR: \`%${pretty(pp.str)}  \`2DEF: \`%${pretty(pp.def)}`);
+          disp.sln('');
+        }
         break;
       }
+
+      case 'V':
+        await require('../ShowStats').showStats(session, disp);
+        showForestMenu(session, disp);
+        break;
+
+      case 'B': {
+        // Vulture banking — instantly deposits all gold
+        const pp = session.player;
+        if (pp.gold > 0) {
+          const newBank = Math.min((pp.bank || 0) + pp.gold, 2000000000);
+          PlayerDB.patch(pp.id, { bank: newBank, gold: 0 });
+          session.player = PlayerDB.getById(pp.id);
+          disp.sln('');
+          disp.sln('');
+          disp.sln('  `2You throw your gold pouch up into the air gleefully.');
+          disp.sln('');
+          disp.sln('  `0AN UGLY VULTURE `)GRABS `0IT IN MID AIR!');
+          disp.sln('  `2(All gold banked safely)');
+          disp.sln('');
+        }
+        break;
+      }
+
+      case 'T': {
+        // Dark Horse Tavern (horse required)
+        const pp = session.player;
+        if (pp.horse) {
+          disp.sln('');
+          disp.sln('  `2You nudge your horse deeper into the woods.');
+          disp.sln('');
+          await session.more();
+          disp.sln('');
+          disp.sln('`%  Event In The Forest');
+          disp.sln('`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+          disp.sln('  `2In the gloom of the shady forest, you see smoke coming from a bright');
+          disp.sln('  chimney.');
+          disp.sln('');
+          await session.more();
+          await require('./DarkHorse').enter(session);
+          showForestMenu(session, disp);
+        } else {
+          disp.sln('');
+          disp.sln('');
+          disp.sln('  `2Your Thieving skills cannot help you here.');
+          disp.sln('');
+        }
+        break;
+      }
+
+      case 'J':
+        await jenniEaster(session, disp);
+        break;
 
       case '?':
         showForestMenu(session, disp);

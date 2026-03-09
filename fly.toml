@@ -1,0 +1,38 @@
+app = 'redux'
+primary_region = 'yyz'
+
+[build]
+
+[env]
+  NODE_ENV = 'production'
+  PORT = '3000'
+  SAVE_PATH = '/data'
+
+[[mounts]]
+  source = 'redux_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout  = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
