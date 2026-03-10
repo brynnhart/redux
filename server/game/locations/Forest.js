@@ -56,7 +56,7 @@ function pickMonster(level) {
 function showForestMenu(session, disp) {
   session.clearScreen();
   const p = session.player;
-  disp.sln('`%Legend of the Red Dragon `0- `3The Forest`0');
+  disp.sln('`%Legend of the Redux Dragon `0- `3The Forest`0');
   disp.sln('`0-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
   disp.sln('');
   disp.sln('`2The murky forest stands before you - a giant maw of gloomy darkness');

@@ -1,4 +1,4 @@
-# Legend of the Red Dragon — Web Port
+# Legend of the Redux Dragon — Web Port
 
 A web-based port of the classic BBS door game LoRD, built on Node.js + WebSockets + xterm.js.
 

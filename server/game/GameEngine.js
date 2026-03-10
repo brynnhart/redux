@@ -334,7 +334,7 @@ function showTownMenu(session, disp, player) {
   const SEP = '`2-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-';
 
   // Title — location name in cyan, rest in default
-  disp.sln('`%Legend of the Red Dragon `0- `3Town Square`0');
+  disp.sln('`%Legend of the Redux Dragon `0- `3Town Square`0');
   disp.sln(SEP);
 
   // Flavor text

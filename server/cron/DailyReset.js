@@ -19,6 +19,7 @@ const MailDB         = require('../db/MailDB');
 const ConversationDB = require('../db/ConversationDB');
 
 const SCHEDULE = process.env.DAILY_RESET_CRON || '0 0 * * *';
+const TIMEZONE = process.env.DAILY_RESET_TZ   || 'America/Toronto';
 
 // ── Daily happenings flavour ──────────────────────────────────────────────────
 const HAPPENINGS = [
@@ -309,15 +310,73 @@ async function runReset() {
 
 // ── Cron scheduling ────────────────────────────────────────────────────────────
 
+/**
+ * Returns true if the daily reset has already run today in the configured
+ * timezone.  Compares the last_reset timestamp in game_state against
+ * today's midnight in that timezone.
+ */
+function resetRanToday() {
+  const state = StateDB.get();
+  if (!state.last_reset) return false;
+
+  // Get today's midnight in the target timezone as a UTC timestamp
+  const now        = new Date();
+  const formatter  = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  const parts      = formatter.formatToParts(now);
+  const y          = parts.find(p => p.type === 'year').value;
+  const m          = parts.find(p => p.type === 'month').value;
+  const d          = parts.find(p => p.type === 'day').value;
+
+  // Midnight today in target timezone, expressed as a UTC Date
+  const todayMidnightLocal = new Date(`${y}-${m}-${d}T00:00:00`);
+  // Adjust: the string above is parsed as LOCAL time by V8, which might
+  // not be TIMEZONE. Build it properly:
+  const todayMidnightUTC = new Date(
+    new Date(`${y}-${m}-${d}T00:00:00`).toLocaleString('en-US', { timeZone: TIMEZONE })
+  );
+
+  // Simpler: just check if last_reset unix timestamp falls within today's
+  // calendar date in the configured timezone
+  const lastResetDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(state.last_reset * 1000));
+
+  const todayDate = `${y}-${m}-${d}`;
+  return lastResetDate === todayDate;
+}
+
 function start() {
   if (!cron.validate(SCHEDULE)) {
     console.error(`[DailyReset] Invalid cron schedule: "${SCHEDULE}"`);
     return;
   }
+
+  // ── Missed-reset catch-up ──────────────────────────────────────────────────
+  // Fly.io stops the machine when idle (auto_stop_machines = true).
+  // If the machine was asleep at midnight, the cron never fired.
+  // On every boot, check whether today's reset has already run and, if not,
+  // run it now.  We wait 5 seconds so the DB and other services are fully ready.
+  setTimeout(() => {
+    if (!resetRanToday()) {
+      console.log('[DailyReset] Missed reset detected on startup — running now...');
+      runReset().catch(err => console.error('[DailyReset] Startup catch-up error:', err));
+    } else {
+      console.log('[DailyReset] Reset already ran today — skipping startup catch-up.');
+    }
+  }, 5_000);
+
+  // ── Schedule nightly run ───────────────────────────────────────────────────
   cron.schedule(SCHEDULE, () => {
     runReset().catch(err => console.error('[DailyReset] Error:', err));
+  }, {
+    timezone: TIMEZONE,
   });
-  console.log(`[DailyReset] Scheduled at "${SCHEDULE}"`);
+
+  console.log(`[DailyReset] Scheduled at "${SCHEDULE}" (${TIMEZONE})`);
 }
 
 module.exports = { start, runReset };

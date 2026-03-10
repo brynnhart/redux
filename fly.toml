@@ -12,6 +12,7 @@ primary_region = "yyz"
   NODE_ENV = "production"
   PORT     = "3000"
   DB_PATH  = "/data/lord.db"
+  TZ       = "America/Toronto"
 
 [http_service]
   internal_port        = 3000

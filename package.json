@@ -1,7 +1,7 @@
 {
   "name": "lord-web",
   "version": "0.1.0",
-  "description": "Legend of the Red Dragon — web port",
+  "description": "Legend of the Redux Dragon — web port",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
