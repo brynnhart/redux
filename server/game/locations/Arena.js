@@ -26,7 +26,7 @@ const PlayerDB       = require('../../db/PlayerDB');
 const LogDB          = require('../../db/LogDB');
 const MailDB         = require('../../db/MailDB');
 const ConversationDB = require('../../db/ConversationDB');
-const { battle, checkLevelUp, deadScreen } = require('../systems/Battle');
+const { battle, checkLevelUp, exhaustionScreen } = require('../systems/Battle');
 
 function pretty(n) { return Math.floor(n).toLocaleString(); }
 function rand(n)   { return Math.floor(Math.random() * Math.max(1, n)); }
@@ -254,12 +254,11 @@ async function attackPlayer(session, disp) {
   session.player = PlayerDB.getById(session.player.id);
   p = session.player;
 
-  if (result === 'lose' || p.dead) {
-    // Attacker died — target gets credit
-    const goldLost = p.gold;
-    const expLost  = Math.floor(p.exp * 0.10);
-
-    // Target gets pvp kill + half attacker's exp
+  if (result === 'lose' || p.is_exhausted) {
+    // Attacker was exhausted — target gets credit
+    // Note: exhaustionScreen + triggerExhaustion already ran inside battle()
+    session.player = PlayerDB.getById(session.player.id);
+    p = session.player;
     const targetFresh = PlayerDB.getById(target.id);
     PlayerDB.patch(target.id, {
       pvp : clamp((targetFresh.pvp || 0) + 1, 0, 32000),
@@ -269,10 +268,10 @@ async function attackPlayer(session, disp) {
     // Send mail to target
     MailDB.sendMail(
       target.id, null,
-      `  \`%YOU HAVE BEEN ATTACKED!\n\`0${SEP}\`2\n  \`0${p.name}\`2 attacked you!\n\`.\n  \`2You have killed \`0${p.name}\`2 in self defense!\n  \`2You receive \`%${pretty(Math.floor(p.exp / 2))}\`2 experience!`
+      `  \`%YOU HAVE BEEN ATTACKED!\n\`0${SEP}\`2\n  \`0${p.name}\`2 attacked you!\n  \`2You drove them off! They collapse, too wounded to continue.\n  \`2You receive \`%${pretty(Math.floor(p.exp / 2))}\`2 experience!`
     );
 
-    LogDB.append(`\`0  ${target.name} \`2has killed \`5${p.name}\`2 in self defence!`);
+    LogDB.append(`\`0  ${target.name} \`2has driven \`5${p.name}\`2 to exhaustion in self defence!`);
     return;
   }
 
@@ -299,15 +298,16 @@ async function attackPlayer(session, disp) {
 
     // Strip target
     PlayerDB.patch(target.id, {
-      gold : 0,
-      exp  : clamp(targetFresh.exp - Math.floor(targetFresh.exp * 0.10), 0, 2000000000),
-      gem  : targetFresh.gem - gemGained,
-      dead : true,
-      inn  : false,
+      gold         : 0,
+      exp          : clamp(targetFresh.exp - Math.floor(targetFresh.exp * 0.10), 0, 2000000000),
+      gem          : targetFresh.gem - gemGained,
+      is_exhausted : true,
+      actions      : 0,
+      inn          : false,
     });
 
     disp.sln('');
-    disp.sln(`  \`%You have killed \`0${target.name}\`%!`);
+    disp.sln(`  \`%You have defeated \`0${target.name}\`%!`);
     disp.sln('');
     disp.sw(`  \`2You receive \`%${pretty(goldGained)}\`2 gold, `);
     disp.sln(`\`2and \`%${pretty(expGained)}\`2 experience!`);
@@ -319,13 +319,13 @@ async function attackPlayer(session, disp) {
     // Mail target the bad news
     MailDB.sendMail(
       target.id, null,
-      `  \`%YOU HAVE BEEN ATTACKED!\n\`0${SEP}\`2\n  \`0${p.name}\`2 attacked you and has killed you!\n  \`2You lost all your gold and 10% of your experience.`
+      `  \`%YOU HAVE BEEN ATTACKED!\n\`0${SEP}\`2\n  \`0${p.name}\`2 attacked you and drove you to exhaustion!\n  \`2You lost all your gold and 10% of your experience.`
     );
 
     // Log to daily happenings with an optional press quote
     const saying = await customSaying(session, disp);
     LogDB.append(
-      `\`0  ${p.name} \`2has killed \`5${target.name}\`2!` +
+      `\`0  ${p.name} \`2has defeated \`5${target.name}\`2!` +
       (saying ? `\n${saying}` : '')
     );
 

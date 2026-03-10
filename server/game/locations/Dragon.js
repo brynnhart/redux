@@ -142,7 +142,7 @@ async function dragonWin(session, disp) {
 
   // Reset player to level 1, keep skills/cha/drag_kills
   const drag_kills  = (p.drag_kills  || 0) + 1;
-  const newFights   = Math.min(15 + (p.kids || 0), 32000);
+  const newActions  = Math.min(15 + (p.kids || 0), 32000);
 
   PlayerDB.patch(p.id, {
     level:        1,
@@ -160,7 +160,9 @@ async function dragonWin(session, disp) {
     dead:         0,
     inn:          0,
     exp:          10,
-    forest_fights: newFights,
+    forest_fights: newActions,  // kept for DB compat during transition; also set actions
+    actions       : newActions,
+    is_exhausted  : 0,
     pvp_fights:   5,
     flirted:      0,
     high_spirits: 1,

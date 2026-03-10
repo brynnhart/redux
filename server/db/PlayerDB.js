@@ -18,6 +18,7 @@ function hydrate(row) {
     'seen_master','seen_dragon','seen_violet','seen_bard','got_delicious',
     'weird','high_spirits','flirted','leftbank','divorced','dead','inn',
     'on_now','horse','amulet','olivia','asshole','done_tower','has_des',
+    'is_exhausted',
   ];
   bools.forEach(k => { if (k in row) row[k] = row[k] === 1; });
   return row;
@@ -121,11 +122,12 @@ function setOnline(id, isOnline) {
 
 /** Reset all daily fields (called by DailyReset cron). */
 function resetDaily(id) {
-  // Kids give bonus forest fights (lord.js: forest_fights = settings.forest_fights + kids)
-  const p = getById(id);
-  const baseFights = Math.min(15 + (p.kids || 0), 32000);
+  // Kids give bonus actions (mirrors original lord.js forest_fights + kids logic)
+  const p       = getById(id);
+  const baseAP  = Math.min(15 + (p.kids || 0), 32000);
   patch(id, {
-    forest_fights : baseFights,
+    actions       : baseAP,
+    is_exhausted  : false,
     pvp_fights    : 5,
     killedaplayer : false,
     seen_master   : false,
@@ -141,6 +143,64 @@ function resetDaily(id) {
     levelm        : 0,
     levelt        : 0,
   });
+}
+
+/**
+ * Spend action points for an activity.
+ *
+ * @param {number} playerId
+ * @param {number} amount       - number of actions to spend (usually 1)
+ * @param {string} activityName - used in the failure message
+ * @returns {{ success: boolean, actionsRemaining?: number, message?: string }}
+ */
+function spendActions(playerId, amount, activityName) {
+  const p = getById(playerId);
+
+  if (p.is_exhausted || p.actions < amount) {
+    return {
+      success : false,
+      message : `You are too exhausted to ${activityName} today.`,
+    };
+  }
+
+  const remaining = p.actions - amount;
+  patch(playerId, { actions: remaining });
+
+  if (remaining <= 0) {
+    triggerExhaustion(playerId);
+    return { success: true, actionsRemaining: 0 };
+  }
+
+  return { success: true, actionsRemaining: remaining };
+}
+
+/**
+ * Trigger the exhaustion state.
+ * Called automatically by spendActions when actions reach 0, or directly
+ * when a player is defeated in combat.
+ *
+ * Penalties (tunable):
+ *   - 10% of carried gold lost
+ *   - 2% of experience lost
+ *   - All remaining actions zeroed
+ *   - is_exhausted flag set
+ *
+ * @returns {{ goldLost: number, xpLost: number }}
+ */
+function triggerExhaustion(playerId) {
+  const p        = getById(playerId);
+  const goldLost = Math.floor((p.gold || 0) * 0.10);
+  const xpLost   = Math.floor((p.exp  || 0) * 0.02);
+
+  patch(playerId, {
+    actions      : 0,
+    is_exhausted : true,
+    gold         : Math.max(0, (p.gold || 0) - goldLost),
+    exp          : Math.max(0, (p.exp  || 0) - xpLost),
+    hp           : 0,
+  });
+
+  return { goldLost, xpLost };
 }
 
 /** Hard-delete a player (for admin / sysop use). */
@@ -160,5 +220,7 @@ module.exports = {
   patch,
   setOnline,
   resetDaily,
+  spendActions,
+  triggerExhaustion,
   remove,
 };

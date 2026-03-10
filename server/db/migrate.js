@@ -56,6 +56,8 @@ const MISSING_COLUMNS = [
   ['magically_delicious', 'INTEGER NOT NULL DEFAULT 0'],
   ['ran_away',            'INTEGER NOT NULL DEFAULT 0'],
   ['equipment_slots',     'INTEGER NOT NULL DEFAULT 3'],
+  ['actions',             'INTEGER NOT NULL DEFAULT 15'],
+  ['is_exhausted',        'INTEGER NOT NULL DEFAULT 0'],
 ];
 
 let added = 0;

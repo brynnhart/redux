@@ -53,7 +53,7 @@ async function showStats(session, diagDisp) {
     disp.sln(`\`2Experience     : \`%${pretty(p.exp)}`);
     disp.sln(`\`2Level          : \`%${p.level}` +
              `\`0                  \`2HitPoints      :(\`%${p.hp} \`2of \`%${p.hp_max}\`2)`);
-    disp.sln(`\`2Forest Fights  : \`%${p.forest_fights}` +
+    disp.sln(`\`2Actions Today  : \`%${p.actions}${p.is_exhausted ? ' \`4(EXHAUSTED)' : ''}` +
              `\`0                  \`2Player Fights Left : \`%${p.pvp_fights}`);
     disp.sln(`\`2Gold In Hand   : \`%${pretty(p.gold)}` +
              `\`0                  \`2Gold In Bank   : \`%${pretty(p.bank)}`);

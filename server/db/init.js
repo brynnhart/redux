@@ -83,8 +83,9 @@ function initDB() {
       levelm          INTEGER NOT NULL DEFAULT 0,   -- Mystic uses today
       levelt          INTEGER NOT NULL DEFAULT 0,   -- Thief uses today
 
-      -- Daily state
-      forest_fights   INTEGER NOT NULL DEFAULT 15,
+      -- Daily resource
+      actions         INTEGER NOT NULL DEFAULT 15,  -- replaces forest_fights
+      is_exhausted    INTEGER NOT NULL DEFAULT 0,   -- set when actions reach 0 via combat loss
       pvp_fights      INTEGER NOT NULL DEFAULT 0,   -- fights available vs players today
       seen_master     INTEGER NOT NULL DEFAULT 0,   -- Boolean
       seen_dragon     INTEGER NOT NULL DEFAULT 0,

@@ -305,20 +305,38 @@ async function checkLevelUp(session, disp) {
   session.player = PlayerDB.getById(p.id);
 }
 
-// ── Dead screen ────────────────────────────────────────────────────────────
+// ── Exhaustion screen (replaces classic "death" screen) ────────────────────
+//
+// The player was not killed — they were beaten too badly to continue today.
+// They keep their session and can still access social features.
 
-async function deadScreen(session, disp, op) {
+async function exhaustionScreen(session, disp, op) {
   session.clearScreen();
   disp.sln('');
-  disp.sln(`\`4You have been killed by \`0${op.name}\`4.`);
+  disp.sln(`\`4You collapse, too wounded to continue...`);
+  disp.sln('');
+  disp.sln(`\`2${op.name} \`2stands over you, then walks away.`);
   disp.sln('');
   await session.more();
-  disp.sln('  \`2GOLD ON HAND WAS \`4LOST\`2.');
-  disp.sln('  \`2TEN PERCENT OF EXPERIENCE \`4LOST\`2.');
+
+  // Trigger exhaustion — deducts gold/xp, zeros actions, sets flag
+  const { goldLost, xpLost } = PlayerDB.triggerExhaustion(session.player.id);
+  session.player = PlayerDB.getById(session.player.id);
+
+  disp.sln(`\`2  \`4${goldLost.toLocaleString()} GOLD\`2 lost to your injuries.`);
+  disp.sln(`\`2  \`42% OF EXPERIENCE\`2 lost.`);
   disp.sln('');
-  disp.sln('  You have been defeated on your way to glory.  The road to success');
-  disp.sln('  is long and hard.  You have encountered a minor setback.  But do');
-  disp.sln('  not lose heart - you can continue your struggle tomorrow.');
+  disp.sln('\`2  === YOU ARE EXHAUSTED ===');
+  disp.sln('');
+  disp.sln('  You\'ve pushed yourself too hard today, adventurer.');
+  disp.sln('  Your actions have been spent. Rest and recover.');
+  disp.sln('');
+  disp.sln('  You may still:');
+  disp.sln('  `2(\`%I\`2) Visit the Inn and chat with other patrons');
+  disp.sln('  `2(\`%K\`2) Browse King Abdul\'s Equipment');
+  disp.sln('  `2(\`%D\`2) Read the Daily News');
+  disp.sln('');
+  disp.sln('  \`%Your actions reset at midnight. Come back tomorrow.');
   disp.sln('');
   await session.more();
 }
@@ -450,10 +468,9 @@ async function battle(session, op, opts = {}) {
 
   if (p.dead || p.hp <= 0) {
     delete p._effectiveStr; delete p._effectiveDef; delete p._goldFind; delete p._expGain;
-    await deadScreen(session, disp, op);
-    LogDB.add(`  \`0${p.name} \`2has been killed by \`0${op.name}\`2!`);
-    const newExp = clamp(p.exp - Math.floor(p.exp / 10), 0, 2000000000);
-    PlayerDB.patch(p.id, { hp: 0, dead: true, gold: 0, exp: newExp, on_now: false });
+    await exhaustionScreen(session, disp, op);
+    LogDB.add(`  \`0${p.name} \`2has been exhausted by \`0${op.name}\`2!`);
+    // triggerExhaustion already called inside exhaustionScreen; just refresh
     session.player = PlayerDB.getById(p.id);
     return 'lose';
   }
@@ -499,4 +516,4 @@ async function battle(session, op, opts = {}) {
   return 'win';
 }
 
-module.exports = { battle, enemyAttack, doAttack, checkLevelUp, deadScreen, rand };
+module.exports = { battle, enemyAttack, doAttack, checkLevelUp, exhaustionScreen, rand };

@@ -113,13 +113,13 @@ function showForestMenu(session, disp) {
 function showForestPrompt(session, disp) {
   const p = session.player;
   disp.sw(`\`2HitPoints: (\`0${pretty(p.hp)} \`2of \`0${pretty(p.hp_max)}\`2)`);
-  disp.sw(`\`2  Fights: \`0${pretty(p.forest_fights)}`);
+  disp.sw(`\`2  Actions: \`0${pretty(p.actions)}`);
   disp.sw(`\`2  Gold: \`0${pretty(p.gold)}`);
   disp.sw(`\`2  Gems: \`0${pretty(p.gem)}`);
   disp.sln('');
   disp.sln('`5The Forest   `2(L,H,R,Q)  `0(? for menu)`2');
   disp.sln('');
-  disp.sw(`\`2Your command, \`%${p.name}\`2? [\`%${p.forest_fights}\`2] : `);
+  disp.sw(`\`2Your command, \`%${p.name}\`2? [\`%${p.actions}\`2] : `);
 }
 
 // ── Event header (shared by all random events) ────────────────────────────
@@ -140,7 +140,7 @@ async function eventOldManLost(session, disp) {
   eventHeader(disp);
   disp.sln('`2  You come across an old man.  He seems confused and asks if');
   disp.sln('  you would direct him to the Inn.  You know that if you do,');
-  disp.sln('  you will lose time for one fight today.');
+  disp.sln('  you will spend 1 action helping him today.');
   disp.sln('');
   disp.sw('  Do you take the old man? [`0Y`2] : ');
   const ch = await session.prompt('', ['Y', 'N', '\r']);
@@ -151,7 +151,9 @@ async function eventOldManLost(session, disp) {
     const gold = p.level * 500;
     p.gold = clamp(p.gold + gold, 0, 2000000000);
     p.cha  = clamp(p.cha + 1, 0, 32000);
-    p.forest_fights -= 1;
+    PlayerDB.patch(p.id, { actions: Math.max(0, (p.actions || 0) - 1) });
+    session.player = PlayerDB.getById(p.id);
+    p = session.player;
     disp.sln(`\`2  You gladly take the old man to the Inn. He is pleased`);
     disp.sln(`\`2  with you, and gives you \`%${pretty(gold)} \`2gold!`);
     disp.sln('');
@@ -611,29 +613,29 @@ async function olivia(session, disp) {
           disp.sln('  and throw it at the spider!');
           disp.sln('');
           await session.more();
-          disp.sln('  `%THE EXCERCISE GIVES YOU STRENGTH FOR ANOTHER FOREST FIGHT!');
-          p.forest_fights = clamp(p.forest_fights + 1, 0, 32000);
+          disp.sln('  `%THE EXERCISE RESTORES YOUR ENERGY — YOU GAIN 1 ACTION!');
+          p.actions = clamp((p.actions || 0) + 1, 0, 32000);
           break;
         case 1:
           disp.sln('  `2Seeing the fine texture of the heads hair and the rip in your garment,');
           disp.sln('  you decide to use her hair to mend the tear.');
           disp.sln('');
-          disp.sln('  `%YOU FEEL SO CLEVER YOU GAIN THE STRENGTH FOR ANOTHER FOREST FIGHT!');
-          p.forest_fights = clamp(p.forest_fights + 1, 0, 32000);
+          disp.sln('  `%YOU FEEL SO CLEVER YOU GAIN 1 ACTION!');
+          p.actions = clamp((p.actions || 0) + 1, 0, 32000);
           break;
         case 2:
-          disp.sln('  `4YOU FEEL SO WOEBEGONE YOU LOSE A FOREST FIGHT FOR TODAY.');
-          p.forest_fights = Math.max(0, p.forest_fights - 1);
+          disp.sln('  `4YOU FEEL SO DESPONDENT YOU LOSE 1 ACTION TODAY.');
+          p.actions = Math.max(0, (p.actions || 0) - 1);
           break;
       }
     } else {
       // Apologize — always lose a fight
       const apologies = [
-        '"I\'m very sorry, ma\'am.  I was a jerk."\n  `%She narrows her eyes at you.\n  `0"And I uh, think you are perfectly beheading.  I mean, becoming!"\n  `#"AWK!! GO DIE YOU PIECE OF <choking spasm>" `2she screams.\n  `4YOU FEEL SO WOEBEGONE YOU LOSE A FOREST FIGHT FOR TODAY.',
-        '"Hey?  My old pal!  What are you doing in this \'neck\' of the woods?"\n  `%She narrows her eyes at you.\n  `0"Don\'t be mad!  Geez, time to try decapit..I mean, decaffinated!"\n  `#"GO EAT BUGS AND DIE, YOU HEARTLESS TROLL!" `2she screams.\n  `4YOU FEEL SO CRAPPY YOU LOSE A FOREST FIGHT FOR TODAY.',
+        '"I\'m very sorry, ma\'am.  I was a jerk."\n  `%She narrows her eyes at you.\n  `0"And I uh, think you are perfectly beheading.  I mean, becoming!"\n  `#"AWK!! GO DIE YOU PIECE OF <choking spasm>" `2she screams.\n  `4YOU FEEL SO WOEBEGONE YOU LOSE 1 ACTION TODAY.',
+        '"Hey?  My old pal!  What are you doing in this \'neck\' of the woods?"\n  `%She narrows her eyes at you.\n  `0"Don\'t be mad!  Geez, time to try decapit..I mean, decaffinated!"\n  `#"GO EAT BUGS AND DIE, YOU HEARTLESS TROLL!" `2she screams.\n  `4YOU FEEL SO CRAPPY YOU LOSE 1 ACTION TODAY.',
       ];
       apologies[rand(2)].split('\n').forEach(l => disp.sln(l));
-      p.forest_fights = Math.max(0, p.forest_fights - 1);
+      p.actions = Math.max(0, (p.actions || 0) - 1);
     }
     disp.sln('');
     await session.more();
@@ -993,8 +995,8 @@ async function jenniEaster(session, disp) {
 
   switch (answer) {
     case 'BABE':
-      disp.sln('  `0That is correct. `2(YOU RECEIVE AN EXTRA FOREST FIGHT!)');
-      p.forest_fights = Math.min((p.forest_fights || 0) + 1, 32000);
+      disp.sln('  `0That is correct. `2(YOU RECEIVE 1 EXTRA ACTION!)');
+      p.actions = Math.min((p.actions || 0) + 1, 32000);
       break;
     case 'SEXY':
       disp.sln('  `0Excellent. `2(YOU RECEIVE AN EXTRA USER FIGHT!)');
@@ -1064,7 +1066,7 @@ async function jenniEaster(session, disp) {
   // Persist all changes
   PlayerDB.patch(p.id, {
     hp: p.hp, gem: p.gem, gold: p.gold,
-    forest_fights: p.forest_fights, pvp_fights: p.pvp_fights,
+    actions: p.actions, pvp_fights: p.pvp_fights,
     cha: p.cha, flirted: p.flirted || 0,
     levelm: p.levelm || 0, levelw: p.levelw || 0, levelt: p.levelt || 0,
     magically_delicious: p.magically_delicious || 0,
@@ -1108,7 +1110,7 @@ async function lookToKill(session, disp) {
     // Persist any in-memory mutations from events that write directly to p.*
     PlayerDB.patch(p.id, {
       hp: pAfter.hp, hp_max: pAfter.hp_max, gold: pAfter.gold, gem: pAfter.gem,
-      cha: pAfter.cha, str: pAfter.str, forest_fights: pAfter.forest_fights,
+      cha: pAfter.cha, str: pAfter.str, actions: pAfter.actions,
       exp: pAfter.exp,
       horse: pAfter.horse ? 1 : 0,
       done_tower: pAfter.done_tower ? 1 : 0,
@@ -1137,9 +1139,10 @@ async function lookToKill(session, disp) {
   disp.sln(`\`2  You have encountered \`0${enemy.name}\`2!!`);
   disp.sln('');
 
-  // Decrement forest fights before battle (matches lord.js)
-  p.forest_fights -= 1;
-  PlayerDB.patch(p.id, { forest_fights: p.forest_fights });
+  // Spend 1 action before entering combat
+  // (already checked > 0 in the entry loop, but spend here to lock it in)
+  PlayerDB.patch(p.id, { actions: Math.max(0, (p.actions || 0) - 1) });
+  p.actions = Math.max(0, (p.actions || 0) - 1);
 
   const result = await battle(session, enemy);
 
@@ -1182,12 +1185,16 @@ async function enter(session) {
 
     switch (ch) {
       case 'L':
-        if (p.forest_fights < 1) {
+        if (p.is_exhausted || p.actions < 1) {
           disp.sln('');
+          disp.sln('  `2=== YOU ARE EXHAUSTED ===');
           disp.sln('');
-          disp.sln('  You are too tired.');
+          disp.sln('  You\'ve pushed yourself too hard today, adventurer.');
+          disp.sln('  Your actions have been spent. Rest and recover.');
           disp.sln('');
-          disp.sln('  Try again tomorrow.');
+          disp.sln('  (`%I`2) Visit the Inn   (`%K`2) Browse Equipment   (`%D`2) Daily News');
+          disp.sln('');
+          disp.sln('  `%Your actions reset at midnight. Come back tomorrow.');
           disp.sln('');
           await session.more();
         } else {

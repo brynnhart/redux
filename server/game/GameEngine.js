@@ -369,7 +369,7 @@ function showTownMenu(session, disp, player) {
   disp.sln('`2The Town Square  `0(`2? for menu`0)');
   disp.sln('`2(F,K,H,I,Y,W,C,X,P,S,V,T,L,D,O,M,Q)');
   disp.sln('');
-  disp.sw(`\`2Your command, \`%${player.name}\`2? [\`%${player.forest_fights}\`2] : `);
+  disp.sw(`\`2Your command, \`%${player.name}\`2? [\`%${player.actions}\`2] : `);
 }
 
 // ── View Stats — mirrors Stats.webp ───────────────────────────────────────
