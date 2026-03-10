@@ -469,7 +469,7 @@ async function battle(session, op, opts = {}) {
   if (p.dead || p.hp <= 0) {
     delete p._effectiveStr; delete p._effectiveDef; delete p._goldFind; delete p._expGain;
     await exhaustionScreen(session, disp, op);
-    LogDB.add(`  \`0${p.name} \`2has been exhausted by \`0${op.name}\`2!`);
+    LogDB.append(`  \`0${p.name} \`2has been exhausted by \`0${op.name}\`2!`);
     // triggerExhaustion already called inside exhaustionScreen; just refresh
     session.player = PlayerDB.getById(p.id);
     return 'lose';

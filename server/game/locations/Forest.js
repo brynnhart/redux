@@ -111,15 +111,16 @@ function showForestMenu(session, disp) {
 }
 
 function showForestPrompt(session, disp) {
-  const p = session.player;
+  const p       = session.player;
+  const actions = p.actions ?? 15;   // safe fallback for pre-migration player rows
   disp.sw(`\`2HitPoints: (\`0${pretty(p.hp)} \`2of \`0${pretty(p.hp_max)}\`2)`);
-  disp.sw(`\`2  Actions: \`0${pretty(p.actions)}`);
+  disp.sw(`\`2  Actions: \`0${pretty(actions)}`);
   disp.sw(`\`2  Gold: \`0${pretty(p.gold)}`);
   disp.sw(`\`2  Gems: \`0${pretty(p.gem)}`);
   disp.sln('');
   disp.sln('`5The Forest   `2(L,H,R,Q)  `0(? for menu)`2');
   disp.sln('');
-  disp.sw(`\`2Your command, \`%${p.name}\`2? [\`%${p.actions}\`2] : `);
+  disp.sw(`\`2Your command, \`%${p.name}\`2? [\`%${actions}\`2] : `);
 }
 
 // ── Event header (shared by all random events) ────────────────────────────
@@ -1066,7 +1067,7 @@ async function jenniEaster(session, disp) {
   // Persist all changes
   PlayerDB.patch(p.id, {
     hp: p.hp, gem: p.gem, gold: p.gold,
-    actions: p.actions, pvp_fights: p.pvp_fights,
+    actions: p.actions ?? 15, pvp_fights: p.pvp_fights,
     cha: p.cha, flirted: p.flirted || 0,
     levelm: p.levelm || 0, levelw: p.levelw || 0, levelt: p.levelt || 0,
     magically_delicious: p.magically_delicious || 0,
@@ -1151,8 +1152,8 @@ async function lookToKill(session, disp) {
     session.player = PlayerDB.getById(p.id);
     await checkCombatDrop(session, disp, enemy);
   } else if (result === 'lose') {
-    // dead_screen already called inside battle()
-    return false;
+    // exhaustionScreen already ran inside battle(); return sentinel to exit forest
+    return 'exhausted';
   }
   return true;
 }
@@ -1185,7 +1186,7 @@ async function enter(session) {
 
     switch (ch) {
       case 'L':
-        if (p.is_exhausted || p.actions < 1) {
+        if (p.is_exhausted || (p.actions ?? 15) < 1) {
           disp.sln('');
           disp.sln('  `2=== YOU ARE EXHAUSTED ===');
           disp.sln('');
@@ -1198,8 +1199,9 @@ async function enter(session) {
           disp.sln('');
           await session.more();
         } else {
-          const alive = await lookToKill(session, disp);
-          if (!alive) {
+          const result = await lookToKill(session, disp);
+          if (result === 'exhausted') {
+            // Player is exhausted — exit forest cleanly back to town square
             over = true;
             break;
           }
