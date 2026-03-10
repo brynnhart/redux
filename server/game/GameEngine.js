@@ -291,14 +291,13 @@ async function gameLoop(session, disp) {
 
     switch (key) {
       case 'F': await require('./locations/Forest').enter(session);         break;
-      case 'K': await require('./locations/KingsArthurs').enter(session);   break;
+      case 'K': await require('./locations/KingAbduls').enter(session);    break;  // King Abdul's Equipment
       case 'H': await require('./locations/Healer').enter(session);         break;
       case 'I': await require('./locations/Inn').enter(session);            break;
       case 'Y': await require('./locations/Bank').enter(session);           break;
       case 'W': await require('./locations/WriteMail').enter(session);       break;
       case 'C': await require('./locations/ConjugalityList').enter(session); break;
       case 'S': await require('./locations/Arena').enter(session);          break;  // Slaughter/PvP
-      case 'A': await require('./locations/Armoury').enter(session);        break;
       case 'V': await showStats(session, disp);                             break;
       case 'T': await require('./locations/Turgons').enter(session);        break;  // Turgon's training
       case 'L': await require('./systems/LeaderboardRouter').show(session); break;
@@ -356,19 +355,19 @@ function showTownMenu(session, disp, player) {
   };
 
   row('F', 'orest',                  'S', 'laughter other players');
-  row('K', 'ing Arthurs Weapons',    'A', 'bduls Armour');
-  row('H', 'ealers Hut',             'V', 'iew your stats');
-  row('I', 'nn',                     'T', 'urgons Warrior Training');
-  row('Y', 'e Old Bank',             'L', 'ist Warriors');
-  row('W', 'rite Mail',              'D', 'aily News');
-  row('C', 'onjugality List',        'O', 'ther Places');
-  row('X', 'pert Mode',              'M', 'ake Announcement');
-  row('P', 'eople Online',           'Q', 'uit to Fields');
+  row('K', "ing Abdul's Equipment",  'V', 'iew your stats');
+  row('H', 'ealers Hut',             'T', 'urgons Warrior Training');
+  row('I', 'nn',                     'L', 'ist Warriors');
+  row('Y', 'e Old Bank',             'D', 'aily News');
+  row('W', 'rite Mail',              'O', 'ther Places');
+  row('C', 'onjugality List',        'M', 'ake Announcement');
+  row('X', 'pert Mode',              'P', 'eople Online');
+  row('Q', 'uit to Fields',          '',  '');
   disp.sln('');
 
   // Status / prompt line
   disp.sln('`2The Town Square  `0(`2? for menu`0)');
-  disp.sln('`2(F,K,H,I,Y,W,C,X,P,S,A,V,T,L,D,O,M,Q)');
+  disp.sln('`2(F,K,H,I,Y,W,C,X,P,S,V,T,L,D,O,M,Q)');
   disp.sln('');
   disp.sw(`\`2Your command, \`%${player.name}\`2? [\`%${player.forest_fights}\`2] : `);
 }

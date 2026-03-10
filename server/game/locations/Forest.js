@@ -20,12 +20,47 @@
  *   attack_dragon()    — see Dragon.js
  */
 
-const PlayerDB   = require('../../db/PlayerDB');
-const StateDB    = require('../../db/StateDB');
-const LogDB      = require('../../db/LogDB');
-const Display    = require('../text/Display');
+const PlayerDB    = require('../../db/PlayerDB');
+const StateDB     = require('../../db/StateDB');
+const LogDB       = require('../../db/LogDB');
+const Display     = require('../text/Display');
 const { battle, rand } = require('../systems/Battle');
 const { monster_stats, castles } = require('../data/constants');
+const EquipmentDB = require('../../db/EquipmentDB');
+
+// ── Combat drop system ─────────────────────────────────────────────────────
+// ~17% chance on each monster kill to drop a random item.
+// Drop pool is all items. Higher player level skews towards better items.
+
+async function checkCombatDrop(session, disp, enemy) {
+  if (rand(6) !== 0) return; // ~17% chance
+
+  const p       = session.player;
+  const allItems = EquipmentDB.getAllDropItems();
+  if (!allItems.length) return;
+
+  // Bias towards items whose tier (index) is loosely matched to player level
+  // Level 1-4: first third; 5-8: middle; 9-12: upper tier
+  const tierFraction = Math.min((p.level - 1) / 11, 1);
+  const midpoint     = Math.floor(tierFraction * (allItems.length - 1));
+  const spread       = Math.max(3, Math.floor(allItems.length / 5));
+  const lo           = Math.max(0, midpoint - spread);
+  const hi           = Math.min(allItems.length - 1, midpoint + spread);
+  const idx          = lo + rand(hi - lo + 1);
+  const item         = allItems[idx];
+
+  if (!item) return;
+
+  // Add to inventory
+  EquipmentDB.addToInventory(p.id, item.id);
+
+  const mods = EquipmentDB.formatMods(item.modifiers);
+  disp.sln('');
+  disp.sln(`\`%  ** ITEM DROP! **`);
+  disp.sln(`\`2  You find a \`0${item.name}\`2 on the fallen enemy!  (\`0${mods}\`2)`);
+  disp.sln('\`2  It has been added to your pack.  Use `%V`2)iew Stats to equip it.');
+  disp.sln('');
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -1108,9 +1143,10 @@ async function lookToKill(session, disp) {
 
   const result = await battle(session, enemy);
 
-  // Log kill
+  // Log kill and check for equipment drop
   if (result === 'win') {
     session.player = PlayerDB.getById(p.id);
+    await checkCombatDrop(session, disp, enemy);
   } else if (result === 'lose') {
     // dead_screen already called inside battle()
     return false;

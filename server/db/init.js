@@ -205,6 +205,102 @@ function initDB() {
     );
   `);
 
+  // ── Equipment system ───────────────────────────────────────────────────────
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL,
+      description TEXT,
+      rarity      TEXT    NOT NULL DEFAULT 'common',   -- common/uncommon/rare
+      source      TEXT    NOT NULL DEFAULT 'shop',     -- shop/drop
+      gold_value  INTEGER NOT NULL DEFAULT 0,
+      modifiers   TEXT    NOT NULL DEFAULT '{}',       -- JSON: {attack:5, defense:3, ...}
+      equippable  INTEGER NOT NULL DEFAULT 1           -- boolean 1/0
+    );
+
+    CREATE TABLE IF NOT EXISTS player_equipment (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      slot_number INTEGER NOT NULL,
+      item_id     INTEGER NOT NULL REFERENCES items(id),
+      UNIQUE(player_id, slot_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS player_inventory (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id   INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      item_id     INTEGER NOT NULL REFERENCES items(id)
+    );
+  `);
+
+  // Add equipment_slots column to players if missing
+  try {
+    db.prepare('ALTER TABLE players ADD COLUMN equipment_slots INTEGER NOT NULL DEFAULT 3').run();
+  } catch (e) {
+    if (!e.message.includes('duplicate column name')) throw e;
+  }
+
+  // ── Seed items table (idempotent — only if empty) ──────────────────────────
+  const itemCount = db.prepare('SELECT COUNT(*) as n FROM items').get().n;
+  if (itemCount === 0) {
+    const insertItem = db.prepare(`
+      INSERT INTO items (name, description, rarity, source, gold_value, modifiers, equippable)
+      VALUES (@name, @description, @rarity, @source, @gold_value, @modifiers, @equippable)
+    `);
+
+    const seedItems = db.transaction((items) => {
+      for (const item of items) insertItem.run(item);
+    });
+
+    // ── Weapons (attack modifiers) — 16 tiers ─────────────────────────────
+    // Mirrored against armour for balanced split-purchase play
+    const weapons = [
+      { name: 'Stick',         description: 'A sturdy walking stick repurposed for violence.',   gold_value: 200,       modifiers: JSON.stringify({ attack: 5   }) },
+      { name: 'Dagger',        description: 'Quick and light; favored by those who value speed.', gold_value: 1000,      modifiers: JSON.stringify({ attack: 10  }) },
+      { name: 'Short Sword',   description: 'Reliable and easy to carry.',                        gold_value: 3000,      modifiers: JSON.stringify({ attack: 20  }) },
+      { name: 'Long Sword',    description: 'The weapon of the common soldier.',                  gold_value: 10000,     modifiers: JSON.stringify({ attack: 30  }) },
+      { name: 'Huge Axe',      description: 'Devastating in strong hands.',                       gold_value: 30000,     modifiers: JSON.stringify({ attack: 40  }) },
+      { name: 'Bone Cruncher', description: 'Its name explains everything you need to know.',    gold_value: 100000,    modifiers: JSON.stringify({ attack: 60  }) },
+      { name: 'Twin Swords',   description: 'Two blades, twice the carnage.',                     gold_value: 150000,    modifiers: JSON.stringify({ attack: 80  }) },
+      { name: 'Power Axe',     description: 'Enchanted steel that hums with fury.',               gold_value: 200000,    modifiers: JSON.stringify({ attack: 120 }) },
+      { name: "Able's Sword",  description: "Forged by the legendary smith Able.",                gold_value: 400000,    modifiers: JSON.stringify({ attack: 180 }) },
+      { name: "Wan's Weapon",  description: 'Its origin is a mystery even to its owner.',         gold_value: 1000000,   modifiers: JSON.stringify({ attack: 250 }) },
+      { name: 'Spear of Gold', description: 'A golden spear blessed by forgotten gods.',          gold_value: 4000000,   modifiers: JSON.stringify({ attack: 350 }) },
+      { name: 'Crystal Shard', description: 'A razor sliver of pure crystallized power.',         gold_value: 10000000,  modifiers: JSON.stringify({ attack: 500 }) },
+      { name: "Nira's Teeth",  description: 'Nobody asks what Nira was.',                         gold_value: 40000000,  modifiers: JSON.stringify({ attack: 800 }) },
+      { name: 'Blood Sword',   description: 'It drinks what it spills.',                          gold_value: 100000000, modifiers: JSON.stringify({ attack: 1200}) },
+      { name: 'Death Sword',   description: 'The last weapon you will ever need.',                gold_value: 400000000, modifiers: JSON.stringify({ attack: 2000}) },
+    ];
+
+    // ── Armour (defense modifiers) — 16 tiers ─────────────────────────────
+    const armours = [
+      { name: 'Coat',             description: 'Better than nothing. Barely.',                    gold_value: 200,       modifiers: JSON.stringify({ defense: 5   }) },
+      { name: 'Heavy Coat',       description: 'Thick wool with some toughened leather panels.',  gold_value: 1000,      modifiers: JSON.stringify({ defense: 10  }) },
+      { name: 'Leather Vest',     description: 'Supple, quiet, and better than cloth.',           gold_value: 3000,      modifiers: JSON.stringify({ defense: 20  }) },
+      { name: 'Bronze Armour',    description: 'The first step toward real protection.',          gold_value: 10000,     modifiers: JSON.stringify({ defense: 30  }) },
+      { name: 'Iron Armour',      description: 'Heavy, reliable, and completely unfashionable.',  gold_value: 30000,     modifiers: JSON.stringify({ defense: 40  }) },
+      { name: 'Graphite Armour',  description: 'Lightweight and surprisingly strong.',            gold_value: 100000,    modifiers: JSON.stringify({ defense: 60  }) },
+      { name: "Erdrick's Armour", description: 'Once worn by the hero Erdrick himself.',          gold_value: 150000,    modifiers: JSON.stringify({ defense: 80  }) },
+      { name: 'Armour of Death',  description: 'It was taken from someone who no longer needed it.',gold_value: 200000,  modifiers: JSON.stringify({ defense: 120 }) },
+      { name: "Able's Armour",    description: 'A matched set with the famous sword.',            gold_value: 400000,    modifiers: JSON.stringify({ defense: 180 }) },
+      { name: 'Full Body Armour', description: 'Head to toe in forged steel.',                    gold_value: 1000000,   modifiers: JSON.stringify({ defense: 250 }) },
+      { name: 'Blood Armour',     description: 'Stained crimson. Do not ask how.',                gold_value: 4000000,   modifiers: JSON.stringify({ defense: 350 }) },
+      { name: 'Magic Protection', description: 'Woven with spells older than the kingdom.',       gold_value: 10000000,  modifiers: JSON.stringify({ defense: 500 }) },
+      { name: "Belar's Mail",     description: 'Belar was never defeated in battle.',             gold_value: 40000000,  modifiers: JSON.stringify({ defense: 800 }) },
+      { name: 'Golden Armour',    description: 'Blinding to behold, impenetrable to strike.',    gold_value: 100000000, modifiers: JSON.stringify({ defense: 1200}) },
+      { name: 'Armour of Lore',   description: 'Ancient armour said to carry the knowledge of ages.',gold_value: 400000000,modifiers: JSON.stringify({ defense: 2000}) },
+    ];
+
+    const allShopItems = [
+      ...weapons.map(w => ({ ...w, rarity: 'common', source: 'shop', equippable: 1 })),
+      ...armours.map(a => ({ ...a, rarity: 'common', source: 'shop', equippable: 1 })),
+    ];
+
+    seedItems(allShopItems);
+    console.log(`[DB] Seeded ${allShopItems.length} items`);
+  }
+
   console.log('[DB] Schema ready');
   return db;
 }

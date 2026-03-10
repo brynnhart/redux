@@ -14,6 +14,7 @@ const PlayerDB  = require('../../db/PlayerDB');
 const LogDB     = require('../../db/LogDB');
 const Display   = require('../text/Display');
 const { level_exp } = require('../data/constants');
+const EquipmentDB   = require('../../db/EquipmentDB');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ function pretty(n) { return Math.floor(n).toLocaleString(); }
 
 async function enemyAttack(session, disp, op) {
   const p   = session.player;          // always fresh reference
+  const def = p._effectiveDef !== undefined ? p._effectiveDef : p.def;
   let   atk = rand(Math.floor(op.str / 2)) + Math.floor(op.str / 2);
 
   if (rand(30) === 0) {
@@ -33,7 +35,7 @@ async function enemyAttack(session, disp, op) {
     disp.sln('');
   }
 
-  atk -= p.def;
+  atk -= def;
   if (atk < 1) {
     disp.sln(`\`%** \`0${op.name}\`2 misses you Completely! \`%**`);
     return;
@@ -53,7 +55,8 @@ async function enemyAttack(session, disp, op) {
 
 async function doAttack(session, disp, op) {
   const p   = session.player;
-  let   atk = rand(Math.floor(p.str / 2)) + Math.floor(p.str / 2);
+  const str = p._effectiveStr !== undefined ? p._effectiveStr : p.str;
+  let   atk = rand(Math.floor(str / 2)) + Math.floor(str / 2);
   const crit = rand(10) === 9; // 1-in-10
 
   if (atk < 1 && !p.amulet) {
@@ -109,7 +112,8 @@ async function useDK(session, disp, op) {
   ];
   moves[rand(moves.length)].split('\n').forEach(l => disp.sln(l));
 
-  let atk = rand(Math.floor(p.str / 2)) + Math.floor(p.str / 2);
+  const dkStr = p._effectiveStr !== undefined ? p._effectiveStr : p.str;
+  let atk = rand(Math.floor(dkStr / 2)) + Math.floor(dkStr / 2);
   atk = Math.floor(atk * 3);
   if (op.pfight) atk -= op.def;
   if (atk < 1) atk = 1;
@@ -325,6 +329,18 @@ async function battle(session, op, opts = {}) {
   const { cantRun = false, isPvP = false } = opts;
   const disp = Display.forSession(session);
 
+  // ── Apply equipment bonuses as a pre-combat step ──────────────────────────
+  // Pull effective stats and temporarily boost session.player for combat.
+  // We store the originals so we can restore them after (the DB never gets
+  // these temp values — combat only mutates hp).
+  {
+    const effective = EquipmentDB.getEffectiveStats(session.player.id, session.player);
+    session.player._effectiveStr = effective.str;
+    session.player._effectiveDef = effective.def;
+    session.player._goldFind     = effective.goldFind;
+    session.player._expGain      = effective.expGain;
+  }
+
   // Initialise transient combat flags directly on session.player
   session.player.ran_away     = false;
   session.player.light_shield = false;
@@ -423,6 +439,7 @@ async function battle(session, op, opts = {}) {
   if (p.ran_away) {
     p.ran_away     = false;
     p.light_shield = false;
+    delete p._effectiveStr; delete p._effectiveDef; delete p._goldFind; delete p._expGain;
     PlayerDB.patch(p.id, { hp: Math.max(1, p.hp) });
     session.player = PlayerDB.getById(p.id);
     return 'ran';
@@ -432,6 +449,7 @@ async function battle(session, op, opts = {}) {
   p.light_shield = false;
 
   if (p.dead || p.hp <= 0) {
+    delete p._effectiveStr; delete p._effectiveDef; delete p._goldFind; delete p._expGain;
     await deadScreen(session, disp, op);
     LogDB.add(`  \`0${p.name} \`2has been killed by \`0${op.name}\`2!`);
     const newExp = clamp(p.exp - Math.floor(p.exp / 10), 0, 2000000000);
@@ -446,9 +464,26 @@ async function battle(session, op, opts = {}) {
   if (op.death && !op.pfight) { disp.sln(''); disp.sln(`\`2  ${op.death}`); }
   disp.sln('');
 
-  const goldWon = Math.min(op.gold || 0, 2000000000 - p.gold);
-  const expWon  = op.exp  || 0;
+  const goldFind = p._goldFind || 1;
+  const expGain  = p._expGain  || 1;
+
+  const goldWon = Math.min(Math.floor((op.gold || 0) * goldFind), 2000000000 - p.gold);
+  const expWon  = Math.floor((op.exp  || 0) * expGain);
+
+  if (goldFind > 1 || expGain > 1) {
+    const goldBase = op.gold || 0;
+    const expBase  = op.exp  || 0;
+    if (goldFind > 1) disp.sln(`\`2  (Gold boosted by equipment: \`%${goldBase}\`2 → \`%${goldWon}\`2)`);
+    if (expGain  > 1) disp.sln(`\`2  (Exp boosted by equipment: \`%${expBase}\`2 → \`%${expWon}\`2)`);
+  }
+
   disp.sln(`\`2  You receive \`0${pretty(goldWon)} \`2gold and \`0${pretty(expWon)} \`2experience!`);
+
+  // Clean up temp effective-stat fields
+  delete p._effectiveStr;
+  delete p._effectiveDef;
+  delete p._goldFind;
+  delete p._expGain;
 
   PlayerDB.patch(p.id, {
     hp   : Math.max(1, p.hp),
