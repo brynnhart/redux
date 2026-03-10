@@ -128,6 +128,7 @@ function resetDaily(id) {
   patch(id, {
     actions       : baseAP,
     is_exhausted  : false,
+    hp            : p.hp_max,   // fully restored each new day
     pvp_fights    : 5,
     killedaplayer : false,
     seen_master   : false,
