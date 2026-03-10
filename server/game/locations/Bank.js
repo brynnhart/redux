@@ -15,6 +15,7 @@
  */
 
 const Display  = require('../text/Display');
+const { getPronouns } = require('../utils/pronouns');
 const PlayerDB = require('../../db/PlayerDB');
 
 function pretty(n) { return Math.floor(n).toLocaleString(); }
@@ -95,7 +96,7 @@ async function withdraw(session, disp) {
     if (p.gold + amt > MAX_GOLD) amt = MAX_GOLD - p.gold;
 
     if (amt > p.bank) {
-      const title = p.sex === 'M' ? 'sir' : 'ma\'am';
+      const title = getPronouns(p.sex).subject === 'he' ? 'sir' : getPronouns(p.sex).subject === 'she' ? "ma'am" : 'friend';
       disp.sln(`  "I'm afraid you don't have that much in your account, ${title}."`);
     } else if (amt <= 0) {
       disp.sln('  "You can\'t carry any more gold, friend."');
@@ -142,7 +143,7 @@ async function deposit(session, disp) {
       persist(session, { bank: MAX_GOLD });
       disp.sln('  "I\'m sorry, but we can only keep 2,000,000,000 gold at a time."');
     } else if (amt > p.gold) {
-      const title = p.sex === 'M' ? 'sir' : 'ma\'am';
+      const title = getPronouns(p.sex).subject === 'he' ? 'sir' : getPronouns(p.sex).subject === 'she' ? "ma'am" : 'friend';
       disp.sln(`  "I'm afraid you don't have that much on you, ${title}."`);
     } else if (amt <= 0) {
       disp.sln('  "Your account is already full, friend."');
@@ -195,7 +196,7 @@ async function transfer(session, disp) {
     return;
   }
   if (amt > p.bank) {
-    const title = p.sex === 'M' ? 'sir' : 'woman';
+    const title = getPronouns(p.sex).subject === 'he' ? 'sir' : getPronouns(p.sex).subject === 'she' ? 'woman' : 'friend';
     disp.sln(`  "I'm afraid you don't have that much in your account, ${title}."`);
     await session.more();
     return;
@@ -227,7 +228,7 @@ async function transfer(session, disp) {
   );
 
   if (!recip) {
-    disp.sln(`  "I don't know anyone by that name, ${p.sex === 'M' ? 'sir' : 'ma\'am'}."`);
+    disp.sln(`  "I don't know anyone by that name, ${getPronouns(p.sex).subject === 'he' ? 'sir' : getPronouns(p.sex).subject === 'she' ? "ma'am" : 'friend'}."`);
     disp.sln('  Gold Not Sent!');
     await session.more();
     return;

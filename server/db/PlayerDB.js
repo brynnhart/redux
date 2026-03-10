@@ -72,7 +72,7 @@ function create(userId, charName, sex) {
   const info = db.prepare(`
     INSERT INTO players (user_id, name, real_name, sex)
     VALUES (?, ?, ?, ?)
-  `).run(userId, charName, charName, sex || 'M');
+  `).run(userId, charName, charName, sex || 'male');
   return getById(info.lastInsertRowid);
 }
 

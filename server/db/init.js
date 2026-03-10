@@ -51,7 +51,7 @@ function initDB() {
       user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name            TEXT    NOT NULL,               -- in-game character name (max 20)
       real_name       TEXT    NOT NULL DEFAULT '',    -- account username copy
-      sex             TEXT    NOT NULL DEFAULT 'M',   -- 'M' or 'F'
+      sex             TEXT    NOT NULL DEFAULT 'male',  -- 'male' | 'female' | 'nonbinary'
 
       -- Stats
       hp              INTEGER NOT NULL DEFAULT 20,

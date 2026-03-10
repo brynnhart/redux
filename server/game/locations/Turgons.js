@@ -24,6 +24,7 @@
  */
 
 const Display      = require('../text/Display');
+const { getPronouns, cap } = require('../utils/pronouns');
 const PlayerDB     = require('../../db/PlayerDB');
 const LogDB        = require('../../db/LogDB');
 const { showStats }  = require('../ShowStats');
@@ -128,11 +129,32 @@ const LEVEL_TEXT = {
   '11FEMALE':[`  \`2"\`0I am Turgon, daughter.  The greatest warrior in the realm.`,
               `  You are a great warrior, and if you best me, you must`,
               `  find and kill the Red Dragon.  I have every faith in you.\`2"`],
+
+  // Non-binary variants — same as MALE except where it matters
+  '1NONBINARY' : [`  \`2"\`0Hi there.  Although I may not look muscular, I ain't all`,
+              `  that weak.  You cannot advance to another Master until you`,
+              `  can best me in battle.  I don't really have any advice`,
+              `  except wear a groin cup at all times.  I learned the hard`,
+              `  way.\`2"`],
+  '3NONBINARY' : [`  \`2"\`0You are now level three, and you are actually becoming`,
+              `  well known in the realm.  I heard your name being mentioned`,
+              `  by Seth Able the Bard and Violet both.... You seem popular....\`2"`],
+  '7NONBINARY' : [`  \`2"\`0You have grown powerful, young warrior.`,
+              `  You are one to be reckoned with now.  Remember,`,
+              `  Trade your Gems with the bartender to further your`,
+              `  ability.\`2"`],
+  '11NONBINARY': [`  \`2"\`0I am Turgon, child.  The greatest warrior in the realm.`,
+              `  You are a great warrior, and if you best me, you must`,
+              `  find and kill the Red Dragon.  I have every faith in you.\`2"`],
 };
 
 function getLevelText(level, sex) {
-  const key = `${level}${sex === 'F' ? 'FEMALE' : 'MALE'}`;
-  return LEVEL_TEXT[key] || [`  \`2Your master has nothing to say to you today.`];
+  const { normalise } = require('../utils/pronouns');
+  const norm = normalise(sex);
+  const suffix = norm === 'female' ? 'FEMALE' : norm === 'nonbinary' ? 'NONBINARY' : 'MALE';
+  // Nonbinary falls back to MALE if no specific entry exists
+  const key = `${level}${suffix}`;
+  return LEVEL_TEXT[key] || LEVEL_TEXT[`${level}MALE`] || [`  \`2Your master has nothing to say to you today.`];
 }
 
 // ── get trainer for current level (capped at 11) ──────────────────────────
@@ -194,7 +216,7 @@ async function attackMaster(session, disp) {
 
   // Already fought today
   if (p.seen_master) {
-    const son = p.sex === 'M' ? 'son' : 'daughter';
+    const son = getPronouns(p.sex).sonDaughter;
     disp.sln(`  "I would like to battle again, but it is too late my ${son}."`);
     disp.sln(`  \`2${trainer.name} tells you.  You figure you will try again`);
     disp.sln('  tomorrow.');
@@ -302,7 +324,8 @@ async function attackMaster(session, disp) {
     // Log to daily happenings
     let mline = `  \`0${pp.name} \`2has beaten \`%${trainer.name}!`;
     if (newLevel === 12) {
-      const pronoun = pp.sex === 'M' ? 'He' : 'She';
+      const { cap: _cap } = require('../utils/pronouns');
+      const pronoun = _cap(getPronouns(pp.sex).subject);
       mline += `\n  ${pronoun} has become the Ultimate Warrior!`;
     }
     LogDB.append(mline);
@@ -393,7 +416,7 @@ async function raiseClass(session, disp) {
       disp.sln('');
       disp.sln('  `2An old man with a long white beard suddenly appears next to you.');
       disp.sln('');
-      const boyGirl = p.sex === 'F' ? 'my girl!' : 'boy!';
+      const boyGirl = getPronouns(p.sex).boyGirl + '!';
       disp.sln(`  \`0"You're ready for your next lesson ${boyGirl}`);
       disp.sln('');
       await session.more();

@@ -10,6 +10,7 @@
  *       (W)alk to Old Man, (G)amble, (D)aily news, (Y)iew stats, (R)eturn
  */
 
+const { getPronouns, cap } = require('../utils/pronouns');
 const PlayerDB         = require('../../db/PlayerDB');
 const StateDB          = require('../../db/StateDB');
 const LogDB            = require('../../db/LogDB');
@@ -366,7 +367,7 @@ async function talkChance(session, disp) {
         continue;
       }
       if (target.id === p.id) {
-        disp.sln(`  \`0"Yes..I know ${p.sex === 'M' ? 'him' : 'her'}.  ${p.sex === 'M' ? 'He' : 'She'} is a favorite customer of mine!"`);
+        { const _pr = getPronouns(p.sex); disp.sln(`  \`0"Yes..I know ${_pr.object}.  ${cap(_pr.subject)} is a favorite customer of mine!"`); }
         disp.sln('  `2Chance laughs heartily.');
         disp.sln('');
         continue;
@@ -408,8 +409,9 @@ async function talkChance(session, disp) {
       disp.sln('');
       await session.more();
 
-      const him = target.sex === 'M' ? 'him' : 'her';
-      const he  = target.sex === 'M' ? 'he'  : 'she';
+      const _cPr = getPronouns(target.sex);
+      const him = _cPr.object;
+      const he  = _cPr.subject;
       disp.sln(`  \`0"Fights with a ${target.weapon}\`0 and has a total Strength of \`%${pretty(target.str)}\`0."`);
       disp.sln(`  \`0"Wears a ${target.arm}\`0 and has a total Defense of \`%${pretty(target.def)}\`0."`);
       disp.sln('');
@@ -420,11 +422,9 @@ async function talkChance(session, disp) {
       else if (cha < 10) disp.sln(`  \`0"${target.name} is fairly good looking."`);
       else if (cha < 50) disp.sln(`  \`0"${target.name} has a very fair countenance."`);
       else if (cha < 90) {
-        if (target.sex === 'F') disp.sln(`  \`0"${target.name} is a very good looking woman."`);
-        else                    disp.sln(`  \`0"${target.name} gets all the women...The lucky brute!"`);
+        if (target.sex === 'female' || target.sex === 'F') disp.sln(`  \`0"${target.name} is a very good looking woman."`); else if (target.sex === 'nonbinary') disp.sln(`  \`0"${target.name} has a remarkably striking presence."`); else disp.sln(`  \`0"${target.name} gets all the women...The lucky brute!"`);
       } else {
-        if (target.sex === 'F') disp.sln(`  \`0"I have heard ${target.name} has the face and body of a Goddess."`);
-        else                    disp.sln(`  \`0"${target.name} is a good looking bastard."`);
+        if (target.sex === 'female' || target.sex === 'F') disp.sln(`  \`0"I have heard ${target.name} has the face and body of a Goddess."`); else if (target.sex === 'nonbinary') disp.sln(`  \`0"I have heard ${target.name} is something truly extraordinary."`); else disp.sln(`  \`0"${target.name} is a good looking bastard."`);
       }
       disp.sln('');
       disp.sln(`  \`0"Total worth in gold is ${pretty((target.gold || 0) + (target.bank || 0))}."`);
@@ -540,7 +540,7 @@ async function talkOldMan(session, disp) {
         disp.sln('');
         continue;
       }
-      const him = target.sex === 'M' ? 'him' : 'her';
+      const him = getPronouns(target.sex).object;
       disp.sln('  `2The Old Man thinks for a minute..');
       if (!target.has_des) {
         disp.sln(`  \`0"${target.name}?  I haven't heard anything about ${him}."`);

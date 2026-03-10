@@ -27,6 +27,7 @@ const LogDB          = require('../../db/LogDB');
 const MailDB         = require('../../db/MailDB');
 const ConversationDB = require('../../db/ConversationDB');
 const { battle, checkLevelUp, exhaustionScreen } = require('../systems/Battle');
+const { getPronouns, cap } = require('../utils/pronouns');
 
 function pretty(n) { return Math.floor(n).toLocaleString(); }
 function rand(n)   { return Math.floor(Math.random() * Math.max(1, n)); }
@@ -194,7 +195,7 @@ async function attackPlayer(session, disp) {
   // Dead target
   if (target.dead) {
     disp.sw('  You look for that warrior...And you find ');
-    disp.sln(target.sex === 'M' ? 'him...' : 'her...');
+    disp.sln(getPronouns(target.sex).object + '...');
     disp.sln('  A rotting corpse...Looks like you were a little late..');
     disp.sln('');
     await session.more();
@@ -205,7 +206,7 @@ async function attackPlayer(session, disp) {
   if (target.inn) {
     disp.sln('  You search the fields but do not find that warrior.');
     disp.sw('  You conclude ');
-    disp.sln(target.sex === 'F' ? 'she is staying at the Inn.' : 'he is staying at the Inn.');
+    disp.sln(cap(getPronouns(target.sex).subject) + ' is staying at the Inn.');
     disp.sln('');
     await session.more();
     return;
@@ -215,8 +216,8 @@ async function attackPlayer(session, disp) {
   p = session.player;
   disp.sln('');
   disp.sw(`  \`2You hunt around for \`0${target.name}\`2...`);
-  disp.sln(target.sex === 'M' ? 'YOU FIND HIM!' : 'YOU FIND HER!');
-  disp.sw(target.sex === 'M' ? '  He' : '  She');
+  disp.sln('YOU FIND ' + getPronouns(target.sex).object.toUpperCase() + '!');
+  disp.sw('  ' + cap(getPronouns(target.sex).subject));
   disp.sln(`\`2 is brandishing a dangerous looking \`0${target.weapon || 'Stick'}\`2.`);
   disp.sln('');
   disp.sw(`  \`2Attack \`5${target.name} \`2[\`0Y\`2] : \`%`);

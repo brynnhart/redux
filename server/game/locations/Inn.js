@@ -18,6 +18,7 @@
  */
 
 const Display        = require('../text/Display');
+const { getPronouns, cap } = require('../utils/pronouns');
 const PlayerDB       = require('../../db/PlayerDB');
 const LogDB          = require('../../db/LogDB');
 const ConversationDB = require('../../db/ConversationDB');
@@ -101,12 +102,15 @@ async function getARoom(session, disp) {
 
   // Cha > 99 = free room
   if (p.cha > 99) {
-    if (p.sex === 'M') {
+    const _freeRoomPr = getPronouns(p.sex);
+    if (_freeRoomPr.subject === 'he') {
       disp.sln('  "You seem like a nice guy, and I hear you\'re tough, so tell you what,');
       disp.sln('  I\'ll just give you the room for free...."');
-    } else {
+    } else if (_freeRoomPr.subject === 'she') {
       disp.sln('  "Hey good lookin\'!  I\'ll be glad to give you a freebie...');
       disp.sln('  A free room I mean, of course.  Har!"');
+    } else {
+      disp.sln('  "A warrior of your reputation!  Please, the room is on me tonight."');
     }
     disp.sln('');
     await session.more();
@@ -404,8 +408,9 @@ async function attackInInn(session, disp) {
         disp.sln('');
         continue;
       }
-      const pronoun = target.sex === 'M' ? 'he' : 'she';
-      const hisher  = target.sex === 'M' ? 'his' : 'her';
+      const _tPr = getPronouns(target.sex);
+      const pronoun = _tPr.subject;
+      const hisher  = _tPr.possessive;
       if (target.dead) {
         disp.sln(`  That warrior isn't at the Inn at the moment.`);
         disp.sln(`  You recall seeing in the news that ${pronoun} was dead..`);
@@ -424,9 +429,9 @@ async function attackInInn(session, disp) {
         continue;
       }
 
-      disp.sln(`  \`2You enter ${target.name}\`2s room...\`5${target.sex === 'M' ? 'He' : 'She'} is sleeping.`);
+      disp.sln(`  \`2You enter ${target.name}\`2s room...\`5${cap(getPronouns(target.sex).subject)} is sleeping.`);
       disp.sln(`  \`2You notice ${pronoun} has a dangerous looking \`0${target.weapon}\`2 by ${hisher} bed..`);
-      disp.sln(`  \`2Are you sure you want to attack ${pronoun === 'he' ? 'him' : 'her'}?`);
+      disp.sln(`  \`2Are you sure you want to attack ${getPronouns(target.sex).object}?`);
       disp.sln('');
       disp.sw(`  \`2Attack \`5${target.name} \`2[\`0Y\`2] :\`0`);
       const conf = await session.getKeyUpper();

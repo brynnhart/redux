@@ -15,6 +15,7 @@
  */
 
 const Display     = require('./text/Display');
+const { genderLabel } = require('./utils/pronouns');
 const PlayerDB    = require('../db/PlayerDB');
 const EquipmentDB = require('../db/EquipmentDB');
 
@@ -51,9 +52,10 @@ async function showStats(session, diagDisp) {
     disp.sln(SEP);
     disp.sln('');
     disp.sln(`\`2Experience     : \`%${pretty(p.exp)}`);
-    disp.sln(`\`2Level          : \`%${p.level}` +
+    disp.sln(`\`2Gender         : \`%${genderLabel(p.sex)}`
+             + `\`0                  \`2Level          : \`%${p.level}` +
              `\`0                  \`2HitPoints      :(\`%${p.hp} \`2of \`%${p.hp_max}\`2)`);
-    disp.sln(`\`2Actions Today  : \`%${p.actions}${p.is_exhausted ? ' \`4(EXHAUSTED)' : ''}` +
+    disp.sln(`\`2Actions Today  : \`%${p.actions ?? 15}${p.is_exhausted ? ' \`4(EXHAUSTED)' : ''}` +
              `\`0                  \`2Player Fights Left : \`%${p.pvp_fights}`);
     disp.sln(`\`2Gold In Hand   : \`%${pretty(p.gold)}` +
              `\`0                  \`2Gold In Bank   : \`%${pretty(p.bank)}`);

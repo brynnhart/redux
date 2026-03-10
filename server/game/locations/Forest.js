@@ -381,8 +381,9 @@ async function forestSpecial(session, disp) {
 async function rescuePrincess(session, disp) {
   const p       = session.player;
   const which   = StateDB.get().which_castle || (rand(5) + 1);
-  const him     = p.sex === 'M' ? 'her' : 'him';
-  const lad     = p.sex === 'M' ? 'girl' : 'lad';
+  const _pPr    = getPronouns(p.sex);
+  const him     = _pPr.subject === 'he' ? 'her' : _pPr.subject === 'she' ? 'him' : 'them';
+  const lad     = _pPr.ladGirl;
 
   session.clearScreen();
   disp.sln('');
@@ -503,8 +504,8 @@ async function rescuePrincess(session, disp) {
     disp.sln('');
     disp.sln('  `2You breathe a sigh of relief.  This was the right place.');
     disp.sln('');
-    if (p.sex === 'M') {
-      disp.sln('  `2The girl eyes you dreamily.  `0"I can never repay you, and I.."');
+    if (_pPr.subject !== 'they') {
+      disp.sln('  `2The royal eyes you dreamily.  `0"I can never repay you, and I.."');
       disp.sln('');
       disp.sln('  `%"Oh but you can.  Is that your bed?" `2you interrupt.');
       disp.sln('');
@@ -521,7 +522,7 @@ async function rescuePrincess(session, disp) {
     disp.sln(`  \`0YOU GET \`%${pretty(gemReward)} \`0GEMS FOR YOUR TROUBLE.`);
     p.gem = clamp(p.gem + gemReward, 0, 32000);
     disp.sln('');
-    LogDB.add(`  \`0${p.name} \`2saved a ${p.sex === 'M' ? 'princess' : 'prince'} today!`);
+    LogDB.append(`  \`0${p.name} \`2saved a ${_pPr.princessPrince} today!`);
   } else {
     // Wrong castle
     switch (rand(2)) {
@@ -539,14 +540,18 @@ async function rescuePrincess(session, disp) {
         disp.sln('  `4YOU WEAKLY CRAWL AWAY SOMETIME LATER.');
         break;
       case 1:
-        if (p.sex === 'M') {
+        if (_pPr.subject === 'he') {
           disp.sln('  `2You see two beautiful women playing chess.');
           disp.sln('');
           disp.sln('  `%"Hello, ladies.  Which one of you needs rescuing?" `2you ask politely.');
-        } else {
+        } else if (_pPr.subject === 'she') {
           disp.sln('  `2You see two handsome men playing chess.');
           disp.sln('');
           disp.sln('  `%"Hello, boys.  Which one of you needs rescuing?" `2you ask politely.');
+        } else {
+          disp.sln('  `2You see two people playing chess.');
+          disp.sln('');
+          disp.sln('  `%"Hello there.  Which one of you needs rescuing?" `2you ask politely.');
         }
         disp.sln('');
         await session.more();
@@ -565,12 +570,8 @@ async function rescuePrincess(session, disp) {
         disp.sln('  `%"Ah.  Yes.  Well, this is all very tragic, but I uh, need to be going." `2you');
         disp.sln('  stutter uncomfortably.');
         disp.sln('');
-        if (p.sex === 'M') {
-          disp.sln('  `2The now ashen white faced women look at you dumbfounded as you make your exit.');
-        } else {
-          disp.sln('  `2The now ashen white faced men look at you dumbfounded as you make your exit.');
-        }
-        LogDB.add(`  \`0${p.name} \`2showed courage today by trying to save a ${p.sex === 'M' ? 'princess' : 'prince'}.`);
+        disp.sln('  `2The now ashen white faced people look at you dumbfounded as you make your exit.');
+        LogDB.append(`  \`0${p.name} \`2showed courage today by trying to save a ${_pPr.princessPrince}.`);
         break;
     }
   }
@@ -592,11 +593,7 @@ async function olivia(session, disp) {
     disp.sln('');
     disp.sln('  You investigate - only to find a womans head on the ground.');
     disp.sln('');
-    if (p.sex === 'M') {
-      disp.sln('  `0"I see you, foolish boy.  Leave me alone!" `2the head screams savagely.');
-    } else {
-      disp.sln('  `0"I see you, foolish girl.  Leave me alone!" `2the head shouts.');
-    }
+    disp.sln(`  \`0"I see you, foolish ${getPronouns(p.sex).child}.  Leave me alone!" \`2the head screams savagely.`);
     disp.sln('');
     disp.sln('  `2(`0A`2)pologize for what you did last time');
     disp.sln('  `2(`0P`2)lay some "head ball"');
@@ -675,8 +672,7 @@ async function olivia(session, disp) {
     await session.more();
     disp.sln('  `#"Oh, do shut up!" `2the head implores you, scowling.');
     disp.sln('');
-    if (p.sex === 'M') disp.sln('  `2You stare at the head in shock.  (which really isn\'t bad looking)');
-    else               disp.sln('  `2You stare at the head in shock.');
+    disp.sln(getPronouns(p.sex).subject === 'he' ? '  `2You stare at the head in shock.  (which really isn\'t bad looking)' : '  `2You stare at the head in shock.');
     disp.sln('');
     disp.sln('  `2(`0A`2)sk the head who she is');
     disp.sln('  `2(`0B`2)oot her a distance');
@@ -775,7 +771,7 @@ async function classForestEvent(session, disp) {
     disp.sln('  The Black Knights.  You are immediately greeted by a score of men in');
     disp.sln('  shiny black armour.');
     disp.sln('');
-    const title = p.sex === 'F' ? 'Lady' : 'Lord';
+    const title = getPronouns(p.sex).subject === 'she' ? 'Lady' : getPronouns(p.sex).subject === 'they' ? 'Ser' : 'Lord';
 
     if (p.skillw > 39) {
       disp.sln(`  \`0"Well met ${title} \`%${p.name}\`0!  A fellow Black Knight is always welcome."\`2`);
@@ -889,7 +885,7 @@ async function classForestEvent(session, disp) {
       disp.sln('  `2You politely knock on the knotted wooden door.');
     }
     disp.sln('');
-    disp.sln(`  \`0"Watcha doin' down there ${p.sex === 'M' ? 'Sonny' : 'Miss'}?!"\`2  You look up and see a wizened old man.`);
+    disp.sln(`  \`0"Watcha doin' down there ${getPronouns(p.sex).subject === 'he' ? 'Sonny' : getPronouns(p.sex).subject === 'she' ? 'Miss' : 'friend'}?!"\`2  You look up and see a wizened old man.`);
     disp.sln('  `0"Tell ya what!  I\'ll give ya a mystical lesson if you can pass my test!"');
     disp.sln('');
     await session.more();
@@ -1057,11 +1053,7 @@ async function jenniEaster(session, disp) {
       p.hp = 1;
       break;
     default:
-      if (p.sex === 'M') {
-        disp.sln('  `2You do not understand her, my son.');
-      } else {
-        disp.sln('  `2Perhaps if you were male you might understand better.');
-      }
+      disp.sln(`  \`2You do not understand her, my ${getPronouns(p.sex).sonDaughter}.`);
   }
 
   // Persist all changes

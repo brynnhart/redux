@@ -7,6 +7,7 @@
  * and attack_dragon() — lines 15088–15130
  */
 
+const { getPronouns } = require('../utils/pronouns');
 const PlayerDB = require('../../db/PlayerDB');
 const StateDB  = require('../../db/StateDB');
 const LogDB    = require('../../db/LogDB');
@@ -51,10 +52,12 @@ async function storyWarrior(session, disp) {
   disp.sln('  you are quite a bit lower, still at level two, eh?"');
   disp.sln('');
   disp.sln('  `2Barak gives you no more trouble, and you are declared a hero by all.');
-  if (p.sex === 'M') {
+  if (getPronouns(p.sex).subject === 'he') {
     disp.sln('  `#Violet `2tops off the evening by giving you a kiss on the cheek.');
-  } else {
+  } else if (getPronouns(p.sex).subject === 'she') {
     disp.sln('  `%Seth Able `2tops off the evening by giving you a kiss on the cheek.');
+  } else {
+    disp.sln('  `#Violet `2and `%Seth Able `2both raise a glass to you across the room.');
   }
   disp.sln('');
   await session.more();
@@ -94,10 +97,12 @@ async function storyMystic(session, disp) {
   disp.sln('  `0"The Dragon is dead." `2you announce simply.');
   disp.sln('');
   disp.sln('  `2Silence — then erupting into the loudest cheer this town has ever heard.');
-  if (p.sex === 'M') {
+  if (getPronouns(p.sex).subject === 'he') {
     disp.sln('  `#Violet `2finds you in the crowd and hugs you until you can\'t breathe.');
-  } else {
+  } else if (getPronouns(p.sex).subject === 'she') {
     disp.sln('  `%Seth Able `2finds you in the crowd and lifts you off your feet.');
+  } else {
+    disp.sln('  `#Violet `2and `%Seth Able `2both fight through the crowd to embrace you.');
   }
   disp.sln('');
   await session.more();

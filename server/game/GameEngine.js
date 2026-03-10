@@ -85,16 +85,26 @@ async function newPlayer(session, disp) {
 
   // ── Sex ────────────────────────────────────────────────────────────────────
   disp.sln('');
-  disp.sw('`2And your gender?  (`%M`2/`%F`2) [`%M`2]: ');
-  const sex = await session.prompt('', ['M', 'F']);
+  disp.sln('`2=== CHOOSE YOUR GENDER ===');
+  disp.sln('');
+  disp.sln('`5(`%1`5) Male');
+  disp.sln('`5(`%2`5) Female');
+  disp.sln('`5(`%3`5) Non-Binary');
+  disp.sln('');
+  disp.sw('`2Your choice: ');
+  const sexKey = await session.prompt('', ['1', '2', '3']);
+  const sexMap = { '1': 'male', '2': 'female', '3': 'nonbinary' };
+  const sex    = sexMap[sexKey] || 'male';
   disp.sln('');
   disp.sln('');
 
-  // Flavor response — matches original
-  if (sex === 'M') {
+  // Flavor response
+  if (sex === 'male') {
     disp.sln('`2Then don\'t be wearing any dresses, eh.');
-  } else {
+  } else if (sex === 'female') {
     disp.sln('`2Good.  We need more women in this world.');
+  } else {
+    disp.sln('`2Good.  The realm welcomes all who are brave enough to fight.');
   }
 
   // ── Class selection — uses K/D/L keys matching original ───────────────────
@@ -369,7 +379,7 @@ function showTownMenu(session, disp, player) {
   disp.sln('`2The Town Square  `0(`2? for menu`0)');
   disp.sln('`2(F,K,H,I,Y,W,C,X,P,S,V,T,L,D,O,M,Q)');
   disp.sln('');
-  disp.sw(`\`2Your command, \`%${player.name}\`2? [\`%${player.actions}\`2] : `);
+  disp.sw(`\`2Your command, \`%${player.name}\`2? [\`%${player.actions ?? 15}\`2] : `);
 }
 
 // ── View Stats — mirrors Stats.webp ───────────────────────────────────────

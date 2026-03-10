@@ -14,6 +14,7 @@ const PlayerDB  = require('../../db/PlayerDB');
 const LogDB     = require('../../db/LogDB');
 const Display   = require('../text/Display');
 const { level_exp } = require('../data/constants');
+const { getPronouns } = require('../utils/pronouns');
 const EquipmentDB   = require('../../db/EquipmentDB');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ async function enemyAttack(session, disp, op) {
 
   if (p.light_shield) atk = Math.floor(atk / 2);
 
-  const withWord = op.pfight ? (op.sex === 'F' ? 'her' : 'his') : 'its';
+  const withWord = op.pfight ? getPronouns(op.sex).possessive : 'its';
   disp.sw(`\`4** \`0${op.name} \`2hits with ${withWord} \`0${op.weapon} \`2for `);
   disp.sln(`\`4${pretty(atk)} \`2damage! \`4**`);
 

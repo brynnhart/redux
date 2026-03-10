@@ -17,6 +17,7 @@
  */
 
 const Display  = require('../text/Display');
+const { getPronouns, cap } = require('../utils/pronouns');
 const PlayerDB = require('../../db/PlayerDB');
 const MailDB   = require('../../db/MailDB');
 const LogDB    = require('../../db/LogDB');
@@ -246,7 +247,7 @@ const ROMANCE_OPTS = {
 async function sendRomanceMail(session, disp, recipient, kind) {
   const p      = session.player;
   const config = ROMANCE_OPTS[kind];
-  const opts   = p.sex === 'M' ? config.mOpts : config.fOpts;
+  const opts   = (p.sex === 'male' || p.sex === 'M') ? config.mOpts : config.fOpts;
   const hint   = opts[rand(opts.length)];
 
   disp.sln('');
@@ -267,15 +268,16 @@ async function sendRomanceMail(session, disp, recipient, kind) {
   disp.sln('  `%** WRITING ROMANTIC MAIL, PLEASE WAIT **');
   disp.sln('');
 
-  const pronoun   = p.sex === 'M' ? 'his' : 'her';
-  const ppronoun  = p.sex === 'M' ? 'him' : 'her';
+  const _mPr      = getPronouns(p.sex);
+  const pronoun   = _mPr.possessive;
+  const ppronoun  = _mPr.object;
 
   const notifLines = {
     F: `  \`2${p.name} is flirting with you!`,
     A: `  \`2${p.name} wants you to kiss ${ppronoun}!`,
     B: `  \`2${p.name} wants to treat you to dinner!`,
     I: `  \`2${p.name} wants you to join ${ppronoun} in a night of\n  \`2unbridled passion, in ${pronoun} room at the Inn.`,
-    P: `  \`2${p.name} has publicly declared ${pronoun} love for\n  \`2you.  ${p.sex === 'M' ? 'He' : 'She'} is asking for your hand in marriage.`,
+    P: `  \`2${p.name} has publicly declared ${pronoun} love for\n  \`2you.  ${cap(getPronouns(p.sex).subject)} is asking for your hand in marriage.`,
   };
 
   const body = [
@@ -307,8 +309,9 @@ async function sendRomanceMail(session, disp, recipient, kind) {
 
 async function romanticOptions(session, disp, recipient) {
   const p      = session.player;
-  const them   = recipient.sex === 'M' ? 'Him' : 'Her';
-  const them2  = recipient.sex === 'M' ? 'him' : 'her';
+  const _rPr   = getPronouns(recipient.sex);
+  const them   = cap(_rPr.object);
+  const them2  = _rPr.object;
 
   session.clearScreen();
   disp.sln('');
@@ -416,8 +419,9 @@ async function enter(session) {
   if (!recipient) return;
 
   // Opposite-sex first-contact → offer romantic option
-  if (recipient.sex !== p.sex && !p.flirted) {
-    disp.sw(`\`2  Say something \`0Romantic\`2 to ${recipient.sex === 'M' ? 'him' : 'her'}?  [\`5N\`2] : `);
+  const { normalise: _norm } = require('../utils/pronouns');
+  if (_norm(recipient.sex) !== _norm(p.sex) && !p.flirted) {
+    disp.sw(`\`2  Say something \`0Romantic\`2 to ${getPronouns(recipient.sex).object}?  [\`5N\`2] : `);
     const ch = await session.prompt('', ['Y', 'N', '\r']);
     disp.sln(ch === 'Y' ? 'Y' : 'N');
     disp.sln('');

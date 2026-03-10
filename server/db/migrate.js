@@ -79,5 +79,16 @@ for (const [col, def] of MISSING_COLUMNS) {
   }
 }
 
+// ── Migrate gender values from legacy 'M'/'F' to 'male'/'female' ──────────
+// Idempotent: only updates rows that still hold the old single-char values.
+const genderRows = db.prepare(`SELECT COUNT(*) as n FROM players WHERE sex IN ('M','F')`).get();
+if (genderRows.n > 0) {
+  db.prepare(`UPDATE players SET sex = 'male'   WHERE sex = 'M'`).run();
+  db.prepare(`UPDATE players SET sex = 'female' WHERE sex = 'F'`).run();
+  console.log(`[migrate] ✓ Migrated ${genderRows.n} player(s) to new gender enum (male/female/nonbinary).`);
+} else {
+  console.log('[migrate] — Gender values already migrated.');
+}
+
 console.log(`\n[migrate] Done. Added: ${added}, Already present: ${skipped}`);
 db.close();
