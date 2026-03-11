@@ -21,7 +21,7 @@
  */
 
 const PlayerDB    = require('../../db/PlayerDB');
-const StateDB     = require('../../db/StateDB');
+const { getPronouns, cap } = require('../utils/pronouns');
 const LogDB       = require('../../db/LogDB');
 const Display     = require('../text/Display');
 const { battle, rand } = require('../systems/Battle');
