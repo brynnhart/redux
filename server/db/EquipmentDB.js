@@ -50,7 +50,7 @@ function getAllShopItems() {
 
 function getAllDropItems() {
   return getDB()
-    .prepare("SELECT * FROM items WHERE source = 'drop' OR source = 'shop' ORDER BY gold_value ASC")
+    .prepare("SELECT * FROM items WHERE source = 'drop' ORDER BY gold_value ASC")
     .all()
     .map(parseMods);
 }
