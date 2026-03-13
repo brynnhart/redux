@@ -82,7 +82,7 @@ async function doAttack(session, disp, op) {
   // Overkill bonus
   if (atk > p.str && op.hp < 1 && !op.pfight) {
     if (op.death) { disp.sln(''); disp.sln(`\`2${op.death}`); }
-    const bonus = rand(3);
+    const bonus = rand(20);
     if (bonus === 0) {
       disp.sln(''); disp.sln('  \`2You find a \`%Gem\`2!');
       p.gem = clamp(p.gem + 1, 0, 32000);
@@ -485,8 +485,9 @@ async function battle(session, op, opts = {}) {
   const goldFind = p._goldFind || 1;
   const expGain  = p._expGain  || 1;
 
-  const goldWon = Math.min(Math.floor((op.gold || 0) * goldFind), 2000000000 - p.gold);
-  const expWon  = Math.floor((op.exp  || 0) * expGain);
+  // Base rewards halved for balance; equipment multipliers still apply on top
+  const goldWon = Math.min(Math.floor((op.gold || 0) * 0.5 * goldFind), 2000000000 - p.gold);
+  const expWon  = Math.floor((op.exp  || 0) * 0.5 * expGain);
 
   if (goldFind > 1 || expGain > 1) {
     const goldBase = op.gold || 0;
