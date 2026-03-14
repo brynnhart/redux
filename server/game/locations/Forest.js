@@ -21,6 +21,7 @@
  */
 
 const PlayerDB    = require('../../db/PlayerDB');
+const StateDB     = require('../../db/StateDB');
 const { getPronouns, cap } = require('../utils/pronouns');
 const LogDB       = require('../../db/LogDB');
 const Display     = require('../text/Display');
@@ -152,9 +153,11 @@ async function eventOldManLost(session, disp) {
     const gold = p.level * 500;
     p.gold = clamp(p.gold + gold, 0, 2000000000);
     p.cha  = clamp(p.cha + 1, 0, 32000);
-    PlayerDB.patch(p.id, { actions: Math.max(0, (p.actions || 0) - 1) });
-    session.player = PlayerDB.getById(p.id);
-    p = session.player;
+    PlayerDB.patch(p.id, {
+      gold    : p.gold,
+      cha     : p.cha,
+      actions : Math.max(0, (p.actions || 0) - 1),
+    });
     disp.sln(`\`2  You gladly take the old man to the Inn. He is pleased`);
     disp.sln(`\`2  with you, and gives you \`%${pretty(gold)} \`2gold!`);
     disp.sln('');
@@ -210,10 +213,12 @@ async function eventHag(session, disp) {
 // Case 2 — gold sack
 async function eventGoldSack(session, disp) {
   const p   = session.player;
-  const amt = (rand(500) + 250) * p.level * p.level;
+  const amt = (rand(50) + 25) * p.level;
   eventHeader(disp);
   disp.sln(`\`2  You find a sack with \`%${pretty(amt)} \`2gold in it!`);
   p.gold = clamp(p.gold + amt, 0, 2000000000);
+  PlayerDB.patch(p.id, { gold: p.gold });
+  session.player = PlayerDB.getById(p.id);
   disp.sln('');
   await session.more();
 }
@@ -331,17 +336,22 @@ async function eventHorseTrader(session, disp) {
 async function eventFindLostGold(session, disp) {
   const p     = session.player;
   const state = StateDB.get();
-  const left  = Math.max(100, Math.floor(p.gold / 15));
-  let   found = state.forest_gold || 100;
-  if (found < 100) found = 100;
+
+  // Shared pool: replenish to a modest level based on player level, capped low
+  const replenish = Math.min(p.level * 50, 500);
+  const left  = Math.max(50, replenish);
+  let   found = state.forest_gold || 50;
+  if (found < 50) found = 50;
   found = Math.min(found, 2000000000 - p.gold);
 
   StateDB.patch({ forest_gold: left });
 
   session.clearScreen();
   eventHeader(disp);
-  disp.sln(`\`2  Fortune smiles, and you find \`%${pretty(found)} \`2gold!`);
+  disp.sln(`\`2  You spot a small sack on the ground and find \`%${pretty(found)} \`2gold inside!`);
   p.gold = clamp(p.gold + found, 0, 2000000000);
+  PlayerDB.patch(p.id, { gold: p.gold });
+  session.player = PlayerDB.getById(p.id);
   disp.sln('');
   await session.more();
 }
